@@ -1,0 +1,5 @@
+version: "1.0"
+profile:
+  path: qodana/profile.xml
+# Any inspection finding fails the run: more than zero problems trips the quality gate.
+failThreshold: 0

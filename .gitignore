@@ -1,0 +1,73 @@
+# IDE
+*.iml
+.idea/*
+# Share only the project-level config that aligns every dev's IDE with the build:
+# the Eclipse Code Formatter binding (engine + EclipseCodeStyle.xml), the code style /
+# import layout, and the required-plugins declaration. Everything else under .idea/ stays ignored.
+!.idea/eclipseCodeFormatter.xml
+!.idea/externalDependencies.xml
+!.idea/codeStyles/
+!.idea/codeStyles/Project.xml
+!.idea/codeStyles/codeStyleConfig.xml
+.vscode/
+.fleet/
+
+# OS
+.DS_Store
+Thumbs.db
+~$*.docx
+*.docx.tmp
+.~lock.*#
+
+# Logs
+*.log*
+*.logs*
+logs/
+log/
+
+# Java
+*.class
+target/
+.gradle/
+hs_err_pid*
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Next.js / Payload CMS
+.next/
+.turbo/
+out/
+
+# Supabase
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Terraform / Cloud
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Drawio
+*.drawio.png.bkp
+*.drawio.png.dtmp
+
+# Compiled documentation
+README*.pdf
+README*.html
+README*.docx
+
+# IDE / tool exports
+repo.xml
+
+# Local Claude config
+claude/settings.local.json
+.claude/settings.local.json
+claude/scheduled_tasks.lock
+.claude/scheduled_tasks.lock

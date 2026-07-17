@@ -1,0 +1,131 @@
+package eu.ciechanowiec.aroxy.cli;
+
+import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
+import eu.ciechanowiec.aroxy.config.ConfigFile;
+import eu.ciechanowiec.aroxy.config.InvalidConfigException;
+import eu.ciechanowiec.aroxy.daemon.ControlFiles;
+import eu.ciechanowiec.aroxy.daemon.Home;
+import eu.ciechanowiec.aroxy.daemon.PidFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+
+/**
+ * {@code aroxy config attach <f>}: attaches a configuration file. {@code --persistent} (the default)
+ * records it in the registry so it survives restarts; {@code --temporary} records it in the session
+ * temporaries file for this session only. While the daemon runs, the attach also touches the reload
+ * trigger and waits for the live rules to swap. While stopped, a persistent attach edits the registry
+ * directly; a temporary attach needs a running daemon and is reported as such.
+ */
+@Command(
+    name = "attach", description = "Attach a configuration file."
+)
+final class AttachCommand implements Callable<Integer> {
+
+    private static final int FAILED = 1;
+    private final CliOutput out;
+    // picocli injects this field via reflection
+    @Parameters(
+        index = "0", paramLabel = "<f>", description = "Configuration file to attach."
+    )
+    @SuppressWarnings(
+        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+    )
+    private Path file;
+    // picocli injects this field via reflection
+    @Option(
+        names = "--temporary", description = "Attach for this session only (requires a running daemon)."
+    )
+    @SuppressWarnings(
+        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+    )
+    private boolean temporary;
+    // CLI default flag; picocli injects it via reflection, behavior keys off !temporary
+    @Option(
+        names = "--persistent", description = "Record in the persistent registry (default)."
+    )
+    @SuppressWarnings(
+        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+    )
+    private boolean persistent;
+
+    AttachCommand() {
+        this.out = CliOutput.standard();
+    }
+
+    @Override
+    public Integer call() {
+        return this.rejection().orElseGet(this::attachValidated);
+    }
+
+    private Optional<Integer> rejection() {
+        if (Files.isSymbolicLink(this.file)) {
+            this.out.line("Refusing to attach a symbolic link: " + this.file);
+            return Optional.of(FAILED);
+        }
+        return this.validate();
+    }
+
+    private Optional<Integer> validate() {
+        try {
+            ConfigFile.read(this.file);
+            return Optional.empty();
+        } catch (InvalidConfigException exception) {
+            this.out.line(exception.getMessage());
+            return Optional.of(FAILED);
+        }
+    }
+
+    private Integer attachValidated() {
+        Home home = Home.resolve();
+        boolean keep = !this.temporary;
+        return new PidFile(home.pidFile()).isRunning() ? this.online(home, keep) : this.offline(home, keep);
+    }
+
+    private Integer online(Home home, boolean keep) {
+        this.store(home, keep);
+        return ReloadRequest.send(home) ? this.attached() : this.unconfirmed();
+    }
+
+    // CLI command returns a fixed exit code by contract
+    @SuppressWarnings(
+        "SameReturnValue"
+    )
+    private Integer unconfirmed() {
+        this.out.line(
+            "Attached " + this.file.toAbsolutePath()
+                + ", but the daemon did not confirm the reload; check the logs."
+        );
+        return FAILED;
+    }
+
+    private void store(Home home, boolean keep) {
+        if (keep) {
+            new AttachmentRegistry(home.attachments()).attach(this.file);
+        } else {
+            new ControlFiles(home).appendTemporary(this.file);
+        }
+    }
+
+    private Integer offline(Home home, boolean keep) {
+        if (keep) {
+            new AttachmentRegistry(home.attachments()).attach(this.file);
+            return this.attached();
+        }
+        this.out.line("aroxy daemon is not running; a temporary configuration file needs a running daemon.");
+        return FAILED;
+    }
+
+    // CLI command returns a fixed exit code by contract
+    @SuppressWarnings(
+        "SameReturnValue"
+    )
+    private Integer attached() {
+        this.out.line("Attached " + this.file.toAbsolutePath());
+        return 0;
+    }
+}

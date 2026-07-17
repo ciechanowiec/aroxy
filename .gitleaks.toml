@@ -1,0 +1,17 @@
+# gitleaks configuration for the secret-scan gate (mvn clean package -Pfull).
+# It extends the bundled default rules and allowlists the fake credentials and sample patterns that
+# exist only as test fixtures or documentation, so a real leak still fails the build while a committed
+# example does not.
+title = "aroxy gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials and sample patterns that exist only as test fixtures or documentation"
+paths = [
+    '''src/test/.*''',
+    '''src/main/resources/default\.conf''',
+    '''\.docs/.*''',
+    '''target/.*''',
+]

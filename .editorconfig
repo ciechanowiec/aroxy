@@ -1,0 +1,16 @@
+root = true
+
+# The editorconfig-maven-plugin gate enforces the whitespace and encoding keys below on every tracked
+# file. It does not enforce max_line_length, which editors honour but no gate checks; for Java, the
+# Checkstyle LineLength rule is what actually holds the 120-column limit.
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{yml,yaml}]
+indent_size = 2

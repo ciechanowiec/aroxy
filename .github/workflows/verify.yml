@@ -1,0 +1,36 @@
+name: 'Verify'
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 'Full verification'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 'Checkout (full history for the whole-history gates)'
+        uses: actions/checkout@v4
+        with:
+          # The commit-message, typography, and gitleaks checks read the entire history.
+          fetch-depth: 0
+
+      - name: 'Set up JDK 25'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      - name: 'Full verification (mvn clean package -Pfull)'
+        # Docker is preinstalled on GitHub-hosted ubuntu runners, so the gates that need it run here:
+        # the documentation lint, the gitleaks secret scan, and the Qodana inspection scan. Those images
+        # carry Vale, Asciidoctor, and Python, so the runner needs no extra tooling beyond the JDK.
+        run: mvn clean package -Pfull
