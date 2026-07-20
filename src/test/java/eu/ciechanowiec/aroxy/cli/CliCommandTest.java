@@ -66,7 +66,7 @@ class CliCommandTest {
         Path rule = this.writeRule();
         CliCapture.Result detach = CliCapture.run(CONFIG, "detach", rule.toString());
         assertNotEquals(0, detach.exit());
-        assertTrue(detach.out().contains("Refusing to detach"), detach.out());
+        assertTrue(detach.out().contains("Cannot detach configuration"), detach.out());
     }
 
     @Test
@@ -88,7 +88,7 @@ class CliCommandTest {
         Files.createSymbolicLink(link, target);
         CliCapture.Result attach = CliCapture.run(CONFIG, "attach", link.toString());
         assertNotEquals(0, attach.exit());
-        assertTrue(attach.out().contains("symbolic link"), attach.out());
+        assertTrue(attach.out().contains("Symbolic links"), attach.out());
         CliCapture.Result list = CliCapture.run(CONFIG, "list");
         assertFalse(list.out().contains(link.toAbsolutePath().toString()), list.out());
     }

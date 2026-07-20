@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationResult;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import java.io.IOException;
@@ -11,26 +12,36 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * The single proxy exchange processor. It obfuscates the request body for {@code /v1/messages}
- * paths, records the matches to the {@link AuditLog} and dumps the redacted request, forwards through
+ * The single proxy exchange processor of one client's listener. It inflates a compressed request body
+ * so there is text to work on, obfuscates it for the paths in that client's {@link ClientProfile}
+ * scope, records the matches to the {@link AuditLog} and dumps the redacted request, forwards through
  * {@link Upstream}, and lets the {@link ProxyResponder} write the (de)obfuscated reply. A benign
  * client disconnect is swallowed quietly; a genuine upstream failure becomes an HTTP 502 with a small
- * JSON error body.
+ * JSON error body. An in-scope body that remains encoded is rejected locally, because forwarding bytes
+ * the proxy cannot inspect would violate the data-minimization guarantee.
  */
 @Slf4j
+// composed class; coupling is governed by the project's own Checkstyle cap
+@SuppressWarnings(
+    "ClassWithTooManyDependencies"
+)
 final class ProxyExchange implements HttpHandler {
 
     private static final int BAD_GATEWAY = 502;
+    private static final int UNSUPPORTED_MEDIA_TYPE = 415;
+    private static final int UPGRADE_REQUIRED = 426;
     private final Obfuscator obfuscator;
     private final Upstream upstream;
     private final AuditLog audit;
+    private final ClientProfile profile;
     private final ProxyResponder responder;
 
-    ProxyExchange(Obfuscator obfuscator, Upstream upstream, AuditLog audit) {
-        this.obfuscator = obfuscator;
-        this.upstream = upstream;
-        this.audit = audit;
-        this.responder = new ProxyResponder(obfuscator, audit);
+    ProxyExchange(ProxyParts parts) {
+        this.obfuscator = parts.obfuscator();
+        this.upstream = parts.upstream();
+        this.audit = parts.audit();
+        this.profile = parts.profile();
+        this.responder = new ProxyResponder(parts.obfuscator(), parts.audit(), parts.profile());
     }
 
     @Override
@@ -51,7 +62,36 @@ final class ProxyExchange implements HttpHandler {
     }
 
     private void proxy(HttpExchange exchange) throws IOException, InterruptedException {
-        ProxyRequest request = ProxyRequest.from(exchange);
+        ProxyRequest request = ProxyRequest.from(exchange).decoded();
+        if (this.cannotTransform(request)) {
+            rejectEncoding(exchange, request);
+        } else if (WebSocketUpgrade.isRequested(request.headers())) {
+            declineUpgrade(exchange);
+        } else {
+            this.forward(exchange, request);
+        }
+    }
+
+    private boolean cannotTransform(ProxyRequest request) {
+        return this.profile.scope().transforms(request.path()) && request.hasBody() && request.isEncoded();
+    }
+
+    private static void rejectEncoding(HttpExchange exchange, ProxyRequest request) throws IOException {
+        log.atWarn()
+            .addArgument(() -> request.encoding().orElse("unknown"))
+            .addArgument(request::path)
+            .log("Rejected an in-scope request with unsupported or malformed content encoding {} on {}");
+        byte[] message = ("{\"type\":\"error\",\"error\":{\"type\":\"unsupported_encoding\","
+            + "\"message\":\"aroxy could not safely decode this request body\"}}")
+            .getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().put("Content-Type", List.of("application/json"));
+        exchange.sendResponseHeaders(UNSUPPORTED_MEDIA_TYPE, message.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(message);
+        }
+    }
+
+    private void forward(HttpExchange exchange, ProxyRequest request) throws IOException, InterruptedException {
         String stamp = this.audit.nextStamp();
         byte[] outBody = this.obfuscate(request, stamp);
         UpstreamReply reply = this.upstream.send(
@@ -60,8 +100,19 @@ final class ProxyExchange implements HttpHandler {
         this.responder.respond(exchange, reply, request, stamp);
     }
 
+    /**
+     * Refuses a WebSocket upgrade with the one status a client can act on immediately. Tunnelled
+     * frames carry no body this proxy can obfuscate, so the exchange has to stay on HTTP.
+     */
+    private static void declineUpgrade(HttpExchange exchange) throws IOException {
+        log.atDebug().addArgument(() -> exchange.getRequestURI().getRawPath()).log(
+            "Refused a WebSocket upgrade on {}; this proxy transforms HTTP bodies only"
+        );
+        exchange.sendResponseHeaders(UPGRADE_REQUIRED, -1);
+    }
+
     private byte[] obfuscate(ProxyRequest request, String stamp) {
-        if (!request.shouldObfuscate()) {
+        if (!this.transforms(request)) {
             return request.body();
         }
         ObfuscationResult result = this.obfuscator.obfuscate(new String(request.body(), StandardCharsets.UTF_8));
@@ -69,6 +120,12 @@ final class ProxyExchange implements HttpHandler {
         this.audit.request(stamp, request.path(), result.matches());
         this.audit.wireRedactedRequest(stamp, redacted);
         return redacted;
+    }
+
+    private boolean transforms(ProxyRequest request) {
+        return this.profile.scope().transforms(request.path())
+            && request.hasBody()
+            && !request.isEncoded();
     }
 
     private void onIoFailure(HttpExchange exchange, IOException failure) {

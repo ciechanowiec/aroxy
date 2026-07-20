@@ -12,10 +12,14 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Unit-tests the small, pure proxy helpers: the benign-disconnect classifier, the SSE field locator,
- * the SSE event predicates, and the restricted/response header rules. These cover the branches that
- * the socket-level tests do not naturally reach.
+ * the request's body and encoding predicates, and the restricted/response header rules. These cover
+ * the branches that the socket-level tests do not naturally reach. Which paths a listener transforms
+ * is a property of the client rather than of the proxy, and is covered by {@code PathScopeTest}.
  */
 class ProxyUnitsTest {
+
+    private static final String TEXT_KEY = "\"text\":\"";
+    private static final String PATH = "/v1/messages";
 
     @Test
     void brokenPipeAndResetAreBenign() {
@@ -33,29 +37,30 @@ class ProxyUnitsTest {
     }
 
     @Test
-    void sseFieldLocatesTextAndPartialJson() {
+    void sseFieldLocatesTheValueOfTheKeyItIsGiven() {
         String text = "data: {\"delta\":{\"type\":\"text_delta\",\"text\":\"hi <<PII:X:1>>\"}}";
-        assertEquals("hi <<PII:X:1>>", SseField.locate(text).orElseThrow().value(text), "text value located");
-        String json = "data: {\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"a\\\"b\"}}";
-        assertEquals("a\\\"b", SseField.locate(json).orElseThrow().value(json), "partial_json value located");
-    }
-
-    @Test
-    void sseFieldAbsentWhenNoDeltaValue() {
-        assertTrue(SseField.locate("data: {\"type\":\"ping\"}").isEmpty(), "no delta field present");
-    }
-
-    @Test
-    void sseEventClassifiesDeltaTerminalAndIndex() {
-        SseEvent delta = new SseEvent(
-            "{\"type\":\"content_block_delta\",\"index\":2,"
-                + "\"delta\":{\"type\":\"text_delta\"}}"
+        assertEquals(
+            "hi <<PII:X:1>>", SseField.locate(text, TEXT_KEY).orElseThrow().value(text), "text value located"
         );
-        assertTrue(delta.isTextDelta(), "a text_delta is a delta event");
-        assertEquals(2, delta.index().orElseThrow(), "the index is read");
-        assertTrue(new SseEvent("{\"type\":\"message_stop\"}").isTerminal(), "message_stop is terminal");
-        assertFalse(new SseEvent("{\"type\":\"ping\"}").isTerminal(), "ping is not terminal");
-        assertTrue(new SseEvent("{\"type\":\"ping\"}").index().isEmpty(), "no index in a ping event");
+        String json = "data: {\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"a\\\"b\"}}";
+        assertEquals(
+            "a\\\"b", SseField.locate(json, "\"partial_json\":\"").orElseThrow().value(json),
+            "the value ends at the first unescaped quote, so an escaped one does not truncate it"
+        );
+    }
+
+    @Test
+    void sseFieldAbsentWhenTheKeyIsNotPresent() {
+        assertTrue(SseField.locate("data: {\"type\":\"ping\"}", TEXT_KEY).isEmpty(), "no such field present");
+    }
+
+    @Test
+    void sseFieldAbsentWhenTheValueIsNeverClosed() {
+        String truncated = "data: {\"text\":\"unterminated";
+        assertTrue(
+            SseField.locate(truncated, TEXT_KEY).isEmpty(),
+            "a value with no closing quote spans no locatable field, so a partial event is left alone"
+        );
     }
 
     @Test
@@ -66,29 +71,29 @@ class ProxyUnitsTest {
     }
 
     @Test
-    void obfuscateAndDeobfuscateMatchTheSameMessagesPathSegments() {
-        assertTrue(request("/v1/messages", Map.of()).shouldObfuscate(), "the exact path is obfuscated");
-        assertTrue(request("/v1/messages/count_tokens", Map.of()).shouldObfuscate(), "a sub-resource is obfuscated");
-        assertTrue(
-            request("/v1/messages/count_tokens", Map.of()).shouldDeobfuscate(),
-            "and the same sub-resource is deobfuscated, so no token survives into the client"
-        );
-        assertFalse(request("/v1/messagesX", Map.of()).shouldObfuscate(), "a near-miss is a passthrough");
-        assertFalse(request("/v1/messagesX", Map.of()).shouldDeobfuscate(), "a near-miss is a passthrough");
+    void aContentEncodedRequestBodyIsRecognisedAsEncoded() {
+        Map<String, List<String>> gzip = Map.of("Content-Encoding", List.of("gzip"));
+        assertTrue(request(gzip).isEncoded(), "a compressed body is flagged rather than decoded");
+        assertEquals("gzip", request(gzip).encoding().orElseThrow(), "the encoding is named");
     }
 
     @Test
-    void aContentEncodedRequestBodyIsNotDecodedAsText() {
-        Map<String, List<String>> gzip = Map.of("Content-Encoding", List.of("gzip"));
-        assertFalse(
-            request("/v1/messages", gzip).shouldObfuscate(),
-            "a compressed body is passed through instead of being mangled by a UTF-8 round trip"
-        );
+    void anIdentityOrBlankOrAbsentEncodingIsNotEncoded() {
         Map<String, List<String>> identity = Map.of("Content-Encoding", List.of("identity"));
-        assertTrue(request("/v1/messages", identity).shouldObfuscate(), "an identity-encoded body is still obfuscated");
+        assertFalse(request(identity).isEncoded(), "identity is not an encoding to undo");
+        Map<String, List<String>> blank = Map.of("Content-Encoding", List.of("  "));
+        assertFalse(request(blank).isEncoded(), "a blank header names no encoding");
+        assertFalse(request(Map.of()).isEncoded(), "an absent header names no encoding");
     }
 
-    private static ProxyRequest request(String path, Map<String, List<String>> headers) {
-        return new ProxyRequest("POST", path, path, headers, "{\"q\":\"x\"}".getBytes(StandardCharsets.UTF_8));
+    @Test
+    void anEmptyBodyIsDistinguishedFromOneWithContent() {
+        assertTrue(request(Map.of()).hasBody(), "a body with content is reported");
+        ProxyRequest empty = new ProxyRequest("POST", PATH, PATH, Map.of(), new byte[0]);
+        assertFalse(empty.hasBody(), "an empty body is reported as none, so there is nothing to obfuscate");
+    }
+
+    private static ProxyRequest request(Map<String, List<String>> headers) {
+        return new ProxyRequest("POST", PATH, PATH, headers, "{\"q\":\"x\"}".getBytes(StandardCharsets.UTF_8));
     }
 }

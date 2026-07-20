@@ -74,6 +74,10 @@ public record Home(Path base) {
         return this.base().resolve("runtime");
     }
 
+    Path launchLock() {
+        return this.base().resolve("launch.lock");
+    }
+
     Path temporariesFile() {
         return this.base().resolve("temporaries");
     }
@@ -144,7 +148,12 @@ public record Home(Path base) {
         return this.logsDirectory().resolve("daemon-out.log");
     }
 
-    Path stderrLog() {
+    /**
+     * The detached daemon's standard-error log, including failures that happen before it is ready.
+     *
+     * @return the {@code logs/daemon-err.log} path
+     */
+    public Path stderrLog() {
         return this.logsDirectory().resolve("daemon-err.log");
     }
 

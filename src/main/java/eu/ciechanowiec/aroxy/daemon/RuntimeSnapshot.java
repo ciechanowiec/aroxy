@@ -1,5 +1,7 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.aroxy.client.ClientProfile;
+import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,22 +19,28 @@ import lombok.extern.slf4j.Slf4j;
  * The daemon's published runtime state, written to {@link Home}{@code /runtime} on start and on every reload
  * and read by the CLI in place of the former {@code GET /status} and {@code GET /attachments}
  * endpoints. It carries exactly what the CLI cannot recompute from the on-disk configuration: the
- * actual bound listen address, the upstream, the active rule count, the daemon start time (so the CLI
- * derives uptime itself), a monotonic {@code generation} the CLI watches to confirm a requested
- * reload has been applied, and the contributing files with their load times. The wire form is one
- * tab-separated record per line, mirroring {@code vault.tsv}.
+ * listeners actually bound with the upstream each reaches, the active rule count, the daemon start time
+ * (so the CLI derives uptime itself), a monotonic {@code generation} the CLI watches to confirm a
+ * requested reload has been applied, and the contributing files with their load times. The wire form is
+ * one tab-separated record per line, mirroring {@code vault.tsv}.
  *
- * @param listenAddress the {@code host:port} the proxy is bound to
- * @param upstream      the upstream API base address
- * @param ruleCount     the number of enabled rules in effect
- * @param startMillis   when the daemon started, in epoch milliseconds
- * @param generation    a counter bumped on each publish so a reload can be confirmed
- * @param attachments   the contributing files, with kind and load time
+ * <p>Listeners are written as one repeated {@code gateway <client> <listen> <upstream>} record each,
+ * so registering another client neither reshapes this record nor changes the format. Two
+ * compatibility rules keep a snapshot
+ * readable across an upgrade, since a daemon started by one build can be read by the CLI of another:
+ * the first listener is <em>also</em> written as the historical {@code listen}/{@code upstream} pair
+ * that an older CLI looks for, and a snapshot carrying only that pair is read back as a single
+ * listener.
+ *
+ * @param gateways    the listeners bound, each with the upstream it forwards to
+ * @param ruleCount   the number of enabled rules in effect
+ * @param startMillis when the daemon started, in epoch milliseconds
+ * @param generation  a counter bumped on each publish so a reload can be confirmed
+ * @param attachments the contributing files, with kind and load time
  */
 @Slf4j
 public record RuntimeSnapshot(
-    String listenAddress,
-    String upstream,
+    List<GatewayAddress> gateways,
     int ruleCount,
     long startMillis,
     long generation,
@@ -41,11 +49,15 @@ public record RuntimeSnapshot(
 
     private static final String TAB = "\t";
     private static final String FILE = "file";
+    private static final String GATEWAY = "gateway";
     private static final String LISTEN_KEY = "listen";
-    private static final int FILE_FIELDS = 4;
+    private static final String UPSTREAM_KEY = "upstream";
+    private static final String NO_CLIENT = "(none)";
+    private static final int RECORD_FIELDS = 4;
     private static final int PAIR_FIELDS = 2;
 
     public RuntimeSnapshot {
+        gateways = List.copyOf(gateways);
         attachments = List.copyOf(attachments);
     }
 
@@ -63,6 +75,10 @@ public record RuntimeSnapshot(
         return String.join(TAB, FILE, info.kind().name(), Long.toString(info.loadedAtMillis()), info.path());
     }
 
+    private static String gatewayLine(GatewayAddress gateway) {
+        return String.join(TAB, GATEWAY, gateway.client(), gateway.listen(), gateway.upstream());
+    }
+
     private static List<String> readLines(Path file) {
         try {
             return Files.readAllLines(file);
@@ -78,30 +94,64 @@ public record RuntimeSnapshot(
     private static Optional<RuntimeSnapshot> parse(Iterable<String> lines) {
         Map<String, String> head = new HashMap<>();
         List<AttachmentInfo> files = new ArrayList<>();
-        lines.forEach(line -> route(line, head, files));
-        return build(head, files);
+        List<GatewayAddress> gateways = new ArrayList<>();
+        lines.forEach(line -> route(line, head, files, gateways));
+        return build(head, files, gateways);
     }
 
-    private static void route(String line, Map<String, String> head, Collection<AttachmentInfo> files) {
+    private static void route(
+        String line, Map<String, String> head,
+        Collection<AttachmentInfo> files, Collection<GatewayAddress> gateways
+    ) {
         String[] parts = line.split(TAB, -1);
-        if (parts.length >= FILE_FIELDS && FILE.equals(parts[0])) {
+        if (isRecord(parts, FILE)) {
             files.add(new AttachmentInfo(parts[3], AttachmentKind.valueOf(parts[1]), parseLong(parts[2])));
+        } else if (isRecord(parts, GATEWAY)) {
+            gateways.add(new GatewayAddress(parts[1], parts[2], parts[3]));
         } else if (parts.length >= PAIR_FIELDS) {
             head.put(parts[0], parts[1]);
         }
     }
 
-    private static Optional<RuntimeSnapshot> build(Map<String, String> head, List<AttachmentInfo> files) {
+    private static boolean isRecord(String[] parts, String name) {
+        return parts.length >= RECORD_FIELDS && name.equals(parts[0]);
+    }
+
+    private static Optional<RuntimeSnapshot> build(
+        Map<String, String> head, List<AttachmentInfo> files, List<GatewayAddress> gateways
+    ) {
         if (!head.containsKey(LISTEN_KEY)) {
             return Optional.empty();
         }
         return Optional.of(
             new RuntimeSnapshot(
-                head.get(LISTEN_KEY), head.getOrDefault("upstream", ""),
+                listeners(head, gateways),
                 (int) parseLong(head.getOrDefault("rules", "0")), parseLong(head.getOrDefault("start", "0")),
                 parseLong(head.getOrDefault("generation", "0")), files
             )
         );
+    }
+
+    /**
+     * The listeners a snapshot declares, falling back to the historical single {@code listen}/
+     * {@code upstream} pair when it carries no listener record - which is what a snapshot written
+     * before this format existed looks like.
+     */
+    private static List<GatewayAddress> listeners(Map<String, String> head, List<GatewayAddress> gateways) {
+        return gateways.isEmpty() ? List.of(legacyListener(head)) : gateways;
+    }
+
+    private static GatewayAddress legacyListener(Map<String, String> head) {
+        return new GatewayAddress(
+            primaryClientName(), head.getOrDefault(LISTEN_KEY, ""), head.getOrDefault(UPSTREAM_KEY, "")
+        );
+    }
+
+    private static String primaryClientName() {
+        return ClientRegistry.profiles().stream()
+            .findFirst()
+            .map(ClientProfile::displayName)
+            .orElse(NO_CLIENT);
     }
 
     private static long parseLong(String value) {
@@ -110,6 +160,11 @@ public record RuntimeSnapshot(
         } catch (NumberFormatException _) {
             return 0L;
         }
+    }
+
+    @Override
+    public List<GatewayAddress> gateways() {
+        return List.copyOf(this.gateways);
     }
 
     @Override
@@ -125,8 +180,7 @@ public record RuntimeSnapshot(
      */
     public StatusReport toStatusReport(long now) {
         return new StatusReport(
-            this.listenAddress, this.upstream, this.ruleCount,
-            Math.max(0, now - this.startMillis), this.attachments
+            this.gateways, this.ruleCount, Math.max(0, now - this.startMillis), this.attachments
         );
     }
 
@@ -148,12 +202,22 @@ public record RuntimeSnapshot(
 
     private List<String> lines() {
         List<String> out = new ArrayList<>();
-        out.add(LISTEN_KEY + TAB + this.listenAddress);
-        out.add("upstream" + TAB + this.upstream);
+        out.add(LISTEN_KEY + TAB + this.primary().listen());
+        out.add(UPSTREAM_KEY + TAB + this.primary().upstream());
         out.add("rules" + TAB + this.ruleCount);
         out.add("start" + TAB + this.startMillis);
         out.add("generation" + TAB + this.generation);
+        this.gateways.forEach(gateway -> out.add(gatewayLine(gateway)));
         this.attachments.forEach(info -> out.add(fileLine(info)));
         return out;
+    }
+
+    /**
+     * The listener written as the historical {@code listen}/{@code upstream} pair, so an older CLI
+     * still finds the key it guards on. A snapshot with nothing bound has no listener to name, so it
+     * renders blanks under a neutral label rather than crediting one agent arbitrarily.
+     */
+    private GatewayAddress primary() {
+        return this.gateways.stream().findFirst().orElseGet(() -> new GatewayAddress(NO_CLIENT, "", ""));
     }
 }

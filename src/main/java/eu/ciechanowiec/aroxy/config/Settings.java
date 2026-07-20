@@ -1,49 +1,94 @@
 package eu.ciechanowiec.aroxy.config;
 
+import eu.ciechanowiec.aroxy.client.ClientId;
+import eu.ciechanowiec.aroxy.client.ClientRegistry;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import java.net.InetAddress;
 import java.net.URI;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 /**
  * A typed, immutable view of the {@code [gateway]} stanza. Every component has a sensible default so
- * that an absent key is harmless: the listen host and port, the upstream {@link URI}, and whether
- * secrets are masked in the audit log. The upstream is fixed to {@code https://api.anthropic.com} and
- * is not configurable; {@link #withUpstream} exists only so tests can point the proxy at an in-JVM
- * stand-in.
+ * that an absent key is harmless: the listen host shared by every listener, one {@link Gateway} per
+ * registered client, and whether secrets are masked in the audit log.
  *
- * @param listenHost  the local host {@code 127.0.0.1} the proxy binds to
- * @param listenPort  the port the proxy listens on
- * @param upstream    the upstream API base address (always {@code https://api.anthropic.com} in production)
+ * <p>The gateways are held as a map keyed by {@link ClientId} rather than as one component per client,
+ * so registering another client in the {@link ClientRegistry} does not reshape this record or anything
+ * that reads it.
+ *
+ * <p>Each {@link Gateway} carries a fixed upstream that no configuration key reaches;
+ * {@link #withUpstreams} exists only so tests can point the listeners at an in-JVM stand-in.
+ *
+ * @param listenHost  the local host {@code 127.0.0.1} every listener binds to
+ * @param gateways    the listen port and upstream of each registered client
  * @param maskSecrets whether values of sensitive rules are masked in the audit log
  */
 public record Settings(
     String listenHost,
-    int listenPort,
-    URI upstream,
+    Map<ClientId, Gateway> gateways,
     boolean maskSecrets
 ) {
 
-    private static final int DEFAULT_PORT = 8788;
-    private static final String DEFAULT_UPSTREAM = "https://api.anthropic.com";
+    private static final int EPHEMERAL_PORT = 0;
+
+    // copied so the settings cannot be mutated through the map they were built from
+    public Settings {
+        gateways = Collections.unmodifiableMap(new LinkedHashMap<>(gateways));
+    }
 
     /**
-     * The settings used when no configuration file overrides any key.
+     * The settings used when no configuration file overrides any key: every registered client on its
+     * own default port and fixed upstream.
      *
      * @return the default settings
      */
     public static Settings defaults() {
         String local = InetAddress.getLoopbackAddress().getHostAddress();
-        return new Settings(local, DEFAULT_PORT, URI.create(DEFAULT_UPSTREAM), true);
+        return new Settings(local, ClientRegistry.defaultGateways(), true);
     }
 
-    Settings withPort(int port) {
-        return new Settings(this.listenHost, port, this.upstream, this.maskSecrets);
+    /**
+     * The listener one client binds and forwards to.
+     *
+     * @param id the client whose gateway is wanted
+     * @return that client's effective gateway
+     * @throws IllegalStateException if the client has no gateway, which cannot happen for a client the
+     *                               {@link ClientRegistry} lists
+     */
+    public Gateway gateway(ClientId id) {
+        return Optional.ofNullable(this.gateways.get(id))
+            .orElseThrow(() -> new IllegalStateException("No gateway is configured for " + id));
     }
 
-    Settings withUpstream(URI newUpstream) {
-        return new Settings(this.listenHost, this.listenPort, newUpstream, this.maskSecrets);
+    @SuppressWarnings(
+        "PMD.UseConcurrentHashMap"
+    ) // a local copy, made immutable by the constructor before it escapes
+    Settings withGateway(ClientId id, Gateway gateway) {
+        Map<ClientId, Gateway> merged = new LinkedHashMap<>(this.gateways);
+        merged.put(id, gateway);
+        return new Settings(this.listenHost, merged, this.maskSecrets);
     }
 
     Settings withMaskSecrets(boolean newMask) {
-        return new Settings(this.listenHost, this.listenPort, this.upstream, newMask);
+        return new Settings(this.listenHost, this.gateways, newMask);
+    }
+
+    Settings withUpstreams(URI newUpstream) {
+        return this.mapGateways(gateway -> gateway.withUpstream(newUpstream));
+    }
+
+    Settings withEphemeralPorts() {
+        return this.mapGateways(gateway -> gateway.withPort(EPHEMERAL_PORT));
+    }
+
+    private Settings mapGateways(UnaryOperator<Gateway> mapper) {
+        Map<ClientId, Gateway> mapped = this.gateways.entrySet().stream()
+            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> mapper.apply(entry.getValue())));
+        return new Settings(this.listenHost, mapped, this.maskSecrets);
     }
 }

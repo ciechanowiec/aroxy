@@ -64,8 +64,8 @@ class RunningCommandsTest {
     void statusWhileRunningShowsState() {
         CliCapture.Result result = CliCapture.run("status");
         assertEquals(0, result.exit());
-        assertTrue(result.out().contains("running  = true"), result.out());
-        assertTrue(result.out().contains("rules    = 1"), result.out());
+        assertTrue(result.out().contains("● Daemon running"), result.out());
+        assertTrue(result.out().contains("Rules        1"), result.out());
     }
 
     @Test

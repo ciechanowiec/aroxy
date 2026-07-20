@@ -39,6 +39,7 @@ final class ListCommand implements Callable<Integer> {
         if (snapshot.isEmpty()) {
             return this.offline(home);
         }
+        this.out.heading("Configuration files");
         this.out.line(AttachmentListing.render(snapshot.orElseThrow().attachments()));
         return 0;
     }
@@ -48,6 +49,7 @@ final class ListCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer offline(Home home) {
+        this.out.heading("Configuration files");
         this.out.line(notLoaded(AttachmentKind.DEFAULT, home.defaultConfig().toString()));
         new OfflineConfig(home).attachments()
             .forEach(path -> this.out.line(notLoaded(AttachmentKind.PERSISTENT, path)));
@@ -55,6 +57,6 @@ final class ListCommand implements Callable<Integer> {
     }
 
     private static String notLoaded(AttachmentKind kind, String path) {
-        return kind.label() + "  (not loaded)  " + path;
+        return "  " + kind.label() + "  not loaded  " + path;
     }
 }

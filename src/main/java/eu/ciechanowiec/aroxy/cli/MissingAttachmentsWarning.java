@@ -13,9 +13,6 @@ import java.util.List;
  */
 final class MissingAttachmentsWarning {
 
-    private static final String RED = "\033[1;31m";
-    private static final String RESET = "\033[0m";
-    private static final String BAR = "============================================================";
     private final CliOutput out;
 
     MissingAttachmentsWarning(CliOutput out) {
@@ -30,12 +27,10 @@ final class MissingAttachmentsWarning {
         }
     }
 
-    private void warn(List<Path> missing) {
-        this.out.line(RED + BAR);
-        this.out.line("  WARNING: " + missing.size() + " persistent configuration file(s) cannot be read.");
-        this.out.line("  Their rules will NOT be applied to the daemon:");
-        missing.forEach(path -> this.out.line("    " + path));
-        this.out.line("  Fix the path, or remove it with 'aroxy config detach <f>'.");
-        this.out.line(BAR + RESET);
+    private void warn(Iterable<Path> missing) {
+        this.out.warning("Some persistent configuration files are unavailable");
+        missing.forEach(path -> this.out.detail("Missing", path));
+        this.out.note("Their rules will not be loaded.");
+        this.out.note("Fix each path or run 'aroxy config detach <f>'.");
     }
 }

@@ -28,6 +28,6 @@ public final class AttachmentListing {
     }
 
     private static String line(AttachmentInfo info) {
-        return info.kind().label() + "  loaded " + LoadTime.iso(info.loadedAtMillis()) + "  " + info.path();
+        return info.kind().label() + "  " + LoadTime.iso(info.loadedAtMillis()) + "  " + info.path();
     }
 }

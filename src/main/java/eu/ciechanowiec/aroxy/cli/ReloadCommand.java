@@ -31,11 +31,12 @@ final class ReloadCommand implements Callable<Integer> {
 
     private Integer request(Home home) {
         boolean confirmed = ReloadRequest.send(home);
-        this.out.line(
-            confirmed
-                ? "aroxy configuration reloaded."
-                : "aroxy reload requested but the daemon did not confirm it; check the logs."
-        );
+        if (confirmed) {
+            this.out.success("Configuration reloaded");
+        } else {
+            this.out.error("Reload was not confirmed");
+            this.out.detail("Log", home.appLog());
+        }
         return confirmed ? 0 : UNCONFIRMED;
     }
 
@@ -44,7 +45,8 @@ final class ReloadCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer absent() {
-        this.out.line("aroxy daemon is not running.");
+        this.out.error("Cannot reload configuration");
+        this.out.detail("Reason", "Daemon is not running");
         return NOT_RUNNING;
     }
 }

@@ -17,7 +17,7 @@ class ConfigValidationTest {
     private static final String MARKDOWN = """
         # CLAUDE.md - aroxy
 
-        aroxy is a local proxy between Claude Code and the Claude API.
+        aroxy is a local proxy between a coding agent and the API it talks to.
         It obfuscates secrets before they leave the machine.
         """;
 
@@ -58,7 +58,7 @@ class ConfigValidationTest {
 
     @Test
     void rejectsKeyValuePairBeforeAnyStanza() {
-        assertThrows(InvalidConfigException.class, () -> ConfigFile.parse("stray", "listen = 127.0.0.1:8788\n"));
+        assertThrows(InvalidConfigException.class, () -> ConfigFile.parse("stray", "listen_claude = 127.0.0.1:8788\n"));
     }
 
     @Test
@@ -76,7 +76,7 @@ class ConfigValidationTest {
 
     @Test
     void rejectsProseWithAnEqualsSignInsideAnOpenStanza() {
-        String text = "[gateway]\nlisten = 127.0.0.1:8788\nThe API key = sk-12345 must stay secret\n";
+        String text = "[gateway]\nlisten_claude = 127.0.0.1:8788\nThe API key = sk-12345 must stay secret\n";
         InvalidConfigException rejected = assertThrows(
             InvalidConfigException.class,
             () -> ConfigFile.parse("mixed", text)
@@ -91,7 +91,8 @@ class ConfigValidationTest {
 
     @Test
     void acceptsValidStanzaFile() {
-        String text = "[gateway]\nlisten = 127.0.0.1:8788\n[rule]\nid = x\nplaceholder = COMPANY\npattern = abc\n";
+        String text
+            = "[gateway]\nlisten_claude = 127.0.0.1:8788\n[rule]\nid = x\nplaceholder = COMPANY\npattern = abc\n";
         assertDoesNotThrow(() -> ConfigFile.parse("valid", text));
     }
 }

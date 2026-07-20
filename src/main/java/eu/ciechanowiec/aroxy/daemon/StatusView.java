@@ -7,10 +7,14 @@ import lombok.experimental.UtilityClass;
 
 /**
  * Renders a {@link StatusReport} as a compact, human-readable text block for {@code aroxy status}:
- * whether the daemon runs, its listen address, the upstream, the active rule count, the uptime, and
- * the contributing configuration files with their kind and load time. The CLI builds the report from
- * the daemon's published {@link RuntimeSnapshot} and prints this body, mirroring how {@code config}
- * and {@code config list} are rendered.
+ * whether the daemon runs, one line per bound listener naming the address to point that agent at and
+ * the upstream it reaches, the active rule count, the uptime, and the contributing configuration files
+ * with their kind and load time. The CLI builds the report from the daemon's published
+ * {@link RuntimeSnapshot} and prints this body, mirroring how {@code config} and {@code config list}
+ * are rendered.
+ *
+ * <p>The listeners are rendered as an indented list rather than as one line per named client, so this
+ * view does not change when a client is registered or dropped.
  */
 @UtilityClass
 public final class StatusView {
@@ -29,12 +33,11 @@ public final class StatusView {
 
     private static List<String> lines(StatusReport report) {
         return List.of(
-            "running  = true",
-            "listen   = " + report.listenAddress(),
-            "upstream = " + report.upstream(),
-            "rules    = " + report.ruleCount(),
-            "uptime   = " + uptime(report.uptimeMillis()),
-            "files    =",
+            INDENT + "Uptime       " + uptime(report.uptimeMillis()),
+            INDENT + "Rules        " + report.ruleCount(),
+            INDENT + "Listeners",
+            indent(GatewayListing.render(report.gateways())),
+            INDENT + "Configuration files",
             indent(AttachmentListing.render(report.attachments()))
         );
     }
@@ -49,6 +52,7 @@ public final class StatusView {
     }
 
     private static String indent(String block) {
-        return block.lines().map(line -> INDENT + line).collect(Collectors.joining("\n"));
+        String prefix = INDENT.repeat(2);
+        return block.lines().map(line -> prefix + line).collect(Collectors.joining("\n"));
     }
 }

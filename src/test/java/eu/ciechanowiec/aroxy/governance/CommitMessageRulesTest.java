@@ -73,6 +73,48 @@ class CommitMessageRulesTest {
     }
 
     @Test
+    void rejectsAnAttributionTrailerForEveryAgentNotJustClaude() {
+        assertFalse(
+            CommitMessageRules.validate(attributed("Co-authored-by: Codex <noreply@openai.com>"), TRIVIAL).isEmpty(),
+            "the ban is on naming an agent, not on naming one particular vendor"
+        );
+        assertFalse(
+            CommitMessageRules.validate(attributed("Generated with Codex"), TRIVIAL).isEmpty(),
+            "the same trailer form from a different agent"
+        );
+        assertFalse(
+            CommitMessageRules.validate(attributed("codex-session: 0199f0c1-dead-beef"), TRIVIAL).isEmpty(),
+            "a session id identifies an agent run as surely as a trailer does"
+        );
+        assertFalse(
+            CommitMessageRules.validate(attributed("https://chatgpt.com/codex"), TRIVIAL).isEmpty(),
+            "a bare product page is an advertisement, whichever agent left it"
+        );
+    }
+
+    /**
+     * The ban is on advertising an agent, not on naming the hosts this proxy forwards to - and those
+     * hosts are the project's own subject matter. A rule written as "no vendor URL" rather than "no
+     * product page" would reject the repository's own honest history, so this pins the difference.
+     */
+    @Test
+    void acceptsAnHonestMentionOfAnUpstreamThisProxyForwardsTo() {
+        CommitMessage message = new CommitMessage(
+            "feat(client): forward Codex to its ChatGPT backend",
+            "Codex signed in with ChatGPT posts to chatgpt.com/backend-api/codex, so the listener "
+                + "forwards there rather than to api.anthropic.com."
+        );
+        assertEquals(
+            List.of(), CommitMessageRules.validate(message, NON_TRIVIAL),
+            "naming an upstream is not attributing the change to an agent"
+        );
+    }
+
+    private static CommitMessage attributed(String trailer) {
+        return new CommitMessage("feat(cli): add the reload subcommand to the root", trailer);
+    }
+
+    @Test
     void exemptsAMergeHeader() {
         CommitMessage message = new CommitMessage("Merge branch 'release' into 'main'", "");
         assertEquals(List.of(), CommitMessageRules.validate(message, NON_TRIVIAL));

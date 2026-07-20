@@ -1,13 +1,17 @@
 # CLAUDE.md - aroxy
 
-`aroxy` ("Anthropic Proxy") is a local proxy between Claude Code and the Claude API. It obfuscates
-secrets and configured keywords in each request before egress and deobfuscates the response before
-it reaches Claude Code, so the client sees real values while the network and Anthropic see only
-tokens like `<<PII:AWS_KEY:1>>`.
+`aroxy` ("Agent Proxy") is a local proxy between a coding agent and the API it talks to. It
+obfuscates secrets and configured keywords in each request before egress and deobfuscates the
+response before it reaches the agent, so the client sees real values while the network and the vendor
+see only tokens like `<<PII:AWS_KEY:1>>`.
+
+Two agents are served, each on its own port, by one daemon sharing one vault, one rule set, and one
+audit log: **Claude Code** on `8788` to `api.anthropic.com`, and **Codex CLI signed in with ChatGPT**
+on `8789` to `chatgpt.com/backend-api/codex`. A port per agent means no request is routed by guessing
+which vendor a path belongs to.
 
 **Boundary:** this is data minimization, not circumvention. It removes sensitive content from what
-leaves the machine; it does not hide that Claude Code is used or change the destination
-(`api.anthropic.com`).
+leaves the machine; it does not hide that an agent is used or change the destination.
 
 ## Build & test
 
@@ -85,7 +89,8 @@ implying a gate that does not exist. Beyond static analysis and coverage, the ha
 - **Secrets.** `gitleaks` scans the whole history for credentials under `-Pfull` (via Docker). Fake
   test fixtures are allowlisted in `.gitleaks.toml`; a real secret must never reach a commit.
 - **Dependency licenses.** Every resolved dependency must carry a license on the allowlist (Apache-2.0,
-  MIT, MIT-0, BSD-3-Clause, EPL-2.0, LGPL-2.1, JSON, Public Domain), enforced by `license-maven-plugin`.
+  MIT, MIT-0, BSD-2-Clause, BSD-3-Clause, EPL-2.0, LGPL-2.1, JSON, Public Domain), enforced by
+  `license-maven-plugin`.
 - **Dependency freshness.** A declared dependency that trails its latest release by >= 2 major versions
   fails the build (fail-closed when the registry is unreachable). Date-versioned releases (e.g.
   `org.json`) have no comparable major and are outside this check.
@@ -158,9 +163,12 @@ What a new project changes:
 
 ```
 aroxy CLI (picocli) ──state files + signal──> aroxy daemon (background JVM)
-  start/stop/restart/status/config/reload/      ├─ proxy server 127.0.0.1:8788 ── Claude Code
-  logs/config attach|detach|list                └─ reload watcher (polls control files)
-                                                      obfuscate ⇄ deobfuscate ── api.anthropic.com
+  start/stop/restart/status/config/reload/      ├─ listener 127.0.0.1:8788 ── Claude Code
+  logs/config attach|detach|list                │     obfuscate ⇄ deobfuscate ── api.anthropic.com
+                                                ├─ listener 127.0.0.1:8789 ── Codex CLI
+                                                │     obfuscate ⇄ deobfuscate ── chatgpt.com/backend-api/codex
+                                                └─ reload watcher (polls control files)
+                                        one Obfuscator + one Vault + one AuditLog, shared by both
 ```
 
 The CLI drives the daemon with no control socket: `status`/`config`/`list` read the daemon's
@@ -168,20 +176,34 @@ published `runtime` snapshot, `reload`/`attach` touch a `reload` trigger the dae
 `stop` sends a process signal that the daemon's shutdown hook turns into a clean teardown. This
 removes the network-reachable control plane entirely.
 
-One shared daemon serves every Claude Code session on the machine: each session points
-`ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, so they share one proxy, one vault, and one audit log.
+One shared daemon serves every agent session on the machine: Claude Code points
+`ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex points a `~/.codex/config.toml` provider `base_url`
+(with `requires_openai_auth = true`, so ChatGPT sign-in is kept) at `127.0.0.1:8789`. They share one
+proxy, one vault, and one audit log, so a secret carries the same token whichever agent sends it.
 Shell completion is set up by `install.sh` (a managed block in the user's rc); the
 `generate-completion` subcommand it calls is hidden from `--help`. `uninstall.sh` reverses install.
 
+**Adding or removing a client is additive.** `client/ClientRegistry` is the only place that enumerates
+agents; everything else iterates it (listeners bound, `[gateway]` listen keys accepted and validated,
+`aroxy status`/`config` lines rendered, `runtime` records published). `ClientId` is an open, validated
+slug value rather than an enum, so a new agent is one `ClientProfile` (an id and display name, a
+`Gateway`, a `PathScope`, and an `SseDialect`) plus one line in the registry.
+
 Packages under `eu.ciechanowiec.aroxy`:
+- `client` - the extension point: `ClientId`, `ClientProfile`, `ClientRegistry`, `Gateway`,
+  `PathScope`, and the stream dialect as *data* (`SseDialect` composing `FragmentRule` + `SseKind`),
+  with one profile class per agent (`ClaudeCode`, `CodexCli`). No vendor vocabulary lives anywhere else.
 - `obfuscation` - the engine: `Obfuscator`, `Vault`, `Rule` (composes `RulePattern` + `RuleLabel`),
   `RuleApplication`, `JsonSafeSpan`, `PiiToken`, `MaskedSecret`, `RuleCompiler` (loose/leet),
   `StreamDeobfuscator` (SSE carry-buffer over text fragments), `ObfuscationResult`/`ObfuscationMatch`.
-- `config` - `ConfigFile` parser, `EffectiveConfig` merge, `AttachmentRegistry`, `Settings`.
-- `proxy` - `ProxyServer`, `Upstream` (plain `HttpClient`, default proxy/trust), request handling,
-  `AuditLog`, wire dumps.
+- `config` - `ConfigFile` parser, `EffectiveConfig` merge, `AttachmentRegistry`, `Settings`
+  (a `Gateway` per registered client, keyed by `ClientId`).
+- `proxy` - `ProxyServer` (one per client), `Upstream` (plain `HttpClient`, default proxy/trust),
+  request handling, `ZstdBody` request inflation, `WebSocketUpgrade` refusal, `SseTransformer`
+  (interprets a dialect; knows no vendor's event names), `AuditLog`, wire dumps.
 - `daemon` - background launcher, PID file, the file/signal control channel (`ControlFiles`,
-  `RuntimeSnapshot`/`SnapshotPublisher`, `ReloadWatcher`), `Home` path layout.
+  `RuntimeSnapshot`/`SnapshotPublisher`, `ReloadWatcher`), `GatewayAddress`/`GatewayListing`,
+  `Home` path layout.
 - `cli` - picocli root `Aroxy`, its subcommands, and shell autocompletion (`generate-completion`).
 
 State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `reload` (the
@@ -193,7 +215,19 @@ reload trigger), `temporaries` (this session's temporary attachments, cleared on
 
 - JSON-escape safety: replacing a value must never orphan a `\"` / `\\` escape (`JsonSafeSpan`).
 - Canonical keying: a literal rule's spelling variants share ONE token and restore to the configured value.
-- SSE: a token split across two `delta.text` fragments reverses correctly (`StreamDeobfuscator`).
+- SSE: a token split across two streamed fragments reverses correctly (`StreamDeobfuscator`), in
+  either dialect. A partial still held at a terminal event is flushed by *replaying the last fragment
+  block* with its value substituted, never by authoring a synthetic event: an authored event would
+  have to invent the bookkeeping fields a vendor's parser requires.
+- **Whole-block reversal (`SseKind.WHOLE`).** Where a stream repeats its text in a later authoritative
+  block, that block must be reversed too. Codex's `response.output_item.done` is the case: it is what
+  Codex persists into conversation history and echoes back next turn, so reversing only the deltas
+  would leave a token to egress again. Pinned by `CodexStreamTest`.
+- **Encoded in-scope request bodies fail closed.** Codex can zstd-compress under ChatGPT auth; a valid
+  frame is inflated before the rules run and its copy drops `Content-Encoding`, which
+  `RestrictedHeaders` deliberately forwards. A malformed zstd frame or any other unsupported encoding
+  receives a local HTTP 415 and never reaches the upstream; an opaque body must not egress while the
+  proxy reports itself healthy (`ZstdBody`).
 - Stable vault, secret masking in logs.
 - Sensitivity-aware persistence: `sensitive=true` values stay in memory only and NEVER reach
   `vault.tsv`; only non-sensitive pairs are persisted (so their tokens survive a restart). The split
@@ -208,10 +242,14 @@ session only). Settings: last file wins per key. Rules: keyed by `id`, a later f
 
 **A declared key must be usable.** A key states an intent, so a file that declares one its stanza does
 not define, or one whose value names nothing the proxy can act on, is broken and is not loaded. An
-absent key states no intent and keeps the documented default. This is why `listen = 87788`, an unknown
+absent key states no intent and keeps the documented default. This is why `listen_claude = 87788`, an unknown
 `[gateway]` key such as `upstream`, `mask_secrets = yes`, and `type = literl` all break the file rather
 than falling back: a configuration that reads as applied and is not would leave the user trusting a
-proxy that never took the instruction. Tests reach an ephemeral port through `DaemonSeam`, not config.
+proxy that never took the instruction. The `[gateway]` listen keys are *derived* from the client
+registry rather than listed in the parser, so a newly registered agent gets its key and that key's
+validation for free. Two agents pointed at one port is likewise rejected, at merge time rather than at
+bind time, because the clash is a property of the merge (one file may set only one of the keys). Tests
+reach ephemeral ports through `DaemonSeam`, not config.
 
 **Placeholders are a closed vocabulary.** The same rule, applied to a rule's `placeholder`: it must be
 one of the names shipped in `default.conf` (enforced by `config/Placeholders`). The set is closed

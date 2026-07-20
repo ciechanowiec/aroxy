@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.aroxy.config.Settings;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -12,11 +12,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Forwards requests to the Claude API over a plain {@link HttpClient} (HTTP/1.1, a fixed connect
- * timeout, and the JDK's default proxy selector and trust store). It forces
+ * Forwards requests to one client's upstream API over a plain {@link HttpClient} (HTTP/1.1, a fixed
+ * connect timeout, and the JDK's default proxy selector and trust store). It forces
  * {@code Accept-Encoding: identity} so the response body stays transformable, drops the hop-by-hop
  * and restricted request headers, and forwards everything else - including the authentication
- * headers - unchanged. The upstream base address comes from {@link Settings#upstream()}.
+ * headers - unchanged. The upstream base address comes from {@link Gateway#upstream()}, so each
+ * client's listener has one unambiguous destination and no request is routed by guessing.
  *
  * <p>Redirects are deliberately not followed ({@link HttpClient.Redirect#NEVER}): a 3xx is passed
  * straight back to the client untouched. A pass-through proxy has no business chasing a redirect, and
@@ -30,12 +31,12 @@ public final class Upstream {
     private final String base;
 
     /**
-     * Creates an upstream client targeting the configured API base.
+     * Creates an upstream client targeting one client's API base.
      *
-     * @param settings the gateway settings carrying the upstream base address
+     * @param gateway the gateway carrying the upstream base address
      */
-    public Upstream(Settings settings) {
-        this.base = settings.upstream().toString();
+    public Upstream(Gateway gateway) {
+        this.base = gateway.upstream().toString();
         this.client = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NEVER)

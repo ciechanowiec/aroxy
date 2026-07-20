@@ -11,7 +11,7 @@
 
     <name>aroxy</name>
 
-    <description>Anthropic Proxy: a local PII/secret-redacting gateway for Claude Code</description>
+    <description>Agent Proxy: a local PII/secret-redacting gateway for coding agents</description>
     <url>https://ciechanowiec.eu/</url>
     <inceptionYear>2026</inceptionYear>
 
@@ -66,6 +66,7 @@
         <tinylog.version>2.7.0</tinylog.version>
         <junit.version>6.1.2</junit.version>
         <org-json.version>20260522</org-json.version>
+        <aircompressor.version>2.0.3</aircompressor.version>
         <!-- Locking down Maven default plugins -->
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
@@ -181,6 +182,17 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>${picocli.version}</version>
+        </dependency>
+        <dependency>
+            <!--
+                zstd decompression for request bodies. Codex CLI compresses its requests with zstd by
+                default under ChatGPT auth, and a compressed body cannot be obfuscated, so it is
+                inflated before the rules run. Pure Java avoids JNI and native-platform packaging;
+                its Apache-2.0 license is also on this build's permissive-license allowlist.
+            -->
+            <groupId>io.airlift</groupId>
+            <artifactId>aircompressor</artifactId>
+            <version>${aircompressor.version}</version>
         </dependency>
         <dependency>
             <!-- @Nullable annotation for NullAway -->
@@ -820,7 +832,7 @@
                                         <exclude>eu.ciechanowiec.aroxy.cli.*Command</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.cli.DaemonEntry</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.cli.Version</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.Launcher</exclude>
+                                        <exclude>eu.ciechanowiec.aroxy.daemon.Launcher*</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.daemon.LaunchCommand</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.daemon.DaemonProcess</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.daemon.Daemon</exclude>
@@ -929,6 +941,7 @@
                                 <includedLicense>Apache-2.0</includedLicense>
                                 <includedLicense>MIT</includedLicense>
                                 <includedLicense>MIT-0</includedLicense>
+                                <includedLicense>BSD-2-Clause</includedLicense>
                                 <includedLicense>BSD-3-Clause</includedLicense>
                                 <includedLicense>EPL-2.0</includedLicense>
                                 <includedLicense>LGPL-2.1</includedLicense>
@@ -938,6 +951,7 @@
                             <licenseMerges>
                                 <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License 2.0|Apache 2.0</licenseMerge>
                                 <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)</licenseMerge>
+                                <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
                                 <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
                                 <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1</licenseMerge>
                                 <licenseMerge>JSON|The JSON License</licenseMerge>
@@ -1318,10 +1332,12 @@
                             <targetClasses>
                                 <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
                                 <param>eu.ciechanowiec.aroxy.config.*</param>
+                                <param>eu.ciechanowiec.aroxy.client.*</param>
                             </targetClasses>
                             <targetTests>
                                 <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
                                 <param>eu.ciechanowiec.aroxy.config.*</param>
+                                <param>eu.ciechanowiec.aroxy.client.*</param>
                             </targetTests>
                             <maxSurviving>${pitest.max.surviving}</maxSurviving>
                             <timestampedReports>false</timestampedReports>

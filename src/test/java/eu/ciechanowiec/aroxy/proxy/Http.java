@@ -18,6 +18,7 @@ final class Http {
     static final int TOO_MANY_REQUESTS = 429;
     static final int BAD_GATEWAY = 502;
     static final String MESSAGES = "/v1/messages";
+    static final String RESPONSES = "/responses";
 
     static HttpResponse<String> post(URI base, String path, String body) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()

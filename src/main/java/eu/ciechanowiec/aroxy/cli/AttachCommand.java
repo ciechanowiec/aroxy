@@ -64,7 +64,9 @@ final class AttachCommand implements Callable<Integer> {
 
     private Optional<Integer> rejection() {
         if (Files.isSymbolicLink(this.file)) {
-            this.out.line("Refusing to attach a symbolic link: " + this.file);
+            this.out.error("Cannot attach configuration");
+            this.out.detail("Reason", "Symbolic links are not accepted");
+            this.out.detail("File", this.file);
             return Optional.of(FAILED);
         }
         return this.validate();
@@ -75,7 +77,8 @@ final class AttachCommand implements Callable<Integer> {
             ConfigFile.read(this.file);
             return Optional.empty();
         } catch (InvalidConfigException exception) {
-            this.out.line(exception.getMessage());
+            this.out.error("Cannot attach configuration");
+            this.out.note(exception.getMessage());
             return Optional.of(FAILED);
         }
     }
@@ -96,10 +99,9 @@ final class AttachCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer unconfirmed() {
-        this.out.line(
-            "Attached " + this.file.toAbsolutePath()
-                + ", but the daemon did not confirm the reload; check the logs."
-        );
+        this.out.warning("Configuration attached, but reload was not confirmed");
+        this.out.detail("File", this.file.toAbsolutePath());
+        this.out.note("Run 'aroxy logs' to inspect the daemon.");
         return FAILED;
     }
 
@@ -116,7 +118,8 @@ final class AttachCommand implements Callable<Integer> {
             new AttachmentRegistry(home.attachments()).attach(this.file);
             return this.attached();
         }
-        this.out.line("aroxy daemon is not running; a temporary configuration file needs a running daemon.");
+        this.out.error("Cannot attach temporary configuration");
+        this.out.detail("Reason", "Daemon is not running");
         return FAILED;
     }
 
@@ -125,7 +128,9 @@ final class AttachCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer attached() {
-        this.out.line("Attached " + this.file.toAbsolutePath());
+        this.out.success("Configuration attached");
+        this.out.detail("File", this.file.toAbsolutePath());
+        this.out.detail("Scope", this.temporary ? "Temporary" : "Persistent");
         return 0;
     }
 }

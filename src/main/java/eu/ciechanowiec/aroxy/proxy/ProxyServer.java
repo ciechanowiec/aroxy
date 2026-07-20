@@ -1,7 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpServer;
-import eu.ciechanowiec.aroxy.config.Settings;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
@@ -9,10 +9,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The local proxy: a {@link HttpServer} bound to the configured local host {@code 127.0.0.1} and port
- * (port 0 binds an ephemeral port, exposed via {@link #port()} for tests). Every path is routed to the
- * single {@link ProxyExchange}, which obfuscates {@code /v1/messages} requests, forwards them through the
- * {@link Upstream}, and deobfuscates the replies.
+ * One client's local listener: a {@link HttpServer} bound to the local host {@code 127.0.0.1} and to
+ * that client's {@link Gateway} port (port 0 binds an ephemeral port, exposed via {@link #port()} for
+ * tests). Every path is routed to the single {@link ProxyExchange}, which obfuscates the requests in
+ * that client's path scope, forwards them through the {@link Upstream}, and deobfuscates the replies.
+ *
+ * <p>The daemon binds one of these per registered client, which is what lets a single daemon serve
+ * several agents while each socket keeps one unambiguous upstream.
  */
 public final class ProxyServer {
 
@@ -22,16 +25,18 @@ public final class ProxyServer {
     private final ExecutorService executor;
 
     /**
-     * Binds the proxy to the configured host and port and routes every path to the single exchange.
+     * Binds this client's listener to the given host and its gateway port, routing every path to the
+     * single exchange.
      *
-     * @param settings the gateway settings carrying the listen host and port
-     * @param parts    the obfuscator, upstream, and audit log the exchange is wired from
+     * @param listenHost the local host to bind
+     * @param gateway    the gateway carrying the port to bind
+     * @param parts      the obfuscator, upstream, audit log, and client profile the exchange is wired from
      * @throws IOException if the server socket cannot be bound
      */
-    public ProxyServer(Settings settings, ProxyParts parts) throws IOException {
-        this.server = HttpServer.create(new InetSocketAddress(settings.listenHost(), settings.listenPort()), 0);
+    public ProxyServer(String listenHost, Gateway gateway, ProxyParts parts) throws IOException {
+        this.server = HttpServer.create(new InetSocketAddress(listenHost, gateway.listenPort()), 0);
         this.executor = Executors.newFixedThreadPool(THREADS);
-        this.server.createContext("/", new ProxyExchange(parts.obfuscator(), parts.upstream(), parts.audit()));
+        this.server.createContext("/", new ProxyExchange(parts));
         this.server.setExecutor(this.executor);
     }
 

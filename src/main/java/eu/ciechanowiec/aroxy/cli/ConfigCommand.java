@@ -31,6 +31,7 @@ final class ConfigCommand implements Callable<Integer> {
     public Integer call() {
         Home home = Home.resolve();
         List<Path> temporaries = new ControlFiles(home).readTemporaries();
+        this.out.heading("Effective configuration");
         this.out.line(new OfflineConfig(home).render(temporaries));
         return 0;
     }

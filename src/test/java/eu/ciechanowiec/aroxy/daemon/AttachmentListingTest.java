@@ -25,7 +25,7 @@ class AttachmentListingTest {
         assertTrue(text.contains("/home/default.conf"), text);
         assertTrue(text.contains("/etc/a.conf"), text);
         assertTrue(text.contains("/tmp/b.conf"), text);
-        assertTrue(text.contains("loaded 1970"), text);
-        assertTrue(text.contains("loaded -"), text);
+        assertTrue(text.contains("1970"), text);
+        assertTrue(text.contains("temporary   -"), text);
     }
 }

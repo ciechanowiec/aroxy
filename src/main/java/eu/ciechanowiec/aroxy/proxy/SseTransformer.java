@@ -1,5 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.aroxy.client.SseDialect;
+import eu.ciechanowiec.aroxy.client.SseKind;
 import eu.ciechanowiec.aroxy.obfuscation.StreamDeobfuscator;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,30 +11,38 @@ import java.util.Optional;
 
 /**
  * Deobfuscates a {@code text/event-stream} response on the fly. Incoming bytes are buffered and split
- * into events on the blank-line delimiter ({@code \n\n}). For a {@code content_block_delta} carrying a
- * {@code text_delta} or {@code input_json_delta}, the raw (still JSON-escaped) value is fed to a
- * {@link StreamDeobfuscator}, which reverses the part that is now safe and holds back any trailing
- * partial token; the returned text is substituted back into the field while the framing is preserved.
+ * into events on the blank-line delimiter, then each block is handled according to how the serving
+ * client's {@link SseDialect} classifies it. The transformer itself knows no vendor's event names: it
+ * only knows the three {@link SseKind}s.
  *
- * <p>Because the model can split one token across two delta events, the carry buffer bridges them.
- * When a terminal event ({@code content_block_stop}/{@code message_stop}) arrives and a partial is
- * still held, it is flushed as a synthetic {@code text_delta} event (with the last seen index) before
- * that event is forwarded. {@link #finish()} flushes any final remainder.
+ * <p>A {@link SseKind#FRAGMENT} has its value fed to a {@link StreamDeobfuscator}, which reverses the
+ * part that is now safe and holds back any trailing partial token, because a token can be split across
+ * two consecutive fragments. A {@link SseKind#WHOLE} arrives complete and is reversed in one pass. A
+ * {@link SseKind#PLAIN} is forwarded unchanged.
+ *
+ * <p>When a block that ends a run of fragments arrives while a partial is still held, the held text is
+ * emitted first by <em>replaying the last fragment block</em> with its value substituted. Replaying
+ * rather than authoring a synthetic event is what keeps this class dialect-agnostic: an authored event
+ * would have to invent whatever bookkeeping fields the client's parser requires, and a client that
+ * rejects an incomplete event would drop the flushed tail entirely.
+ *
+ * <p>{@link #finish()} flushes any final remainder.
  */
 final class SseTransformer {
 
+    private static final String DELIMITER = "\n\n";
     private final OutputStream out;
     private final StreamDeobfuscator deobfuscator;
+    private final SseDialect dialect;
     private final ByteArrayOutputStream pending;
-    private int lastIndex;
-    private DeltaKind lastDelta;
+    private String lastFragment;
 
-    SseTransformer(OutputStream out, StreamDeobfuscator deobfuscator) {
+    SseTransformer(OutputStream out, StreamDeobfuscator deobfuscator, SseDialect dialect) {
         this.out = out;
         this.deobfuscator = deobfuscator;
+        this.dialect = dialect;
         this.pending = new ByteArrayOutputStream();
-        this.lastIndex = 0;
-        this.lastDelta = DeltaKind.TEXT;
+        this.lastFragment = "";
     }
 
     void push(byte[] chunk, int length) throws IOException {
@@ -68,49 +78,55 @@ final class SseTransformer {
 
     private void emitEvent(byte[] buffer, int start, int end) throws IOException {
         String block = new String(buffer, start, end - start, StandardCharsets.UTF_8);
-        this.writeText(this.transform(block) + "\n\n");
+        this.writeText(this.transform(block) + DELIMITER);
     }
 
     private String transform(String block) {
-        SseEvent event = new SseEvent(block);
-        event.index().ifPresent(this::rememberIndex);
-        if (event.isTextDelta()) {
-            return this.transformDelta(block);
-        }
-        return this.maybeFlushBefore(event, block);
+        return switch (this.dialect.classify(block)) {
+            case FRAGMENT -> this.transformFragment(block);
+            case WHOLE -> this.flushBefore(this.deobfuscator.restoreWhole(block));
+            case PLAIN -> this.maybeFlushBefore(block);
+        };
     }
 
-    private void rememberIndex(int index) {
-        this.lastIndex = index;
+    private String transformFragment(String block) {
+        this.lastFragment = block;
+        return this.substituted(block, this.deobfuscator.accept(this.valueOf(block)));
     }
 
-    private String transformDelta(String block) {
-        this.lastDelta = DeltaKind.of(block);
-        return SseField.locate(block).map(field -> this.substitute(block, field)).orElse(block);
+    private String maybeFlushBefore(String block) {
+        return this.dialect.isTerminal(block) ? this.flushBefore(block) : block;
     }
 
-    private String substitute(String block, SseField field) {
-        String reversed = this.deobfuscator.accept(field.value(block));
-        return block.substring(0, field.start()) + reversed + block.substring(field.end());
+    private String flushBefore(String block) {
+        String held = this.deobfuscator.flush();
+        return held.isEmpty() ? block : prepend(this.substituted(this.lastFragment, held), block);
     }
 
-    private String maybeFlushBefore(SseEvent event, String block) {
-        if (!event.isTerminal()) {
-            return block;
-        }
-        return this.prependFlush(block);
+    /**
+     * The raw value the given block streams, or the empty string when no rule locates one - which is
+     * also the case for the initial {@link #lastFragment}, before any fragment has been seen.
+     */
+    private String valueOf(String block) {
+        return this.locate(block).map(field -> field.value(block)).orElse("");
     }
 
-    private String prependFlush(String block) {
-        String flushed = this.deobfuscator.flush();
-        return flushed.isEmpty() ? block : this.synthetic(flushed) + "\n\n" + block;
+    /**
+     * The given block with the value its rule locates replaced, or the block unchanged when no rule
+     * locates one. Replacing nothing is what makes a replay before any fragment harmless.
+     */
+    private String substituted(String block, String value) {
+        return this.locate(block)
+            .map(field -> block.substring(0, field.start()) + value + block.substring(field.end()))
+            .orElse(block);
     }
 
-    private String synthetic(String text) {
-        return "event: content_block_delta\n"
-            + "data: {\"type\":\"content_block_delta\",\"index\":" + this.lastIndex
-            + ",\"delta\":{\"type\":\"" + this.lastDelta.type() + "\",\""
-            + this.lastDelta.field() + "\":\"" + text + "\"}}";
+    private Optional<SseField> locate(String block) {
+        return this.dialect.fragment(block).flatMap(rule -> SseField.locate(block, rule.fieldKey()));
+    }
+
+    private static String prepend(CharSequence replayed, String block) {
+        return replayed.isEmpty() ? block : replayed + DELIMITER + block;
     }
 
     private void writeText(String text) throws IOException {

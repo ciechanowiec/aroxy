@@ -21,6 +21,40 @@ class StreamDeobfuscatorTest {
     }
 
     @Test
+    void restoreWholeReversesACompleteBlockInOnePass() {
+        Vault vault = Vault.inMemory();
+        String token = vault.tokenFor(ORIGINAL, PLACEHOLDER, false);
+        assertEquals(
+            "whole " + ORIGINAL + " block", stream(vault).restoreWhole("whole " + token + " block"),
+            "a complete block is reversed on its own, since no token in it can be split"
+        );
+    }
+
+    @Test
+    void restoreWholeLeavesTheHeldPartialForTheFragmentRunToFinish() {
+        Vault vault = Vault.inMemory();
+        String token = vault.tokenFor(ORIGINAL, PLACEHOLDER, false);
+        int half = token.length() / 2;
+        StreamDeobfuscator stream = stream(vault);
+        stream.accept("start " + token.substring(0, half));
+        stream.restoreWhole("an unrelated whole block");
+        assertEquals(
+            ORIGINAL + " end", stream.accept(token.substring(half) + " end"),
+            "the carry survived the whole-block pass, so the split token still completes"
+        );
+    }
+
+    @Test
+    void restoreWholeCountsWhatItReverses() {
+        Vault vault = Vault.inMemory();
+        String token = vault.tokenFor(ORIGINAL, PLACEHOLDER, false);
+        StreamDeobfuscator stream = stream(vault);
+        assertEquals(0, stream.reversedCount(), "nothing reversed yet");
+        stream.restoreWhole("a block naming " + token + " once");
+        assertEquals(1, stream.reversedCount(), "a whole-block reversal is audited like any other");
+    }
+
+    @Test
     void reversesTokenSplitAcrossTwoFragments() {
         Vault vault = Vault.inMemory();
         String token = vault.tokenFor(ORIGINAL, PLACEHOLDER, false);

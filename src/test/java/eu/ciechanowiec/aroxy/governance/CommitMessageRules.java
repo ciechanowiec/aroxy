@@ -14,6 +14,10 @@ import lombok.experimental.UtilityClass;
  * change, and the absence of any marker that attributes the change to an AI agent. Merge and revert
  * headers keep their fixed git forms, so they are exempt from the header shape alone; the attribution
  * ban holds for every commit, because a fixed header form is no licence to name an agent in the body.
+ *
+ * <p>Every attribution pattern is written over the whole agent list rather than over one vendor, so
+ * the ban covers each agent the project serves and several it does not. It remains best-effort: no
+ * pattern catches every agent's footer, which is why the rule also binds in prose and by inspection.
  */
 @UtilityClass
 final class CommitMessageRules {
@@ -29,12 +33,22 @@ final class CommitMessageRules {
     private static final List<String> JUNK_WORDS = List.of(
         "wip", "tmp", "temp", "misc", "stuff", "asdf", "fixup"
     );
-    private static final String AGENTS = "(claude|anthropic|copilot|cursor|codex|chatgpt|gpt|gemini|devin|aider)";
+    private static final String AGENT_NAMES = "claude|anthropic|copilot|cursor|codex|chatgpt|gpt|gemini|devin|aider";
+    private static final String AGENTS = "(" + AGENT_NAMES + ")";
+    private static final String SESSION_NAMERS = "(" + AGENT_NAMES + "|assistant|agent)";
+    /**
+     * The pages agents append to a message to advertise themselves. Deliberately an allow-list of
+     * whole product paths rather than a ban on the vendors' hosts, because this repository's subject
+     * matter <em>is</em> those vendors: a commit that honestly says it forwards to
+     * {@code chatgpt.com/backend-api/codex} must pass, and would not if the host alone were banned.
+     */
+    private static final String PRODUCT_PAGES = "(claude\\.(ai|com)/claude-code|chatgpt\\.com/codex|openai\\.com/codex"
+        + "|github\\.com/features/copilot|cursor\\.(com|sh)/agent)";
     private static final List<Pattern> ATTRIBUTION = List.of(
         Pattern.compile("(?i)co-authored-by:.*" + AGENTS),
         Pattern.compile("(?i)generated\\s+(with|by)\\b.*" + AGENTS),
-        Pattern.compile("(?i)\\b(claude|assistant|agent)[- ]?session(-id)?\\s*:"),
-        Pattern.compile("(?i)claude\\.(ai|com)/claude-code")
+        Pattern.compile("(?i)\\b" + SESSION_NAMERS + "[- ]?session(-id)?\\s*:"),
+        Pattern.compile("(?i)" + PRODUCT_PAGES)
     );
 
     static List<String> validate(CommitMessage message, DiffStat stat) {

@@ -4,7 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import eu.ciechanowiec.aroxy.config.Settings;
+import eu.ciechanowiec.aroxy.client.ClaudeCode;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
 import java.io.IOException;
@@ -27,6 +28,10 @@ import org.junit.jupiter.api.io.TempDir;
  * The drain must fall back to a forced shutdown rather than wait out a request that outlives the grace
  * period, so {@code stop} returns well before the stuck upstream call would have completed.
  */
+// drives the whole proxy stack over real sockets; coupling is governed by the project's own Checkstyle cap
+@SuppressWarnings(
+    "ClassWithTooManyDependencies"
+)
 class ProxyServerConcurrencyTest {
 
     private static final long UPSTREAM_SLEEP_MILLIS = 3000L;
@@ -60,12 +65,12 @@ class ProxyServerConcurrencyTest {
 
     @SneakyThrows
     private static ProxyServer proxyFor(int upstreamPort, Path logs) {
-        Settings settings = new Settings(
-            LocalHost.HOST, 0, URI.create("http://" + LocalHost.HOST + ":" + upstreamPort), true
-        );
+        Gateway gateway = new Gateway(0, URI.create("http://" + LocalHost.HOST + ":" + upstreamPort));
         Obfuscator obfuscator = new Obfuscator(List.of(), new Vault(Optional.empty()));
-        ProxyParts parts = new ProxyParts(obfuscator, new Upstream(settings), new AuditLog(logs));
-        return new ProxyServer(settings, parts);
+        ProxyParts parts = new ProxyParts(
+            obfuscator, new Upstream(gateway), new AuditLog(logs), ClaudeCode.profile()
+        );
+        return new ProxyServer(LocalHost.HOST, gateway, parts);
     }
 
     @SneakyThrows

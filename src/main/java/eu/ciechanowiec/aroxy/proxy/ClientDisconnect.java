@@ -6,7 +6,7 @@ import java.util.Optional;
 import lombok.experimental.UtilityClass;
 
 /**
- * Recognises the routine case where the client (Claude Code) closes the connection before the proxy
+ * Recognises the routine case where the connected agent closes the connection before the proxy
  * finishes writing the response - for example when a request is cancelled. Such a failure is benign:
  * it is not a proxy fault and must not be logged as an error or crash the handler. A real upstream
  * failure is distinguished so it can still surface as an error.

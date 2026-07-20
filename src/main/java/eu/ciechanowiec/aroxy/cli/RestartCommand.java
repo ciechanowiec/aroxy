@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.Launcher;
+import eu.ciechanowiec.aroxy.daemon.Launcher.Outcome;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -32,14 +33,24 @@ final class RestartCommand implements Callable<Integer> {
         return this.relaunch(home, pid);
     }
 
-    private Integer relaunch(Home home, PidFile pid) {
+    private Integer relaunch(Home home, PidFile pid) throws InterruptedException {
         if (pid.isRunning()) {
-            this.out.line("aroxy daemon did not stop; not restarting.");
+            this.out.error("Daemon did not stop");
+            this.out.detail("Action", "Restart cancelled");
             return STILL_RUNNING;
         }
         pid.clear();
-        new Launcher(home).start();
-        this.out.line("aroxy daemon restarted.");
-        return 0;
+        Outcome outcome = new Launcher(home).start();
+        DaemonOutput daemon = new DaemonOutput(this.out);
+        return switch (outcome) {
+            case STARTED -> finish(() -> daemon.ready(home, "restarted"), 0);
+            case ALREADY_RUNNING -> finish(() -> daemon.alreadyRunning(home), 0);
+            case FAILED -> finish(() -> daemon.failed(home, "restart"), 1);
+        };
+    }
+
+    private static Integer finish(Runnable output, int exit) {
+        output.run();
+        return exit;
     }
 }

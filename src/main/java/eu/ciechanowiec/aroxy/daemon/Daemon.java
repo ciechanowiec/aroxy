@@ -3,6 +3,7 @@ package eu.ciechanowiec.aroxy.daemon;
 import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.config.InvalidConfigException;
+import eu.ciechanowiec.aroxy.config.Settings;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -81,7 +83,13 @@ public final class Daemon {
         watcher.start();
         this.running = Optional.of(new Running(live, watcher));
         this.publish(config, live);
-        log.atInfo().addArgument(live::port).log("aroxy daemon listening on {}");
+        log.atInfo().addArgument(() -> listening(config.settings(), live)).log("aroxy daemon listening on {}");
+    }
+
+    private static String listening(Settings settings, LiveProxy live) {
+        return live.addresses(settings).stream()
+            .map(gateway -> gateway.client() + " on " + gateway.listen())
+            .collect(Collectors.joining(", "));
     }
 
     private void logLoadedFiles() {
@@ -138,10 +146,8 @@ public final class Daemon {
     }
 
     private void publish(EffectiveConfig config, LiveProxy live) {
-        String listen = config.settings().listenHost() + ":" + live.port();
         SnapshotData data = new SnapshotData(
-            listen, config.settings().upstream().toString(),
-            config.rules().size(), this.attachmentInfos()
+            live.addresses(config.settings()), config.rules().size(), this.attachmentInfos()
         );
         this.publisher.publish(data);
     }

@@ -17,6 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+// drives a real daemon end to end; coupling is governed by the project's own Checkstyle cap
+@SuppressWarnings(
+    "ClassWithTooManyDependencies"
+)
 class DaemonLifecycleTest {
 
     private static final int OK = 200;
@@ -48,8 +52,8 @@ class DaemonLifecycleTest {
     @Test
     void statusSnapshotShowsRunningWithOneRule() {
         String text = StatusView.render(this.snapshot().toStatusReport(System.currentTimeMillis()));
-        assertTrue(text.contains("rules    = 1"), text);
-        assertTrue(text.contains("running  = true"), text);
+        assertTrue(text.contains("Rules        1"), text);
+        assertTrue(text.contains("Listeners"), text);
     }
 
     @Test
@@ -95,8 +99,8 @@ class DaemonLifecycleTest {
         Daemon second = new Daemon(other, DaemonSeam.onEphemeralPort(this.upstream.uri()));
         second.run();
         try {
-            String mine = this.snapshot().listenAddress();
-            String theirs = RuntimeSnapshot.read(other.runtimeFile()).orElseThrow().listenAddress();
+            String mine = listenOf(this.snapshot());
+            String theirs = listenOf(RuntimeSnapshot.read(other.runtimeFile()).orElseThrow());
             assertNotEquals(mine, theirs, "two daemons listen at once, so neither can hold one fixed port");
             assertFalse(mine.endsWith(PRODUCTION_PORT), mine);
             assertFalse(theirs.endsWith(PRODUCTION_PORT), theirs);
@@ -124,13 +128,17 @@ class DaemonLifecycleTest {
         return this.snapshot().generation() > before;
     }
 
+    private static String listenOf(RuntimeSnapshot snapshot) {
+        return snapshot.gateways().getFirst().listen();
+    }
+
     private RuntimeSnapshot snapshot() {
         return RuntimeSnapshot.read(this.home.runtimeFile()).orElseThrow();
     }
 
     @SneakyThrows
     private void proxyPost(String body) {
-        URI proxy = URI.create("http://" + this.snapshot().listenAddress() + "/v1/messages");
+        URI proxy = URI.create("http://" + listenOf(this.snapshot()) + "/v1/messages");
         HttpRequest request = HttpRequest.newBuilder().uri(proxy)
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(body)).build();

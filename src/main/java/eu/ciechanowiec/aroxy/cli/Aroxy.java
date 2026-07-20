@@ -6,7 +6,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 /**
- * Entry point and root command of the {@code aroxy} tool ("Anthropic Proxy"). It wires the lifecycle
+ * Entry point and root command of the {@code aroxy} tool ("Agent Proxy"). It wires the lifecycle
  * subcommands ({@code start}, {@code stop}, {@code restart}, {@code status}, {@code config},
  * {@code reload}, {@code logs}), the hidden background daemon entry, and picocli's
  * {@code generate-completion} so {@code aroxy generate-completion} prints a bash/zsh completion
@@ -16,7 +16,7 @@ import picocli.CommandLine.Command;
     name = "aroxy",
     mixinStandardHelpOptions = true,
     versionProvider = Version.class,
-    description = "Anthropic Proxy: a local PII/secret-redacting gateway for Claude Code.",
+    description = "Agent Proxy: a local PII/secret-redacting gateway for coding agents.",
     subcommands = {
         StartCommand.class,
         StopCommand.class,

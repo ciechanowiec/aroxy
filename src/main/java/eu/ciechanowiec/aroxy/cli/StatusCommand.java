@@ -38,6 +38,7 @@ final class StatusCommand implements Callable<Integer> {
         if (report.isEmpty()) {
             return this.absent();
         }
+        this.out.info("Daemon running");
         this.out.line(StatusView.render(report.orElseThrow()));
         return 0;
     }
@@ -47,7 +48,7 @@ final class StatusCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer absent() {
-        this.out.line("aroxy daemon is not running.");
+        this.out.inactive("Daemon not running");
         return NOT_RUNNING;
     }
 }

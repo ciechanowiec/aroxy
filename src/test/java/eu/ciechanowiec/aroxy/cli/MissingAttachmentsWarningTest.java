@@ -30,7 +30,7 @@ class MissingAttachmentsWarningTest {
     @Test
     void warnsWhenAPersistentFileIsMissing() {
         String out = this.checkWith(this.base.resolve("gone.conf"));
-        assertTrue(out.contains("WARNING"), out);
+        assertTrue(out.contains("! Some persistent configuration files are unavailable"), out);
         assertTrue(out.contains("gone.conf"), out);
     }
 
@@ -39,6 +39,6 @@ class MissingAttachmentsWarningTest {
     void staysSilentWhenEveryPersistentFileIsReadable() {
         Path present = this.base.resolve("present.conf");
         Files.writeString(present, "[gateway]\n");
-        assertFalse(this.checkWith(present).contains("WARNING"), "no warning when readable");
+        assertFalse(this.checkWith(present).contains("unavailable"), "no warning when readable");
     }
 }

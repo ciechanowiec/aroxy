@@ -37,11 +37,16 @@ final class StopCommand implements Callable<Integer> {
 
     private Integer finish(PidFile pid, boolean running) {
         if (pid.isRunning()) {
-            this.out.line("aroxy daemon is still shutting down; pid file left in place.");
+            this.out.warning("Daemon is still shutting down");
+            this.out.note("The PID file was left in place; run 'aroxy status' to check again.");
             return STILL_RUNNING;
         }
         pid.clear();
-        this.out.line(running ? "aroxy daemon stopped." : "aroxy daemon was not running.");
+        if (running) {
+            this.out.success("Daemon stopped");
+        } else {
+            this.out.inactive("Daemon already stopped");
+        }
         return 0;
     }
 }

@@ -1,8 +1,10 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.aroxy.client.ClaudeCode;
+import eu.ciechanowiec.aroxy.client.ClientProfile;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
-import eu.ciechanowiec.aroxy.config.Settings;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
@@ -17,6 +19,9 @@ import java.util.Optional;
  * {@link Obfuscator} compiled from a small rule set: a sensitive AWS-key regex and a non-sensitive
  * literal keyword. Exposes the client-facing base URI and the {@link AuditLog} so tests can drive the
  * proxy over real sockets and inspect the proof artifacts.
+ *
+ * <p>The listener serves whichever {@link ClientProfile} it is given, defaulting to
+ * {@link ClaudeCode}, so the same harness drives any client's path scope and stream dialect.
  */
 // the harness legitimately composes the whole proxy stack for socket-level tests
 @SuppressWarnings(
@@ -49,14 +54,17 @@ final class ProxyHarness {
     private final FakeUpstream upstream;
 
     ProxyHarness(FakeUpstream upstream, Path logsDirectory) throws IOException {
+        this(upstream, logsDirectory, ClaudeCode.profile());
+    }
+
+    ProxyHarness(FakeUpstream upstream, Path logsDirectory, ClientProfile profile) throws IOException {
         this.upstream = upstream;
         List<Rule> rules = EffectiveConfig.merge(List.of(ConfigFile.parse("test", RULES))).rules();
         Obfuscator obfuscator = new Obfuscator(rules, new Vault(Optional.empty()));
         AuditLog audit = new AuditLog(logsDirectory);
-        Settings settings = new Settings(LocalHost.HOST, 0, upstream.uri(), true);
-        Upstream forwarder = new Upstream(settings);
-        ProxyParts parts = new ProxyParts(obfuscator, forwarder, audit);
-        this.server = new ProxyServer(settings, parts);
+        Gateway gateway = new Gateway(0, upstream.uri());
+        ProxyParts parts = new ProxyParts(obfuscator, new Upstream(gateway), audit, profile);
+        this.server = new ProxyServer(LocalHost.HOST, gateway, parts);
         this.server.start();
     }
 

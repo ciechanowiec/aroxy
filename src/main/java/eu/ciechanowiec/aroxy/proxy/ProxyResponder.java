@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
+import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Reversal;
 import eu.ciechanowiec.aroxy.obfuscation.StreamDeobfuscator;
@@ -8,6 +9,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PushbackInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -15,11 +17,12 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Writes an upstream reply back to the client. A {@code /v1/messages} response is deobfuscated: a
- * {@code text/event-stream} body is streamed through the {@link SseTransformer}, any other body is
- * buffered, reversed, and written with a correct {@code Content-Length}. Every other response - and a
- * non-{@code /v1/messages} path - is copied through unchanged, which also passes an upstream
- * {@code 429 + retry-after} straight to the client.
+ * Writes an upstream reply back to the client. A response to a path in the serving
+ * {@link ClientProfile} scope is deobfuscated: a {@code text/event-stream} body is streamed through
+ * the {@link SseTransformer} in that client's dialect, any other body is buffered, reversed, and
+ * written with a correct {@code Content-Length}. Every other response - and any out-of-scope path -
+ * is copied through unchanged, which also passes an upstream {@code 429 + retry-after} straight to
+ * the client.
  *
  * <p>The proxy asks the upstream for {@code identity} so the body stays transformable. Should the
  * upstream ignore that and answer with a real {@code content-encoding} anyway, the body is passed
@@ -34,24 +37,39 @@ import lombok.extern.slf4j.Slf4j;
 final class ProxyResponder {
 
     private static final int BUFFER = 8192;
+    private static final int SNIFF_LIMIT = 512;
+    private static final int BYTE_ORDER_MARK = 0xFEFF;
+    private static final List<String> SSE_PREFIXES = List.of("event:", "data:", "id:", "retry:", ":");
     private final Obfuscator obfuscator;
     private final AuditLog audit;
+    private final ClientProfile profile;
 
-    ProxyResponder(Obfuscator obfuscator, AuditLog audit) {
+    ProxyResponder(Obfuscator obfuscator, AuditLog audit, ClientProfile profile) {
         this.obfuscator = obfuscator;
         this.audit = audit;
+        this.profile = profile;
     }
 
     void respond(HttpExchange exchange, UpstreamReply reply, ProxyRequest request, String stamp) throws IOException {
-        ResponseHeaderCopier.copy(reply.headers(), exchange.getResponseHeaders());
-        boolean encoded = preserveEncoding(reply, exchange.getResponseHeaders());
-        this.dispatch(exchange, reply, plan(reply, request, stamp, encoded));
+        boolean encoded = hasEncoding(reply);
+        PreparedReply prepared = prepare(reply, encoded);
+        ResponseHeaderCopier.copy(prepared.reply().headers(), exchange.getResponseHeaders());
+        preserveEncoding(prepared.reply(), exchange.getResponseHeaders());
+        if (prepared.inferredStream()) {
+            exchange.getResponseHeaders().put("Content-Type", List.of("text/event-stream"));
+        }
+        this.dispatch(
+            exchange,
+            prepared.reply(),
+            this.plan(request, stamp, encoded, prepared.eventStream())
+        );
     }
 
-    private static ResponsePlan plan(UpstreamReply reply, ProxyRequest request, String stamp, boolean encoded) {
-        boolean deobfuscate = request.shouldDeobfuscate() && !encoded;
-        boolean sse = !encoded && isSse(reply);
-        return new ResponsePlan(deobfuscate, sse, stamp);
+    private ResponsePlan plan(
+        ProxyRequest request, String stamp, boolean encoded, boolean eventStream
+    ) {
+        boolean deobfuscate = this.profile.scope().transforms(request.path()) && !encoded;
+        return new ResponsePlan(deobfuscate, !encoded && eventStream, stamp);
     }
 
     private static boolean isSse(UpstreamReply reply) {
@@ -59,12 +77,59 @@ final class ProxyResponder {
             .filter(type -> type.contains("text/event-stream")).isPresent();
     }
 
-    private static boolean preserveEncoding(UpstreamReply reply, Map<String, List<String>> downstream) {
-        Optional<String> encoding = HeaderLookup.first(reply.headers(), "content-encoding")
+    private static boolean hasEncoding(UpstreamReply reply) {
+        return encoding(reply).isPresent();
+    }
+
+    private static void preserveEncoding(UpstreamReply reply, Map<String, List<String>> downstream) {
+        encoding(reply).ifPresent(value -> downstream.put("Content-Encoding", List.of(value)));
+    }
+
+    private static Optional<String> encoding(UpstreamReply reply) {
+        return HeaderLookup.first(reply.headers(), "content-encoding")
             .filter(value -> !value.isBlank())
             .filter(value -> !"identity".equalsIgnoreCase(value));
-        encoding.ifPresent(value -> downstream.put("Content-Encoding", List.of(value)));
-        return encoding.isPresent();
+    }
+
+    /**
+     * An upstream can carry a genuine SSE body under an ordinary JSON content type. Probe one already-
+     * available prefix when the header does not identify a stream, then push those bytes back so the
+     * normal pump still sees the complete body. This keeps header-correct streams on the zero-probe
+     * path and never attempts to inspect a compressed response.
+     */
+    private static PreparedReply prepare(UpstreamReply reply, boolean encoded) throws IOException {
+        boolean declared = !encoded && isSse(reply);
+        if (encoded || declared) {
+            return new PreparedReply(reply, declared, false);
+        }
+        return inferred(reply);
+    }
+
+    // ownership of body moves into the returned reply and the response writer closes it
+    @SuppressWarnings(
+        "PMD.CloseResource"
+    )
+    private static PreparedReply inferred(UpstreamReply reply) throws IOException {
+        PushbackInputStream body = new PushbackInputStream(reply.body(), SNIFF_LIMIT);
+        byte[] prefix = new byte[SNIFF_LIMIT];
+        int read = body.read(prefix);
+        if (read > 0) {
+            body.unread(prefix, 0, read);
+        }
+        boolean inferred = read > 0 && looksLikeSse(prefix, read);
+        UpstreamReply replayable = new UpstreamReply(reply.status(), reply.headers(), body);
+        return new PreparedReply(replayable, inferred, inferred);
+    }
+
+    private static boolean looksLikeSse(byte[] prefix, int length) {
+        String text = new String(prefix, 0, length, StandardCharsets.UTF_8);
+        int start = 0;
+        while (start < text.length()
+            && (Character.isWhitespace(text.charAt(start)) || text.charAt(start) == BYTE_ORDER_MARK)) {
+            start++;
+        }
+        String first = text.substring(start);
+        return SSE_PREFIXES.stream().anyMatch(first::startsWith);
     }
 
     private void dispatch(HttpExchange exchange, UpstreamReply reply, ResponsePlan plan) throws IOException {
@@ -82,7 +147,7 @@ final class ProxyResponder {
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
         StreamDeobfuscator deobfuscator = new StreamDeobfuscator(this.obfuscator);
         try (OutputStream out = exchange.getResponseBody(); InputStream body = reply.body()) {
-            pump(body, capture, new SseTransformer(out, deobfuscator));
+            pump(body, capture, new SseTransformer(out, deobfuscator, this.profile.dialect()));
         } catch (IOException exception) {
             afterStreamInterrupted(exception);
         } finally {
@@ -104,7 +169,7 @@ final class ProxyResponder {
     }
 
     private void recordStream(String stamp, ByteArrayOutputStream capture, StreamDeobfuscator deobfuscator) {
-        this.audit.response(stamp, "/v1/messages", deobfuscator.reversedCount(), true);
+        this.audit.response(stamp, this.profile.scope().auditLabel(), deobfuscator.reversedCount(), true);
         this.audit.wireRawResponse(stamp, capture.toByteArray());
     }
 
@@ -112,7 +177,7 @@ final class ProxyResponder {
         byte[] raw = readAll(reply);
         this.audit.wireRawResponse(stamp, raw);
         Reversal reversed = this.obfuscator.restore(new String(raw, StandardCharsets.UTF_8));
-        this.audit.response(stamp, "/v1/messages", reversed.count(), false);
+        this.audit.response(stamp, this.profile.scope().auditLabel(), reversed.count(), false);
         writeFixed(exchange, reply.status(), reversed.text().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -151,5 +216,8 @@ final class ProxyResponder {
                 out.write(body);
             }
         }
+    }
+
+    private record PreparedReply(UpstreamReply reply, boolean eventStream, boolean inferredStream) {
     }
 }

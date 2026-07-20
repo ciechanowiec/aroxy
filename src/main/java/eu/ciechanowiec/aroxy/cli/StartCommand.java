@@ -2,13 +2,14 @@ package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.Launcher;
+import eu.ciechanowiec.aroxy.daemon.Launcher.Outcome;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 
 /**
  * {@code aroxy start}: launches the daemon. It spawns a detached background JVM via the
- * {@link Launcher} and returns immediately. Configuration files are attached only through
- * {@code aroxy config attach}, never at start.
+ * {@link Launcher} and waits until every listener is ready or the bounded launch attempt fails.
+ * Configuration files are attached only through {@code aroxy config attach}, never at start.
  */
 @Command(
     name = "start", description = "Start the aroxy daemon."
@@ -22,11 +23,20 @@ final class StartCommand implements Callable<Integer> {
     }
 
     @Override
-    public Integer call() {
+    public Integer call() throws InterruptedException {
         Home home = Home.resolve();
         new MissingAttachmentsWarning(this.out).check(home);
-        boolean started = new Launcher(home).start();
-        this.out.line(started ? "aroxy daemon started." : "aroxy daemon is already running.");
-        return 0;
+        Outcome outcome = new Launcher(home).start();
+        DaemonOutput daemon = new DaemonOutput(this.out);
+        return switch (outcome) {
+            case STARTED -> finish(() -> daemon.ready(home, "started"), 0);
+            case ALREADY_RUNNING -> finish(() -> daemon.alreadyRunning(home), 0);
+            case FAILED -> finish(() -> daemon.failed(home, "start"), 1);
+        };
+    }
+
+    private static Integer finish(Runnable output, int exit) {
+        output.run();
+        return exit;
     }
 }

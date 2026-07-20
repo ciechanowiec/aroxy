@@ -46,6 +46,22 @@ public final class StreamDeobfuscator {
     }
 
     /**
+     * Reverses a complete piece of text in one pass, without touching the carry buffer.
+     *
+     * <p>Some streams repeat the text they streamed as fragments in a single later block that carries
+     * the authoritative copy. Such a block arrives whole, so no token in it can be split and the carry
+     * buffer must be left alone for the fragment run it belongs to. Reversing that copy matters
+     * because a client may persist it into its conversation history and echo it back on the next
+     * request; reversing only the fragments would leave tokens in that history to egress again.
+     *
+     * @param text the complete text to reverse
+     * @return the text with every token restored to its original value
+     */
+    public String restoreWhole(String text) {
+        return this.reverse(text);
+    }
+
+    /**
      * The total number of tokens reversed across every fragment accepted so far.
      *
      * @return the running count of reversed tokens

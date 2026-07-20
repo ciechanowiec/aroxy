@@ -5,9 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.aroxy.client.ClaudeCode;
+import eu.ciechanowiec.aroxy.client.ClientId;
+import eu.ciechanowiec.aroxy.client.ClientProfile;
+import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import java.net.InetAddress;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Locks the rule that a key a file declares must be usable. A key its stanza does not define, or a
@@ -33,39 +40,76 @@ class DeclaredKeyValidationTest {
     }
 
     private static int portOf(ConfigFile file) {
-        return EffectiveConfig.merge(List.of(file)).settings().listenPort();
+        return EffectiveConfig.merge(List.of(file)).settings().gateway(ClaudeCode.ID).listenPort();
     }
 
-    @Test
-    void rejectsAnOutOfRangePortNamingTheValueAndTheRange() {
-        InvalidConfigException rejected = gateway("listen = 87788");
+    /**
+     * Driven over every registered client rather than over one, because the listen keys are derived
+     * from the client registry rather than listed in the parser. A test that only ever exercised one
+     * agent's key would pass just as happily if a newly registered agent's key were never validated,
+     * which is exactly the claim this is here to hold up.
+     */
+    @ParameterizedTest
+    @MethodSource(
+        "clientIds"
+    )
+    void rejectsAnOutOfRangePortNamingTheValueAndTheRange(ClientId id) {
+        InvalidConfigException rejected = gateway(id.configKey() + " = 87788");
         assertTrue(rejected.getMessage().contains("87788"), rejected.getMessage());
         assertTrue(rejected.getMessage().contains("between 1 and 65535"), rejected.getMessage());
         assertTrue(rejected.getMessage().contains("broken"), rejected.getMessage());
     }
 
-    @Test
-    void rejectsPortZeroRatherThanBindingARandomPort() {
+    @ParameterizedTest
+    @MethodSource(
+        "clientIds"
+    )
+    void rejectsPortZeroRatherThanBindingARandomPort(ClientId id) {
         assertTrue(
-            gateway("listen = 127.0.0.1:0").getMessage().contains("'127.0.0.1:0'"),
+            gateway(id.configKey() + " = 127.0.0.1:0").getMessage().contains("'127.0.0.1:0'"),
             "port 0 is not configurable, and the value is echoed as written"
         );
     }
 
-    @Test
-    void rejectsANonNumericPort() {
+    @ParameterizedTest
+    @MethodSource(
+        "clientIds"
+    )
+    void rejectsANonNumericPort(ClientId id) {
         assertTrue(
-            gateway("listen = eight-seven-eight-eight").getMessage().contains("is not a port"),
+            gateway(id.configKey() + " = eight-seven-eight-eight").getMessage().contains("is not a port"),
             "garbage is caught"
         );
     }
 
-    @Test
-    void rejectsAHostThatNamesNoPort() {
+    @ParameterizedTest
+    @MethodSource(
+        "clientIds"
+    )
+    void rejectsAHostThatNamesNoPort(ClientId id) {
         String loopback = InetAddress.getLoopbackAddress().getHostAddress();
         assertTrue(
-            gateway("listen = " + loopback).getMessage().contains(loopback), "a host alone declares no port"
+            gateway(id.configKey() + " = " + loopback).getMessage().contains(loopback),
+            "a host alone declares no port"
         );
+    }
+
+    @ParameterizedTest
+    @MethodSource(
+        "clientIds"
+    )
+    void aValidPortIsHonoredForEveryClient(ClientId id) {
+        ConfigFile file = assertDoesNotThrow(
+            () -> ConfigFile.parse("valid", "[gateway]\n" + id.configKey() + " = 127.0.0.1:9999\n")
+        );
+        assertEquals(
+            OVERRIDE_PORT, EffectiveConfig.merge(List.of(file)).settings().gateway(id).listenPort(),
+            "every client's key reaches its own listener"
+        );
+    }
+
+    private static Stream<ClientId> clientIds() {
+        return ClientRegistry.profiles().stream().map(ClientProfile::id);
     }
 
     @Test
@@ -79,9 +123,11 @@ class DeclaredKeyValidationTest {
     void rejectsAnUpstreamKeyRatherThanIgnoringIt() {
         InvalidConfigException rejected = gateway("upstream = https://proxy.internal");
         assertTrue(rejected.getMessage().contains("'upstream'"), rejected.getMessage());
-        assertTrue(
-            rejected.getMessage().contains("listen"),
-            "the rejection names the keys the stanza does take"
+        ClientRegistry.profiles().stream().map(ClientProfile::id).forEach(
+            id -> assertTrue(
+                rejected.getMessage().contains(id.configKey()),
+                "the rejection names every key the stanza does take, missing " + id.configKey()
+            )
         );
     }
 
@@ -128,7 +174,9 @@ class DeclaredKeyValidationTest {
 
     @Test
     void aValidListenKeyStillOverridesTheDefault() {
-        ConfigFile file = assertDoesNotThrow(() -> ConfigFile.parse("valid", "[gateway]\nlisten = 127.0.0.1:9999\n"));
+        ConfigFile file = assertDoesNotThrow(
+            () -> ConfigFile.parse("valid", "[gateway]\nlisten_claude = 127.0.0.1:9999\n")
+        );
         assertEquals(OVERRIDE_PORT, portOf(file), "a valid port is still honored");
     }
 

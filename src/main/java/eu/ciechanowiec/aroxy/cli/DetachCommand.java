@@ -39,11 +39,14 @@ final class DetachCommand implements Callable<Integer> {
     public Integer call() {
         Home home = Home.resolve();
         if (new PidFile(home.pidFile()).isRunning()) {
-            this.out.line("Refusing to detach while the daemon is running; stop it first.");
+            this.out.error("Cannot detach configuration");
+            this.out.detail("Reason", "Daemon is running");
+            this.out.note("Run 'aroxy stop' first.");
             return REFUSED;
         }
         new AttachmentRegistry(home.attachments()).detach(this.file);
-        this.out.line("Detached " + this.file.toAbsolutePath());
+        this.out.success("Configuration detached");
+        this.out.detail("File", this.file.toAbsolutePath());
         return 0;
     }
 }

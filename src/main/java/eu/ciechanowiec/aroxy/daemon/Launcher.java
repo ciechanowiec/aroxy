@@ -3,18 +3,25 @@ package eu.ciechanowiec.aroxy.daemon;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.ProcessBuilder.Redirect;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Starts and stops the background daemon. {@link #start()} spawns a detached JVM that re-invokes this
- * jar's hidden daemon entry, redirecting its stdout and stderr to {@link Home}{@code /logs}, then records the
- * child pid without waiting for it. It is idempotent: if a live daemon is already recorded it does
- * nothing. {@link #buildCommand()} is exposed so tests can assert the launch command without
- * spawning a real process.
+ * jar's hidden daemon entry and redirects its stdout and stderr to {@link Home}{@code /logs}. It does
+ * not report success merely because the child was spawned: it waits until that same launch publishes
+ * a fresh {@link RuntimeSnapshot}, which happens only after every proxy listener has bound. Launch
+ * attempts are serialized across CLI processes. A child that exits, times out, or cannot be recorded
+ * is terminated and its stale control files are cleared. It is idempotent: if a live daemon is
+ * already recorded it does nothing. {@link #buildCommand()} is exposed so tests can assert the launch
+ * command without spawning a real process.
  */
-@Slf4j
 public final class Launcher {
 
     private final Home home;
@@ -31,20 +38,60 @@ public final class Launcher {
     }
 
     /**
-     * Spawns the detached daemon JVM unless one is already running; returns true if it started one.
+     * Spawns the detached daemon JVM unless one is already running, and waits for listener readiness.
      *
-     * @return {@code true} if a daemon was started, {@code false} if one was already running
+     * @return the outcome of the bounded launch attempt
+     * @throws InterruptedException if interrupted while waiting for readiness or child termination
      */
-    public boolean start() {
-        if (this.pidFile.isRunning()) {
-            log.atInfo().addArgument(() -> this.pidFile.read().orElse(-1L)).log(
-                "aroxy daemon already running (pid {})"
+    public Outcome start() throws InterruptedException {
+        try (
+            FileChannel channel = FileChannel.open(
+                this.home.launchLock(), StandardOpenOption.CREATE, StandardOpenOption.WRITE
             );
-            return false;
+            FileLock ignored = channel.lock()
+        ) {
+            return this.startLocked();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not lock aroxy daemon launch", exception);
         }
+    }
+
+    private Outcome startLocked() throws InterruptedException {
+        if (!this.pidFile.isRunning()) {
+            return this.launchAndWait();
+        }
+        return Outcome.ALREADY_RUNNING;
+    }
+
+    private Outcome launchAndWait() throws InterruptedException {
+        this.clearRuntime();
+        long launchedAt = System.currentTimeMillis();
         Process process = this.spawn();
-        this.pidFile.write(process.pid());
-        return true;
+        boolean ready = false;
+        try {
+            this.pidFile.write(process.pid());
+            ready = StartupWait.untilReady(
+                this.pidFile, this.home.runtimeFile(), launchedAt, process.pid()
+            );
+            if (ready) {
+                return Outcome.STARTED;
+            }
+            terminate(process);
+            return Outcome.FAILED;
+        } finally {
+            if (!ready) {
+                this.cleanupFailedLaunch(process);
+            }
+        }
+    }
+
+    private void cleanupFailedLaunch(Process process) {
+        process.destroyForcibly();
+        try {
+            this.pidFile.clear();
+        } finally {
+            this.clearRuntime();
+        }
     }
 
     /**
@@ -72,5 +119,45 @@ public final class Launcher {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not spawn aroxy daemon", exception);
         }
+    }
+
+    private void clearRuntime() {
+        try {
+            Files.deleteIfExists(this.home.runtimeFile());
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Could not clear stale runtime snapshot", exception);
+        }
+    }
+
+    private static void terminate(Process process) throws InterruptedException {
+        if (!process.isAlive()) {
+            return;
+        }
+        process.destroy();
+        if (!process.waitFor(Duration.of(StartupWait.TIMEOUT_SECONDS, TimeUnit.SECONDS.toChronoUnit()))) {
+            process.destroyForcibly();
+            process.waitFor();
+        }
+    }
+
+    /**
+     * The observable result of a daemon launch request.
+     */
+    public enum Outcome {
+
+        /**
+         * Every configured listener bound and the daemon published its runtime state.
+         */
+        STARTED,
+
+        /**
+         * The recorded daemon was already alive, so no child was spawned.
+         */
+        ALREADY_RUNNING,
+
+        /**
+         * The child exited or timed out before every listener became ready.
+         */
+        FAILED
     }
 }

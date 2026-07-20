@@ -1,5 +1,5 @@
 [.text-justify]
-= _aroxy_ -  Anthropic Proxy
+= _aroxy_ -  Agent Proxy
 :reproducible:
 :doctype: article
 :author: Herman Ciechanowiec
@@ -24,11 +24,28 @@
 
 == _aroxy_ in Brief
 
-. _aroxy_ ("Anthropic Proxy") is a local HTTP proxy that stands between https://www.claude.com/product/claude-code[Claude Code^] and the Claude API. Claude Code sends its API traffic to _aroxy_ instead of directly to `api.anthropic.com`. _aroxy_ replaces sensitive values in the request body with tokens, forwards the request to the real API, and restores the original values in the response before returning it to Claude Code.
+. _aroxy_ ("Agent Proxy") is a local HTTP proxy that stands between your coding agent and the API it talks to. The agent sends its API traffic to _aroxy_ instead of directly to the vendor. _aroxy_ replaces sensitive values in the request body with tokens, forwards the request to the real API, and restores the original values in the response before returning it to the agent.
 +
-image::.docs/img/architecture.drawio.png[alt="Two Claude Code sessions on the left each connect to one aroxy on 127.0.0.1:8788, which connects to api.anthropic.com on the right. Each session sends requests to aroxy and gets responses back, and aroxy forwards requests to the API and gets responses back. aroxy obfuscates each request on the way out and deobfuscates each response on the way back against one shared vault."]
-. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` is a per-value counter. The counter is shared across all rules and advances by one for each new distinct value, so the numbers form a single sequence across placeholders rather than restarting per placeholder. For example, the first AWS key in a request becomes `+<<PII:AWS_KEY:1>>+`. The substitution happens before the request leaves the machine, so the Claude API receives the token, never the original value. Claude Code receives the original value back, so its own view of the conversation is unchanged.
-. This is data minimization, not concealment. _aroxy_ removes sensitive content from the bytes that leave the machine. It doesn't hide that Claude Code is in use, and it doesn't change the destination: an observer still sees a TLS connection to `api.anthropic.com`. Confirm that Claude Code and `api.anthropic.com` are permitted on the network before relying on this setup.
+Two agents are supported, each on its own local port, and one _aroxy_ serves both at once:
++
+[cols="1,1,1"]
+|===
+| Agent | Point it at | Forwarded to
+
+| https://www.claude.com/product/claude-code[Claude Code^]
+| `127.0.0.1:8788`
+| `api.anthropic.com`
+
+| https://developers.openai.com/codex/cli[Codex^] (signed in with ChatGPT)
+| `127.0.0.1:8789`
+| `chatgpt.com/backend-api/codex`
+|===
++
+A port per agent means a request is never routed by guessing which vendor a path belongs to. Both listeners share one vault, one rule set, and one xref:#audit-log[audit log], so a secret carries the same token whichever agent sends it.
++
+image::.docs/img/architecture.drawio.png[alt="Claude Code and Codex on the left. Each connects to its own listener inside one aroxy: Claude Code to 127.0.0.1:8788 and Codex to 127.0.0.1:8789. On the right, the first listener connects to api.anthropic.com and the second to chatgpt.com/backend-api/codex. Each agent sends requests to its listener and gets responses back, and each listener forwards requests to its API and gets responses back. Both listeners share one vault, one rule set and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
+. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` is a per-value counter. The counter is shared across all rules and advances by one for each new distinct value, so the numbers form a single sequence across placeholders rather than restarting per placeholder. For example, the first AWS key in a request becomes `+<<PII:AWS_KEY:1>>+`. The substitution happens before the request leaves the machine, so the API receives the token, never the original value. The agent receives the original value back, so its own view of the conversation is unchanged.
+. This is data minimization, not concealment. _aroxy_ removes sensitive content from the bytes that leave the machine. It doesn't hide that an agent is in use, and it doesn't change the destination: an observer still sees a TLS connection to the vendor's API. Confirm that your agent and its API host are permitted on the network before relying on this setup.
 
 == Default Coverage
 
@@ -55,7 +72,16 @@ _aroxy_ has three prerequisites, listed below.
 java --version
 ----
 . Maven 3.9 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
-. Claude Code, installed and already logged in, with either an API key or a Claude.ai subscription. _aroxy_ forwards the authentication header unchanged, so either login works.
+. At least one supported agent, installed and already logged in:
++
+--
+* Claude Code, with either an API key or a Claude.ai subscription,
++
+or
+* Codex, signed in with ChatGPT.
+--
++
+_aroxy_ forwards the authentication header unchanged, so every one of those logins works. Nothing about your credentials is read, stored, or rewritten.
 
 [#install]
 == Install
@@ -98,7 +124,7 @@ mvn -q clean package
 aroxy start
 ----
 +
-On first run _aroxy_ writes the xref:#default-configuration-file[default configuration file `~/.aroxy/default.conf`] from the bundled defaults. `aroxy start` is idempotent: when the service is already running, it reports that and does nothing. If a xref:#persistent-configuration-file[persistent configuration file] recorded in the xref:#registry[registry] can't be read, `aroxy start` prints a prominent red warning and starts without those rules, so you can fix the path or detach it.
+On first run _aroxy_ writes the xref:#default-configuration-file[default configuration file `~/.aroxy/default.conf`] from the bundled defaults. `aroxy start` reports success only after every configured listener is bound and the daemon publishes its runtime state. A configuration or bind failure exits with a nonzero status, confirms that no proxy is running, and points to `~/.aroxy/logs/daemon-err.log`. The command is idempotent: when the service is already running, it reports that and does nothing. If a xref:#persistent-configuration-file[persistent configuration file] recorded in the xref:#registry[registry] can't be read, `aroxy start` prints a prominent red warning and starts without those rules, so you can fix the path or detach it.
 . Point Claude Code at _aroxy_ by setting `ANTHROPIC_BASE_URL` in the shell where Claude Code runs:
 +
 [source,bash]
@@ -117,8 +143,30 @@ To apply the setting to every session, add it to the `env` block of `~/.claude/s
   }
 }
 ----
+. [[point-codex]]Set up an _aroxy_ profile for Codex once by saving this as `~/.codex/aroxy.config.toml`:
 +
-_aroxy_ must be running whenever Claude Code runs with this setting. When _aroxy_ is stopped, Claude Code can't reach the API. You can run several Claude Code sessions at once: each one that sets `ANTHROPIC_BASE_URL` shares the same running _aroxy_, as described in the section xref:#vault-and-sessions[].
+[source,toml]
+----
+model_provider = "aroxy"
+
+[model_providers.aroxy]
+name = "aroxy"
+base_url = "http://127.0.0.1:8789"
+wire_api = "responses"
+requires_openai_auth = true
+supports_websockets = false
+----
++
+Then point one Codex session at _aroxy_ by selecting the profile:
++
+[source,bash]
+----
+codex --profile aroxy
+----
++
+To apply the setting to every session, save the same configuration as `~/.codex/config.toml` instead and run `codex` normally.
++
+. _aroxy_ must be running whenever an agent runs with settings described above. When _aroxy_ is stopped, the agent can't reach its API. You can run several sessions of either agent at once: each one shares the same running _aroxy_, as described in the section xref:#vault-and-sessions[].
 
 == Commands
 
@@ -130,7 +178,7 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 | `aroxy start` | Start the background service.
 | `aroxy stop` | Stop the running service.
 | `aroxy restart` | Stop, then start. xref:#temporary-configuration-file[Temporary configuration files] are dropped, while the xref:#default-configuration-file[default configuration file] and xref:#persistent-configuration-file[persistent configuration files] load again.
-| `aroxy status` | Show whether the service runs, the listen address, the upstream, the active rule count, and the configuration files in effect, each with the time it was loaded.
+| `aroxy status` | Show whether the service runs, one line per agent naming the address to point it at and the API it reaches, the active rule count, and the configuration files in effect, each with the time it was loaded.
 | `aroxy config` | Show the effective configuration and the configuration files that contributed to it.
 | [[reload-command]]`aroxy reload` | Re-read every active configuration file, then swap the live rules without dropping connections.
 | `aroxy logs [--audit\|--app\|--wire\|--all] [-f]` | Print a log. `--audit` is the default. `-f` follows the selected log, `--audit` or `--app`, like `tail -f`, but `--wire` and `--all` ignore it. The kinds are described in the section xref:#logs[].
@@ -150,6 +198,20 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 . Attaching a configuration file is allowed while the service runs, and a persistent configuration file also updates the xref:#registry[registry] and triggers a xref:#reload-command[reload]. Detaching a persistent configuration file is allowed only while the service is stopped.
 
 [#the-rule-format]
+== The Gateway Keys
+
+[[gateway-keys]]The `[gateway]` stanza takes three keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
+
+[cols="1,1,3",options="header"]
+|===
+| Key | Default | Meaning
+| `listen_claude` | `8788` | The port Claude Code connects to. Forwarded to `api.anthropic.com`.
+| `listen_codex` | `8789` | The port Codex connects to. Forwarded to `chatgpt.com/backend-api/codex`.
+| `mask_secrets` | `true` | `true` masks the values of `sensitive` rules in the xref:#audit-log[audit log].
+|===
+
+Each listen key is the port only. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone, so it can't be moved onto a network interface. The upstream of each agent is fixed and no key reaches it. Giving two agents the same port breaks the configuration file, since only one of them could ever bind it.
+
 == The Rule Format
 
 . [[stanza-format]]A configuration file uses a stanza format: a line `[gateway]` or `[rule]` opens a stanza, `key = value` lines follow, and a line that begins with `#` is a comment. Patterns are written verbatim, with no backslash escaping. Only `id`, `placeholder`, and the rule's source are required. The source is `pattern` for a `regex` rule, or `value` for a `literal` rule. Every other key is optional and takes the default shown.
@@ -218,11 +280,11 @@ A human-readable before-and-after of every obfuscation. For each request it list
 ----
 . [[diagnostic-log]]*Diagnostic log (`~/.aroxy/logs/aroxy.log`, shown by `aroxy logs --app`)*
 +
-The diagnostic log records the service's start and stop, configuration reloads, upstream errors, and benign events such as a `Broken pipe` when Claude Code cancels a request. It holds no request or response content. It rotates on each start, once a day, and once it passes 4 MB, keeping five numbered backups. The proxy always binds the local interface `127.0.0.1` and listens on its configured port (`8788` by default). The bind host isn't configurable, so the proxy stays unreachable from the network.
+The diagnostic log records the service's start and stop, configuration reloads, upstream errors, and benign events such as a `Broken pipe` when an agent cancels a request. It holds no request or response content. It rotates on each start, once a day, and once it passes 4 MB, keeping five numbered backups. The proxy always binds the local interface `127.0.0.1` and listens on the configured port of each agent (`8788` and `8789` by default). The bind host isn't configurable, so the proxy stays unreachable from the network.
 +
 [source,text]
 ----
-[2026-06-16 09:14:07.880] [INFO] aroxy daemon listening on 8788
+[2026-06-16 09:14:07.880] [INFO] aroxy daemon listening on Claude Code on 127.0.0.1:8788, Codex on 127.0.0.1:8789
 [2026-06-16 09:18:42.530] [INFO] aroxy daemon reloaded 2 rule(s)
 ----
 . [[wire-dumps]]*Wire dumps (`~/.aroxy/logs/wire/`, listed by `aroxy logs --wire`)*
@@ -240,11 +302,18 @@ Without `-f`, `aroxy logs` prints the selected log once and returns. With `-f`, 
 
 You can confirm that _aroxy_ obfuscates a real request end to end in two steps.
 
-. Send one request, with _aroxy_ running and `ANTHROPIC_BASE_URL` set, that contains a fake secret and a keyword:
+. Send one request, with _aroxy_ running and your agent pointed at it, that contains a fake secret and a keyword:
 +
 [source,bash]
 ----
 claude -p "Here is our AWS key AKIAIOSFODNN7EXAMPLE for Acme Corporation."
+----
++
+Or, with Codex:
++
+[source,bash]
+----
+codex exec "Here is our AWS key AKIAIOSFODNN7EXAMPLE for Acme Corporation."
 ----
 . Read the proof under `~/.aroxy/logs/`. Grep the wire dump for the request, and the audit log for the mapping.
 .. *The bytes that left the machine*
@@ -266,13 +335,13 @@ grep -E 'AWS_KEY|COMPANY' ~/.aroxy/logs/audit.log  # one line each
 ----
 .. *The restored response*
 +
-Claude's reply in the terminal refers to `Acme Corporation`, even though the upstream only ever received `+<<PII:COMPANY:2>>+`. The deobfuscation step put the value back.
+The agent's reply in the terminal refers to `Acme Corporation`, even though the upstream only ever received `+<<PII:COMPANY:2>>+`. The deobfuscation step put the value back.
 
 [#vault-and-sessions]
 == The Vault and Multiple Sessions
 
 . Each distinct original value maps to one token in the [[vault]]_vault_, so the same value obfuscates to the same token across the conversation. A value from a rule marked xref:#the-rule-format[`sensitive`], namely a secret, is kept in memory only and is never written to disk, so no secret is left at rest, and after a restart it takes a fresh token. Every other value is persisted to `~/.aroxy/vault.tsv`, so it generally keeps its token across a stop and a start. That file holds those non-sensitive originals only, Base64-encoded and not encrypted, and never leaves the machine. The split is automatic and can't be turned off.
-. One _aroxy_ serves every Claude Code session on the machine: each session points `ANTHROPIC_BASE_URL` at the same `127.0.0.1:8788`, so they share one proxy, one vault, and one xref:#audit-log[audit log]. The proxy handles requests concurrently, and the vault is synchronized, so simultaneous sessions can't corrupt it or mint the same token twice. The vault is shared, not per-session: the same value maps to the same token for every session, and each token reverses to exactly one value, so _aroxy_ doesn't need to tell the sessions apart. A response carries only the tokens that its own request introduced, and the authentication header is forwarded unchanged, so nothing crosses between sessions.
+. One _aroxy_ serves every agent session on the machine: Claude Code sessions point `ANTHROPIC_BASE_URL` at `127.0.0.1:8788` and Codex sessions point their provider `base_url` at `127.0.0.1:8789`, so they share one proxy, one vault, and one xref:#audit-log[audit log]. The vault is shared across agents too, so a value obfuscated in a Claude Code session is the same token in a Codex session. The proxy handles requests concurrently, and the vault is synchronized, so simultaneous sessions can't corrupt it or mint the same token twice. The vault is shared, not per-session: the same value maps to the same token for every session and every agent, and each token reverses to exactly one value, so _aroxy_ doesn't need to tell the sessions apart. A response carries only the tokens that its own request introduced, and the authentication header is forwarded unchanged, so nothing crosses between sessions.
 
 == Building and Releasing
 

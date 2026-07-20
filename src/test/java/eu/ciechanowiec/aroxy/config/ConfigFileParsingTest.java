@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.aroxy.client.ClaudeCode;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.RuleKind;
 import eu.ciechanowiec.aroxy.obfuscation.RuleSpec;
 import java.net.URI;
@@ -36,6 +38,10 @@ class ConfigFileParsingTest {
             .collect(Collectors.toMap(RuleSpec::id, spec -> spec));
     }
 
+    private static Gateway claudeCode(Settings settings) {
+        return settings.gateway(ClaudeCode.ID);
+    }
+
     private static RuleSpec spec(String id) {
         return Objects.requireNonNull(specsById().get(id));
     }
@@ -44,8 +50,10 @@ class ConfigFileParsingTest {
     void parsesGatewaySettingsIntoDefaults() {
         Settings settings = bundled().gateway().applyTo(Settings.defaults());
         assertEquals("127.0.0.1", settings.listenHost(), "listen host");
-        assertEquals(DEFAULT_PORT, settings.listenPort(), "listen port");
-        assertEquals(URI.create("https://api.anthropic.com"), settings.upstream(), "upstream");
+        assertEquals(DEFAULT_PORT, claudeCode(settings).listenPort(), "listen port");
+        assertEquals(
+            URI.create("https://api.anthropic.com"), claudeCode(settings).upstream(), "upstream"
+        );
         assertTrue(settings.maskSecrets(), "mask secrets default on");
     }
 
@@ -90,26 +98,28 @@ class ConfigFileParsingTest {
 
     @Test
     void ignoresCommentsAndBlankLines() {
-        String text = "# a comment\n\n[gateway]\n\n  listen = 10.0.0.1:9999  \n# trailing comment\n";
+        String text = "# a comment\n\n[gateway]\n\n  listen_claude = 10.0.0.1:9999  \n# trailing comment\n";
         Settings settings = ConfigFile.parse("inline", text).gateway().applyTo(Settings.defaults());
         assertEquals("127.0.0.1", settings.listenHost(), "host stays 127.0.0.1; the configured host is ignored");
-        assertEquals(OVERRIDE_PORT, settings.listenPort(), "port parsed past comments");
+        assertEquals(OVERRIDE_PORT, claudeCode(settings).listenPort(), "port parsed past comments");
     }
 
     @Test
     void neverBindsANetworkHost() {
-        String text = "[gateway]\nlisten = 0.0.0.0:8788\n";
+        String text = "[gateway]\nlisten_claude = 0.0.0.0:8788\n";
         Settings settings = ConfigFile.parse("inline", text).gateway().applyTo(Settings.defaults());
         assertEquals("127.0.0.1", settings.listenHost(), "a network-facing host is ignored, not honored");
-        assertEquals(DEFAULT_PORT, settings.listenPort(), "the port is still read from a host:port value");
+        assertEquals(
+            DEFAULT_PORT, claudeCode(settings).listenPort(), "the port is still read from a host:port value"
+        );
     }
 
     @Test
     void readsABarePortWithoutAHost() {
-        String text = "[gateway]\nlisten = 9999\n";
+        String text = "[gateway]\nlisten_claude = 9999\n";
         Settings settings = ConfigFile.parse("inline", text).gateway().applyTo(Settings.defaults());
         assertEquals("127.0.0.1", settings.listenHost(), "host stays 127.0.0.1");
-        assertEquals(OVERRIDE_PORT, settings.listenPort(), "a bare port is honored");
+        assertEquals(OVERRIDE_PORT, claudeCode(settings).listenPort(), "a bare port is honored");
     }
 
     @Test

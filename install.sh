@@ -18,8 +18,7 @@
 #      removes it.
 #
 # Boundary: aroxy is data minimization, not circumvention. It removes sensitive content from
-# what leaves the machine; it does not hide that Claude Code is used nor change the destination
-# (api.anthropic.com).
+# what leaves the machine; it does not hide that an agent is used nor change the destination.
 
 set -euo pipefail
 

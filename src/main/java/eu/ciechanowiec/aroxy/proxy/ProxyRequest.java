@@ -1,22 +1,22 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
+import eu.ciechanowiec.aroxy.client.PathScope;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The parsed inbound request: its method, the raw path, the path-and-query to forward, the request
- * headers, and the fully-read body. The path drives two decisions - whether the body is obfuscated
- * before egress and whether the response is deobfuscated. Both use the same path-segment match
- * ({@code /v1/messages} itself or any {@code /v1/messages/...} sub-resource such as
- * {@code count_tokens}), so a request that is obfuscated always has its response deobfuscated and no
- * token can survive into the client. A near-miss such as {@code /v1/messagesX} is not a sub-resource
- * and stays a transparent passthrough, as is any other path. A request whose body carries a
- * non-identity {@code Content-Encoding} is passed through unobfuscated rather than decoded as text,
- * which would mangle the compressed bytes.
+ * headers, and the fully-read body. Which paths are transformed is not decided here but by the
+ * serving client's {@link PathScope}, so this record carries no vendor's endpoint names.
+ *
+ * <p>A body carrying a {@code Content-Encoding} this proxy can undo is inflated first, by
+ * {@link #decoded()}. One it cannot undo remains encoded so the serving exchange can reject it when
+ * the path is in scope, rather than decoding it as text or silently forwarding sensitive bytes.
  *
  * @param method       the HTTP method
  * @param pathAndQuery the path plus query string to send upstream
@@ -36,8 +36,6 @@ record ProxyRequest(
     byte[] body
 ) {
 
-    private static final String MESSAGES = "/v1/messages";
-
     ProxyRequest {
         body = body.clone();
     }
@@ -53,23 +51,49 @@ record ProxyRequest(
         );
     }
 
-    boolean shouldObfuscate() {
-        return this.isMessages() && this.body.length > 0 && !this.isEncoded();
+    /**
+     * This request with any encoding this proxy can undo already undone, or this request unchanged
+     * when there is nothing to undo or the body does not inflate. An unchanged encoded request is
+     * deliberately distinguishable through {@link #isEncoded()} so an in-scope exchange fails closed.
+     *
+     * <p>The inflated copy drops its {@code Content-Encoding} header, and that is load-bearing:
+     * {@link RestrictedHeaders} deliberately forwards that header, so leaving it would announce
+     * {@code zstd} over bytes that are no longer compressed and the upstream would reject the request.
+     * It is dropped here rather than restricted globally, because on the path where the body was
+     * <em>not</em> inflated the header is still true and must survive.
+     *
+     * @return the decoded request, or this one when nothing was decoded
+     */
+    ProxyRequest decoded() {
+        return this.encoding()
+            .filter(ZstdBody.ENCODING::equalsIgnoreCase)
+            .flatMap(_ -> ZstdBody.inflated(this.body))
+            .map(this::withPlainBody)
+            .orElse(this);
     }
 
-    boolean shouldDeobfuscate() {
-        return this.isMessages();
+    private ProxyRequest withPlainBody(byte[] plain) {
+        return new ProxyRequest(this.method, this.pathAndQuery, this.path, withoutEncoding(this.headers), plain);
     }
 
-    private boolean isMessages() {
-        return MESSAGES.equals(this.path) || this.path.startsWith(MESSAGES + "/");
+    private static Map<String, List<String>> withoutEncoding(Map<String, List<String>> headers) {
+        return headers.entrySet().stream()
+            .filter(entry -> !"content-encoding".equalsIgnoreCase(entry.getKey()))
+            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private boolean isEncoded() {
+    boolean hasBody() {
+        return this.body.length > 0;
+    }
+
+    boolean isEncoded() {
+        return this.encoding().isPresent();
+    }
+
+    Optional<String> encoding() {
         return HeaderLookup.first(this.headers, "content-encoding")
             .filter(value -> !value.isBlank())
-            .filter(value -> !"identity".equalsIgnoreCase(value))
-            .isPresent();
+            .filter(value -> !"identity".equalsIgnoreCase(value));
     }
 
     @Override

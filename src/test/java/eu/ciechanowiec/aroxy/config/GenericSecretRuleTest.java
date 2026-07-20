@@ -17,10 +17,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Guards the bundled {@code generic_secret} rule against false positives on source code. Claude Code
- * sends file content as a JSON string with escaped newlines ({@code \n}) and {@code cat -n} line
- * numbers, so an unrestricted value class used to run a match past a line boundary into the next
- * line's number and to swallow ordinary code such as {@code token = obj.method()} or {@code x == token:}.
+ * Guards the bundled {@code generic_secret} rule against false positives on source code. The rule is
+ * shared by every listener, so these cases protect each agent's traffic alike; the fragments below are
+ * drawn from Claude Code, which sends file content as a JSON string with escaped newlines
+ * ({@code \n}) and {@code cat -n} line numbers. An unrestricted value class used to run a match past a
+ * line boundary into the next line's number and to swallow ordinary code such as
+ * {@code token = obj.method()} or {@code x == token:}. Any agent that sends file content can present
+ * the same shapes.
  * These fragments are worded exactly as they appear on the wire (escapes are literal backslash pairs).
  */
 class GenericSecretRuleTest {

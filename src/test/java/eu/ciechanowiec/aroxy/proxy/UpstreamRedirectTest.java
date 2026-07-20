@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import eu.ciechanowiec.aroxy.config.Settings;
+import eu.ciechanowiec.aroxy.client.Gateway;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -52,8 +52,8 @@ class UpstreamRedirectTest {
 
     @SneakyThrows
     private static UpstreamReply send(int port) {
-        Settings settings = new Settings(LOOPBACK, 0, URI.create("http://" + LOOPBACK + ":" + port), true);
-        UpstreamReply reply = new Upstream(settings).send(
+        Gateway gateway = new Gateway(0, URI.create("http://" + LOOPBACK + ":" + port));
+        UpstreamReply reply = new Upstream(gateway).send(
             "GET", "/v1/messages",
             Map.of("authorization", List.of("Bearer secret")), new byte[0]
         );

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
@@ -33,13 +34,15 @@ class EffectiveConfigMergeTest {
 
     @Test
     void settingsLastWinsPerKey() {
-        ConfigFile base = file(BASE, "[gateway]\nlisten = 127.0.0.1:8788\nmask_secrets = true\n");
+        ConfigFile base = file(BASE, "[gateway]\nlisten_claude = 127.0.0.1:8788\nmask_secrets = true\n");
         ConfigFile over = file("over", "[gateway]\nmask_secrets = false\n");
         Settings settings = EffectiveConfig.merge(List.of(base, over)).settings();
-        assertEquals(BASE_PORT, settings.listenPort(), "untouched key keeps base value");
+        assertEquals(
+            BASE_PORT, settings.gateway(ClaudeCode.ID).listenPort(), "untouched key keeps base value"
+        );
         assertFalse(settings.maskSecrets(), "later file wins mask_secrets");
         assertEquals(
-            URI.create("https://api.anthropic.com"), settings.upstream(),
+            URI.create("https://api.anthropic.com"), settings.gateway(ClaudeCode.ID).upstream(),
             "the upstream is fixed and no config key can move it"
         );
     }
@@ -93,7 +96,8 @@ class EffectiveConfigMergeTest {
         EffectiveConfig base = EffectiveConfig.merge(List.of(file(BASE, rule("solo", COMPANY, "aaa"))));
         EffectiveConfig pointed = base.withUpstream(URI.create("http://proxy.internal:1234"));
         assertEquals(
-            URI.create("http://proxy.internal:1234"), pointed.settings().upstream(), "the upstream is repointed"
+            URI.create("http://proxy.internal:1234"), pointed.settings().gateway(ClaudeCode.ID).upstream(),
+            "the upstream is repointed"
         );
         assertEquals(List.of("solo"), pointed.rules().stream().map(Rule::id).toList(), "rules are retained unchanged");
         assertEquals(List.of(BASE), pointed.sources(), "sources are retained unchanged");
@@ -101,13 +105,16 @@ class EffectiveConfigMergeTest {
 
     @Test
     void withEphemeralPortHandsThePortChoiceToTheOsKeepingRulesAndSources() {
-        ConfigFile base = file(BASE, "[gateway]\nlisten = 127.0.0.1:8788\n" + rule("solo", COMPANY, "aaa"));
+        ConfigFile base = file(BASE, "[gateway]\nlisten_claude = 127.0.0.1:8788\n" + rule("solo", COMPANY, "aaa"));
         EffectiveConfig freed = EffectiveConfig.merge(List.of(base)).withEphemeralPort();
-        assertEquals(0, freed.settings().listenPort(), "port 0 lets the OS pick a free port");
+        assertEquals(
+            0, freed.settings().gateway(ClaudeCode.ID).listenPort(), "port 0 lets the OS pick a free port"
+        );
         assertEquals(List.of("solo"), freed.rules().stream().map(Rule::id).toList(), "rules are retained unchanged");
         assertEquals(List.of(BASE), freed.sources(), "sources are retained unchanged");
         assertEquals(
-            URI.create("https://api.anthropic.com"), freed.settings().upstream(), "the upstream is untouched"
+            URI.create("https://api.anthropic.com"), freed.settings().gateway(ClaudeCode.ID).upstream(),
+            "the upstream is untouched"
         );
     }
 
