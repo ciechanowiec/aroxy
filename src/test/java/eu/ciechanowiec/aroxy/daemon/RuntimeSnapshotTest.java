@@ -15,10 +15,6 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Round-trips the daemon's published runtime snapshot through its tab-separated file form and checks
  * that a missing or malformed file reads as empty rather than throwing.
- *
- * <p>Also pins the two compatibility rules that let a snapshot survive an upgrade, since a daemon
- * started by one build can be read by the CLI of another: a snapshot carrying only the historical
- * single listener still parses, and a snapshot carrying several still writes that historical pair.
  */
 class RuntimeSnapshotTest {
 
@@ -46,26 +42,30 @@ class RuntimeSnapshotTest {
     void writesAndReadsBackEveryField(@TempDir Path directory) {
         Path file = directory.resolve("runtime");
         RuntimeSnapshot original = new RuntimeSnapshot(
-            List.of(claudeCode()), RULE_COUNT, START_MILLIS, GENERATION,
-            List.of(new AttachmentInfo(FILE_PATH, AttachmentKind.PERSISTENT, LOADED_MILLIS))
+            List.of(claudeCode()), START_MILLIS, GENERATION,
+            List.of(new AttachmentInfo(FILE_PATH, AttachmentKind.PERSISTENT, LOADED_MILLIS)),
+            new RuntimeConfig(true, List.of("first", "second"))
         );
         original.writeTo(file);
         RuntimeSnapshot read = RuntimeSnapshot.read(file).orElseThrow();
         assertEquals(List.of(claudeCode()), read.gateways());
-        assertEquals(RULE_COUNT, read.ruleCount());
+        assertEquals(RULE_COUNT, read.toStatusReport(NOW_MILLIS).ruleCount());
         assertEquals(START_MILLIS, read.startMillis());
         assertEquals(GENERATION, read.generation());
         assertEquals(1, read.attachments().size());
         assertEquals(FILE_PATH, read.attachments().getFirst().path());
         assertEquals(AttachmentKind.PERSISTENT, read.attachments().getFirst().kind());
         assertEquals(LOADED_MILLIS, read.attachments().getFirst().loadedAtMillis());
+        assertEquals(new RuntimeConfig(true, List.of("first", "second")), read.config());
+        assertTrue(read.renderConfig().contains("• second"));
     }
 
     @Test
     void roundTripsEveryListenerInOrder(@TempDir Path directory) {
         Path file = directory.resolve("runtime");
         new RuntimeSnapshot(
-            List.of(claudeCode(), codex()), RULE_COUNT, START_MILLIS, GENERATION, List.of()
+            List.of(claudeCode(), codex()), START_MILLIS, GENERATION,
+            List.of(), new RuntimeConfig(true, List.of("first", "second"))
         ).writeTo(file);
         RuntimeSnapshot read = RuntimeSnapshot.read(file).orElseThrow();
         assertEquals(
@@ -75,44 +75,22 @@ class RuntimeSnapshotTest {
     }
 
     @Test
-    @SneakyThrows
-    void alsoWritesTheHistoricalPairSoAnOlderReaderStillFindsIt(@TempDir Path directory) {
-        Path file = directory.resolve("runtime");
-        new RuntimeSnapshot(List.of(claudeCode(), codex()), 0, 0L, 1L, List.of()).writeTo(file);
-        List<String> lines = Files.readAllLines(file);
-        assertTrue(lines.contains("listen\t" + LISTEN), lines.toString());
-        assertTrue(lines.contains("upstream\t" + UPSTREAM), lines.toString());
-    }
-
-    @Test
-    @SneakyThrows
-    void readsASnapshotWithoutListenerRecordsAsTheSingleHistoricalListener(@TempDir Path directory) {
-        Path file = directory.resolve("runtime");
-        Files.writeString(file, "listen\t" + LISTEN + "\nupstream\t" + UPSTREAM + "\nrules\t3\n");
-        RuntimeSnapshot read = RuntimeSnapshot.read(file).orElseThrow();
-        assertEquals(
-            List.of(claudeCode()), read.gateways(),
-            "a snapshot written before listener records existed still names its listener"
-        );
-        assertEquals(3, read.ruleCount());
-    }
-
-    @Test
     void derivesUptimeFromStart() {
-        RuntimeSnapshot snapshot = new RuntimeSnapshot(List.of(claudeCode()), 0, START_MILLIS, 1L, List.of());
+        RuntimeSnapshot snapshot = new RuntimeSnapshot(
+            List.of(claudeCode()), START_MILLIS, 1L, List.of(), new RuntimeConfig(true, List.of())
+        );
         assertEquals(UPTIME_MILLIS, snapshot.toStatusReport(NOW_MILLIS).uptimeMillis());
         assertEquals(0L, snapshot.toStatusReport(UPTIME_MILLIS).uptimeMillis());
         assertEquals(List.of(claudeCode()), snapshot.toStatusReport(NOW_MILLIS).gateways());
     }
 
     @Test
-    void aSnapshotWithNoListenerStillWritesTheHistoricalKey(@TempDir Path directory) {
+    void rejectsSnapshotWithNoListener(@TempDir Path directory) {
         Path file = directory.resolve("runtime");
-        new RuntimeSnapshot(List.of(), 0, 0L, 1L, List.of()).writeTo(file);
-        assertTrue(
-            RuntimeSnapshot.read(file).isPresent(),
-            "the guard key is written even with nothing bound, so the file stays parseable"
-        );
+        new RuntimeSnapshot(
+            List.of(), 0L, 1L, List.of(), new RuntimeConfig(true, List.of())
+        ).writeTo(file);
+        assertTrue(RuntimeSnapshot.read(file).isEmpty());
     }
 
     @Test

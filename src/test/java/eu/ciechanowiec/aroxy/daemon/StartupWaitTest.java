@@ -85,7 +85,7 @@ class StartupWaitTest {
     }
 
     private static RuntimeSnapshot snapshot(long start, List<GatewayAddress> gateways) {
-        return new RuntimeSnapshot(gateways, 0, start, 1L, List.of());
+        return new RuntimeSnapshot(gateways, start, 1L, List.of(), new RuntimeConfig(true, List.of()));
     }
 
     private static List<GatewayAddress> listeners() {

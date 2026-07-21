@@ -54,7 +54,8 @@ class ReloadRequestTest {
     }
 
     private static void writeRuntime(Path runtime, int generation) {
-        String content = "listen\t127.0.0.1:0\ngeneration\t" + generation + System.lineSeparator();
+        String content = "start\t1\ngeneration\t" + generation
+            + "\nconfig.mask_secrets\ttrue\ngateway\tCodex CLI\t127.0.0.1:8789\thttps://example.test\n";
         try {
             Files.writeString(runtime, content);
         } catch (IOException exception) {

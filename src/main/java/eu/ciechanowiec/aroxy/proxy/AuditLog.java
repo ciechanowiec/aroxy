@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -28,7 +29,7 @@ public final class AuditLog {
     private final RollingFile audit;
     private final WireDumps wire;
     private final AtomicInteger sequence;
-    private final boolean maskSecrets;
+    private final AtomicBoolean maskSecrets;
 
     /**
      * Creates an audit log under {@code logsDirectory} with sensitive originals masked.
@@ -52,7 +53,7 @@ public final class AuditLog {
         this.audit = new RollingFile(logsDirectory.resolve("audit.log"));
         this.wire = new WireDumps(logsDirectory.resolve("wire"));
         this.sequence = new AtomicInteger();
-        this.maskSecrets = maskSecrets;
+        this.maskSecrets = new AtomicBoolean(maskSecrets);
     }
 
     private static void appendMatches(
@@ -102,8 +103,18 @@ public final class AuditLog {
         StringBuilder builder = new StringBuilder();
         builder.append(LINE_TS.format(LocalDateTime.now(ZoneId.systemDefault())))
             .append("  REQUEST  ").append(endpoint).append("  [").append(stamp).append("]\n");
-        appendMatches(builder, matches, this.maskSecrets);
+        appendMatches(builder, matches, this.maskSecrets.get());
         this.audit.append(builder.toString());
+    }
+
+    /**
+     * Changes how later audit entries display sensitive matches. Existing entries remain exactly as
+     * they were written.
+     *
+     * @param enabled whether sensitive values should be masked
+     */
+    public void setMaskSecrets(boolean enabled) {
+        this.maskSecrets.set(enabled);
     }
 
     /**

@@ -1,7 +1,5 @@
 package eu.ciechanowiec.aroxy.daemon;
 
-import eu.ciechanowiec.aroxy.client.ClientProfile;
-import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,53 +10,51 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * The daemon's published runtime state, written to {@link Home}{@code /runtime} on start and on every reload
  * and read by the CLI in place of the former {@code GET /status} and {@code GET /attachments}
  * endpoints. It carries exactly what the CLI cannot recompute from the on-disk configuration: the
- * listeners actually bound with the upstream each reaches, the active rule count, the daemon start time
+ * listeners actually bound with the upstream each reaches, the daemon start time
  * (so the CLI derives uptime itself), a monotonic {@code generation} the CLI watches to confirm a
- * requested reload has been applied, and the contributing files with their load times. The wire form is
+ * requested reload has been applied, the contributing files with their load times, and a safe summary
+ * of the configuration actually applied. The wire form is
  * one tab-separated record per line, mirroring {@code vault.tsv}.
  *
  * <p>Listeners are written as one repeated {@code gateway <client> <listen> <upstream>} record each,
- * so registering another client neither reshapes this record nor changes the format. Two
- * compatibility rules keep a snapshot
- * readable across an upgrade, since a daemon started by one build can be read by the CLI of another:
- * the first listener is <em>also</em> written as the historical {@code listen}/{@code upstream} pair
- * that an older CLI looks for, and a snapshot carrying only that pair is read back as a single
- * listener.
+ * so registering another client neither reshapes this record nor changes the format.
  *
  * @param gateways    the listeners bound, each with the upstream it forwards to
- * @param ruleCount   the number of enabled rules in effect
  * @param startMillis when the daemon started, in epoch milliseconds
  * @param generation  a counter bumped on each publish so a reload can be confirmed
  * @param attachments the contributing files, with kind and load time
+ * @param config      the safe summary of the applied configuration
  */
 @Slf4j
 public record RuntimeSnapshot(
     List<GatewayAddress> gateways,
-    int ruleCount,
     long startMillis,
     long generation,
-    List<AttachmentInfo> attachments
+    List<AttachmentInfo> attachments,
+    RuntimeConfig config
 ) {
 
     private static final String TAB = "\t";
     private static final String FILE = "file";
     private static final String GATEWAY = "gateway";
-    private static final String LISTEN_KEY = "listen";
-    private static final String UPSTREAM_KEY = "upstream";
-    private static final String NO_CLIENT = "(none)";
+    private static final String MASK_KEY = "config.mask_secrets";
+    private static final String RULE_KEY_PREFIX = "config.rule.";
     private static final int RECORD_FIELDS = 4;
     private static final int PAIR_FIELDS = 2;
 
     public RuntimeSnapshot {
         gateways = List.copyOf(gateways);
         attachments = List.copyOf(attachments);
+        config = new RuntimeConfig(config.maskSecrets(), config.ruleIds());
     }
 
     /**
@@ -120,38 +116,23 @@ public record RuntimeSnapshot(
     private static Optional<RuntimeSnapshot> build(
         Map<String, String> head, List<AttachmentInfo> files, List<GatewayAddress> gateways
     ) {
-        if (!head.containsKey(LISTEN_KEY)) {
+        if (gateways.isEmpty() || !head.containsKey(MASK_KEY)) {
             return Optional.empty();
         }
         return Optional.of(
             new RuntimeSnapshot(
-                listeners(head, gateways),
-                (int) parseLong(head.getOrDefault("rules", "0")), parseLong(head.getOrDefault("start", "0")),
-                parseLong(head.getOrDefault("generation", "0")), files
+                gateways, parseLong(head.getOrDefault("start", "0")),
+                parseLong(head.getOrDefault("generation", "0")), files, runtimeConfig(head)
             )
         );
     }
 
-    /**
-     * The listeners a snapshot declares, falling back to the historical single {@code listen}/
-     * {@code upstream} pair when it carries no listener record - which is what a snapshot written
-     * before this format existed looks like.
-     */
-    private static List<GatewayAddress> listeners(Map<String, String> head, List<GatewayAddress> gateways) {
-        return gateways.isEmpty() ? List.of(legacyListener(head)) : gateways;
-    }
-
-    private static GatewayAddress legacyListener(Map<String, String> head) {
-        return new GatewayAddress(
-            primaryClientName(), head.getOrDefault(LISTEN_KEY, ""), head.getOrDefault(UPSTREAM_KEY, "")
-        );
-    }
-
-    private static String primaryClientName() {
-        return ClientRegistry.profiles().stream()
-            .findFirst()
-            .map(ClientProfile::displayName)
-            .orElse(NO_CLIENT);
+    private static RuntimeConfig runtimeConfig(Map<String, String> head) {
+        List<String> ruleIds = Stream.iterate(0, index -> index + 1)
+            .map(index -> head.get(RULE_KEY_PREFIX + index))
+            .takeWhile(Objects::nonNull)
+            .toList();
+        return new RuntimeConfig(Boolean.parseBoolean(head.get(MASK_KEY)), ruleIds);
     }
 
     private static long parseLong(String value) {
@@ -180,8 +161,20 @@ public record RuntimeSnapshot(
      */
     public StatusReport toStatusReport(long now) {
         return new StatusReport(
-            this.gateways, this.ruleCount, Math.max(0, now - this.startMillis), this.attachments
+            this.gateways, this.config.ruleIds().size(), Math.max(0, now - this.startMillis), this.attachments
         );
+    }
+
+    /**
+     * Renders the configuration actually applied by the daemon.
+     *
+     * @return the safe active-configuration summary
+     */
+    public String renderConfig() {
+        return new ConfigSummary(
+            this.gateways, this.config.maskSecrets(),
+            this.attachments.stream().map(AttachmentInfo::path).toList(), this.config.ruleIds()
+        ).render();
     }
 
     /**
@@ -202,22 +195,20 @@ public record RuntimeSnapshot(
 
     private List<String> lines() {
         List<String> out = new ArrayList<>();
-        out.add(LISTEN_KEY + TAB + this.primary().listen());
-        out.add(UPSTREAM_KEY + TAB + this.primary().upstream());
-        out.add("rules" + TAB + this.ruleCount);
         out.add("start" + TAB + this.startMillis);
         out.add("generation" + TAB + this.generation);
+        addConfigLines(out, this.config);
         this.gateways.forEach(gateway -> out.add(gatewayLine(gateway)));
         this.attachments.forEach(info -> out.add(fileLine(info)));
         return out;
     }
 
-    /**
-     * The listener written as the historical {@code listen}/{@code upstream} pair, so an older CLI
-     * still finds the key it guards on. A snapshot with nothing bound has no listener to name, so it
-     * renders blanks under a neutral label rather than crediting one agent arbitrarily.
-     */
-    private GatewayAddress primary() {
-        return this.gateways.stream().findFirst().orElseGet(() -> new GatewayAddress(NO_CLIENT, "", ""));
+    private static void addConfigLines(Collection<String> lines, RuntimeConfig config) {
+        lines.add(MASK_KEY + TAB + config.maskSecrets());
+        int index = 0;
+        for (String ruleId : config.ruleIds()) {
+            lines.add(RULE_KEY_PREFIX + index + TAB + ruleId);
+            index++;
+        }
     }
 }

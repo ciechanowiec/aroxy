@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONException;
 
 /**
  * The single proxy exchange processor of one client's listener. It inflates a compressed request body
@@ -28,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 final class ProxyExchange implements HttpHandler {
 
     private static final int BAD_GATEWAY = 502;
+    private static final int BAD_REQUEST = 400;
     private static final int UNSUPPORTED_MEDIA_TYPE = 415;
     private static final int UPGRADE_REQUIRED = 426;
     private final Obfuscator obfuscator;
@@ -53,6 +55,8 @@ final class ProxyExchange implements HttpHandler {
     private void serve(HttpExchange exchange) {
         try {
             this.proxy(exchange);
+        } catch (JSONException exception) {
+            this.rejectInvalidJson(exchange, exception);
         } catch (IOException exception) {
             this.onIoFailure(exchange, exception);
         } catch (InterruptedException exception) {
@@ -115,7 +119,8 @@ final class ProxyExchange implements HttpHandler {
         if (!this.transforms(request)) {
             return request.body();
         }
-        ObfuscationResult result = this.obfuscator.obfuscate(new String(request.body(), StandardCharsets.UTF_8));
+        ObfuscationResult result = new RequestObfuscation(this.profile.requestBody(), this.obfuscator)
+            .apply(new String(request.body(), StandardCharsets.UTF_8));
         byte[] redacted = result.text().getBytes(StandardCharsets.UTF_8);
         this.audit.request(stamp, request.path(), result.matches());
         this.audit.wireRedactedRequest(stamp, redacted);
@@ -136,18 +141,26 @@ final class ProxyExchange implements HttpHandler {
         this.sendError(exchange, failure);
     }
 
+    private void rejectInvalidJson(HttpExchange exchange, JSONException failure) {
+        log.warn("Rejected an in-scope request that could not be parsed safely: {}", failure.getMessage());
+        byte[] message = ("{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_body\",\"message\":"
+            + "\"aroxy could not safely parse this JSON request body\"}}")
+            .getBytes(StandardCharsets.UTF_8);
+        this.writeError(exchange, BAD_REQUEST, message);
+    }
+
     private void sendError(HttpExchange exchange, Exception failure) {
         log.warn("Upstream proxying failed: {}", failure.toString());
         byte[] message = ("{\"type\":\"error\",\"error\":{\"type\":\"proxy_error\",\"message\":"
             + "\"aroxy could not reach the upstream: " + failure.getClass().getSimpleName()
             + "\"}}").getBytes(StandardCharsets.UTF_8);
-        this.writeError(exchange, message);
+        this.writeError(exchange, BAD_GATEWAY, message);
     }
 
-    private void writeError(HttpExchange exchange, byte[] message) {
+    private void writeError(HttpExchange exchange, int status, byte[] message) {
         try {
             exchange.getResponseHeaders().put("Content-Type", List.of("application/json"));
-            exchange.sendResponseHeaders(BAD_GATEWAY, message.length);
+            exchange.sendResponseHeaders(status, message.length);
             this.flush(exchange, message);
         } catch (IOException _) {
             // The client may already be gone; there is nothing more to do.

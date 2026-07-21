@@ -120,14 +120,17 @@ class ClientRegistryTest {
         ClientProfile valid = profile("future", OTHER_PORT);
         assertThrows(
             IllegalArgumentException.class,
-            () -> new ClientProfile(valid.id(), " ", valid.gateway(), valid.scope(), valid.dialect())
+            () -> new ClientProfile(
+                valid.id(), " ", valid.gateway(), valid.scope(), valid.requestBody(), valid.dialect()
+            )
         );
     }
 
     private static ClientProfile profile(String slug, int port) {
         return new ClientProfile(
             new ClientId(slug), slug, new Gateway(port, URI.create("https://" + slug + ".example")),
-            new PathScope(List.of("/responses"), "/responses"), new SseDialect(List.of(), Set.of(), Set.of())
+            new PathScope(List.of("/responses"), "/responses"), RequestBodyPolicy.text(),
+            new SseDialect(List.of(), Set.of(), Set.of())
         );
     }
 }

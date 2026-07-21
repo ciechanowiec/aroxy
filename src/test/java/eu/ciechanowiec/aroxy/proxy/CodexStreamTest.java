@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -7,6 +8,8 @@ import eu.ciechanowiec.aroxy.client.CodexCli;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import lombok.SneakyThrows;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -146,6 +149,30 @@ class CodexStreamTest {
             Http.post(harness.base(), Http.RESPONSES, "{\"input\":\"" + SECRET + END);
             assertFalse(upstream.lastBody().contains(SECRET), "the secret must not leave the machine");
             assertTrue(upstream.lastBody().contains("<<PII:AWS_KEY:"), "a token reached the upstream instead");
+        } finally {
+            harness.stop();
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void encryptedContentRemainsExactWhileOrdinaryInputIsObfuscated(@TempDir Path logs) {
+        FakeUpstream upstream = new FakeUpstream(CannedReply.json("{}"));
+        ProxyHarness harness = codexHarness(upstream, logs);
+        String encrypted = "ciphertext-" + SECRET;
+        String body = "{\"input\":[{\"type\":\"reasoning\",\"encrypted_content\":\""
+            + encrypted + "\"},{\"type\":\"message\",\"content\":\"" + SECRET + "\"}]}";
+        try {
+            Http.post(harness.base(), Http.RESPONSES, body);
+            JSONArray input = new JSONObject(upstream.lastBody()).getJSONArray("input");
+            assertEquals(
+                encrypted, input.getJSONObject(0).getString("encrypted_content"),
+                "opaque ciphertext must reach OpenAI without any substitution"
+            );
+            assertTrue(
+                input.getJSONObject(1).getString("content").contains("<<PII:AWS_KEY:"),
+                "ordinary conversation text remains protected"
+            );
         } finally {
             harness.stop();
         }

@@ -49,7 +49,7 @@ image::.docs/img/architecture.drawio.png[alt="Claude Code and Codex on the left.
 
 == Default Coverage
 
-_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. The rules fall into three groups, described in this section.
+_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. The rules fall into three groups, described in this section. Rules scan textual request values. Fields that an agent protocol defines as opaque aren't scanned. For Codex, that exclusion includes `encrypted_content`, which is already encrypted and must remain unchanged. Prompts and tool input remain in scope.
 
 . *Secrets and credentials*
 +
@@ -179,8 +179,8 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 | `aroxy stop` | Stop the running service.
 | `aroxy restart` | Stop, then start. xref:#temporary-configuration-file[Temporary configuration files] are dropped, while the xref:#default-configuration-file[default configuration file] and xref:#persistent-configuration-file[persistent configuration files] load again.
 | `aroxy status` | Show whether the service runs, one line per agent naming the address to point it at and the API it reaches, the active rule count, and the configuration files in effect, each with the time it was loaded.
-| `aroxy config` | Show the effective configuration and the configuration files that contributed to it.
-| [[reload-command]]`aroxy reload` | Re-read every active configuration file, then swap the live rules without dropping connections.
+| `aroxy config` | Show the configuration in force, or the configuration for the next start while the service is stopped.
+| [[reload-command]]`aroxy reload` | Re-read every active configuration file and apply the settings that can change without dropping connections.
 | `aroxy logs [--audit\|--app\|--wire\|--all] [-f]` | Print a log. `--audit` is the default. `-f` follows the selected log, `--audit` or `--app`, like `tail -f`, but `--wire` and `--all` ignore it. The kinds are described in the section xref:#logs[].
 | `aroxy config attach <f> [--persistent\|--temporary]` | Attach a configuration file as persistent or temporary, described in the section xref:#configuration[].
 | `aroxy config detach <f>` | Detach a xref:#persistent-configuration-file[persistent configuration file]. Allowed only while the service is stopped.
@@ -196,6 +196,7 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 .. [[temporary-configuration-file]]_Temporary configuration files_ are attached with `aroxy config attach <f> --temporary`, which needs a running service. _aroxy_ loads the file at once but never records it, so it applies only until the service next stops or restarts, and `aroxy start` doesn't bring it back. Use one for a one-off change you don't want to keep.
 . Every loaded configuration file contributes its rules. When two configuration files define a rule with the same `id`, the configuration file loaded later wins, which lets a persistent or temporary configuration file override a rule from the default configuration file. A `[gateway]` key takes the value from the last configuration file that sets it. Rule order matters, so emptying the default configuration file gives the remaining configuration files full control of the order.
 . Attaching a configuration file is allowed while the service runs, and a persistent configuration file also updates the xref:#registry[registry] and triggers a xref:#reload-command[reload]. Detaching a persistent configuration file is allowed only while the service is stopped.
+. While the service runs, `aroxy config` reads the daemon's published state rather than recomputing from the current files. Editing a loaded file therefore doesn't change the displayed rules or masking state until `aroxy reload` succeeds. While the service is stopped, the command reads the files and labels the result as the configuration for the next start.
 
 [#the-rule-format]
 == The Gateway Keys
@@ -210,7 +211,7 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 | `mask_secrets` | `true` | `true` masks the values of `sensitive` rules in the xref:#audit-log[audit log].
 |===
 
-Each listen key is the port only. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone, so it can't be moved onto a network interface. The upstream of each agent is fixed and no key reaches it. Giving two agents the same port breaks the configuration file, since only one of them could ever bind it.
+Each listen key is the port only. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone, so it can't be moved onto a network interface. The upstream of each agent is fixed and no key reaches it. Giving two agents the same port breaks the configuration file, since only one of them could ever bind it. The listeners stay bound across `aroxy reload`, so a changed listen port takes effect after `aroxy restart`. A changed `mask_secrets` value takes effect on reload.
 
 == The Rule Format
 

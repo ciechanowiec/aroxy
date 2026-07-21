@@ -7,14 +7,12 @@ import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.config.Settings;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
-import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
 import eu.ciechanowiec.aroxy.proxy.AuditLog;
 import eu.ciechanowiec.aroxy.proxy.ProxyParts;
 import eu.ciechanowiec.aroxy.proxy.ProxyServer;
 import eu.ciechanowiec.aroxy.proxy.Upstream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,9 +26,9 @@ import java.util.Optional;
  * listener, so a secret carries the same token whichever agent sends it and one audit trail covers the
  * machine. Only the {@link Upstream} and the profile differ per listener.
  *
- * <p>The sockets are bound once from the initial settings and stay bound across reloads; only the
- * active rule set is swapped via {@link Obfuscator#swapRules(Collection)}, so a reload never drops a
- * connection or rebinds a port, and every listener reloads together.
+ * <p>The sockets are bound once from the initial settings and stay bound across reloads. Rules and
+ * audit masking are updated in place, so a reload never drops a connection or rebinds a port, and
+ * every listener reloads together.
  */
 // composes the whole proxy stack once per client; coupling is governed by the project's own Checkstyle cap
 @SuppressWarnings(
@@ -39,10 +37,12 @@ import java.util.Optional;
 final class LiveProxy {
 
     private final Obfuscator obfuscator;
+    private final AuditLog audit;
     private final Map<ClientId, ProxyServer> servers;
 
-    private LiveProxy(Obfuscator obfuscator, Map<ClientId, ProxyServer> servers) {
+    private LiveProxy(Obfuscator obfuscator, AuditLog audit, Map<ClientId, ProxyServer> servers) {
         this.obfuscator = obfuscator;
+        this.audit = audit;
         this.servers = servers;
     }
 
@@ -53,7 +53,7 @@ final class LiveProxy {
         AuditLog audit = new AuditLog(home.logsDirectory(), settings.maskSecrets());
         Map<ClientId, ProxyServer> servers = bindAll(settings, obfuscator, audit);
         servers.values().forEach(ProxyServer::start);
-        return new LiveProxy(obfuscator, servers);
+        return new LiveProxy(obfuscator, audit, servers);
     }
 
     /**
@@ -93,8 +93,9 @@ final class LiveProxy {
         return new ProxyServer(settings.listenHost(), gateway, parts);
     }
 
-    void reload(Collection<Rule> rules) {
-        this.obfuscator.swapRules(rules);
+    void reload(EffectiveConfig config) {
+        this.obfuscator.swapRules(config.rules());
+        this.audit.setMaskSecrets(config.settings().maskSecrets());
     }
 
     /**

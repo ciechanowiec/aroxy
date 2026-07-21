@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 
@@ -18,5 +19,9 @@ import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
  * @param audit      the audit log and wire-dump writer
  * @param profile    the client this listener serves
  */
+@SuppressFBWarnings(
+    value = "EI_EXPOSE_REP",
+    justification = "This is a dependency bundle: every exchange intentionally shares the live audit collaborator."
+)
 public record ProxyParts(Obfuscator obfuscator, Upstream upstream, AuditLog audit, ClientProfile profile) {
 }

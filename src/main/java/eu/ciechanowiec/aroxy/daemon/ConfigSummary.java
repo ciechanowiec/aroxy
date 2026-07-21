@@ -6,6 +6,7 @@ import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.config.Settings;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -20,10 +21,26 @@ final class ConfigSummary {
     private static final String INDENT = "  ";
     private static final Map<Boolean, String> MASKING = Map.of(true, "enabled", false, "disabled");
 
-    private final EffectiveConfig config;
+    private final List<GatewayAddress> gateways;
+    private final boolean maskSecrets;
+    private final List<String> sources;
+    private final List<String> ruleIds;
 
     ConfigSummary(EffectiveConfig config) {
-        this.config = config;
+        this(
+            configured(config.settings()), config.settings().maskSecrets(),
+            config.sources(), config.rules().stream().map(Rule::id).toList()
+        );
+    }
+
+    ConfigSummary(
+        Collection<GatewayAddress> gateways, boolean maskSecrets,
+        Collection<String> sources, Collection<String> ruleIds
+    ) {
+        this.gateways = List.copyOf(gateways);
+        this.maskSecrets = maskSecrets;
+        this.sources = List.copyOf(sources);
+        this.ruleIds = List.copyOf(ruleIds);
     }
 
     String render() {
@@ -31,17 +48,16 @@ final class ConfigSummary {
     }
 
     private List<String> lines() {
-        Settings settings = this.config.settings();
-        return Stream.concat(this.header(settings).stream(), this.ruleLines().stream()).toList();
+        return Stream.concat(this.header().stream(), this.ruleLines().stream()).toList();
     }
 
-    private List<String> header(Settings settings) {
+    private List<String> header() {
         return List.of(
-            INDENT + "Secret masking  " + MASKING.get(settings.maskSecrets()),
+            INDENT + "Secret masking  " + MASKING.get(this.maskSecrets),
             INDENT + "Listeners",
-            INDENT.repeat(2) + GatewayListing.render(configured(settings)).replace("\n", "\n" + INDENT.repeat(2)),
-            INDENT + "Sources         " + String.join(", ", this.config.sources()),
-            INDENT + "Rules           " + this.config.rules().size()
+            INDENT.repeat(2) + GatewayListing.render(this.gateways).replace("\n", "\n" + INDENT.repeat(2)),
+            INDENT + "Sources         " + String.join(", ", this.sources),
+            INDENT + "Rules           " + this.ruleIds.size()
         );
     }
 
@@ -63,10 +79,10 @@ final class ConfigSummary {
     }
 
     private List<String> ruleLines() {
-        return this.config.rules().stream().map(ConfigSummary::ruleLine).toList();
+        return this.ruleIds.stream().map(ConfigSummary::ruleLine).toList();
     }
 
-    private static String ruleLine(Rule rule) {
-        return INDENT.repeat(2) + "• " + rule.id();
+    private static String ruleLine(String ruleId) {
+        return INDENT.repeat(2) + "• " + ruleId;
     }
 }

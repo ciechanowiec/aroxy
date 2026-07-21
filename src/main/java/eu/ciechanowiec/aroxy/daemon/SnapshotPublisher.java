@@ -23,8 +23,7 @@ final class SnapshotPublisher {
     void publish(SnapshotData data) {
         this.generation++;
         new RuntimeSnapshot(
-            data.gateways(), data.ruleCount(),
-            this.startMillis, this.generation, data.files()
+            data.gateways(), this.startMillis, this.generation, data.files(), data.config()
         ).writeTo(this.file);
     }
 }

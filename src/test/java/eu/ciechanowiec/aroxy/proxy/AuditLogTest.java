@@ -60,6 +60,18 @@ class AuditLogTest {
         assertFalse(log.contains("[masked]"), "nothing is marked masked when masking is disabled");
     }
 
+    @Test
+    @SneakyThrows
+    void maskingCanBeChangedForLaterEntries(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs, true);
+        audit.request("first", "/responses", matches());
+        audit.setMaskSecrets(false);
+        audit.request("second", "/responses", matches());
+        String log = read(logs.resolve("audit.log"));
+        assertFalse(log.substring(0, log.indexOf("[second]")).contains(SECRET), log);
+        assertTrue(log.substring(log.indexOf("[second]")).contains(SECRET), log);
+    }
+
     @SneakyThrows
     private static void assertWireDumps(Path wire) {
         try (Stream<Path> entries = Files.list(wire)) {

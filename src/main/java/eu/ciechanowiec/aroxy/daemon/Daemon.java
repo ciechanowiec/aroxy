@@ -115,7 +115,7 @@ public final class Daemon {
     private void applyReload(Running active) {
         EffectiveConfig config = this.assembly.build(this.temporaries());
         this.stampLoads();
-        active.live().reload(config.rules());
+        active.live().reload(config);
         this.publish(config, active.live());
         log.atInfo().addArgument(() -> config.rules().size()).log("aroxy daemon reloaded {} rule(s)");
     }
@@ -146,8 +146,9 @@ public final class Daemon {
     }
 
     private void publish(EffectiveConfig config, LiveProxy live) {
-        SnapshotData data = new SnapshotData(
-            live.addresses(config.settings()), config.rules().size(), this.attachmentInfos()
+        SnapshotData data = SnapshotData.from(
+            live.addresses(config.settings()), config,
+            this.attachmentInfos()
         );
         this.publisher.publish(data);
     }

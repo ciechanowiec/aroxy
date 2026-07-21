@@ -41,6 +41,13 @@ class CliCommandTest {
     }
 
     @Test
+    void configWhileStoppedLabelsWhatTheNextStartWillLoad() {
+        CliCapture.Result result = CliCapture.run(CONFIG);
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("Configuration for next start"), result.out());
+    }
+
+    @Test
     void attachPersistentWhileStoppedWritesRegistry() {
         Path rule = this.writeRule();
         CliCapture.Result result = CliCapture.run(CONFIG, "attach", rule.toString());

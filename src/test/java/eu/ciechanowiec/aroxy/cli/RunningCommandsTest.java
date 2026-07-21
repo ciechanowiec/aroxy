@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.aroxy.daemon.Daemon;
@@ -73,6 +74,22 @@ class RunningCommandsTest {
         CliCapture.Result result = CliCapture.run("reload");
         assertEquals(0, result.exit());
         assertTrue(result.out().contains("reloaded"), result.out());
+    }
+
+    @Test
+    void configShowsWhatIsActiveUntilDiskChangesAreReloaded() {
+        CliCapture.Result initial = CliCapture.run(CONFIG);
+        assertEquals(0, initial.exit());
+        assertTrue(initial.out().contains("Active configuration"), initial.out());
+        assertTrue(initial.out().contains("• aws_key"), initial.out());
+        this.write(new Home(this.home).defaultConfig(), DEFAULT.replace("aws_key", "new_disk_rule"));
+        CliCapture.Result beforeReload = CliCapture.run(CONFIG);
+        assertTrue(beforeReload.out().contains("• aws_key"), beforeReload.out());
+        assertFalse(beforeReload.out().contains("• new_disk_rule"), beforeReload.out());
+        assertEquals(0, CliCapture.run("reload").exit());
+        CliCapture.Result afterReload = CliCapture.run(CONFIG);
+        assertFalse(afterReload.out().contains("• aws_key"), afterReload.out());
+        assertTrue(afterReload.out().contains("• new_disk_rule"), afterReload.out());
     }
 
     @Test

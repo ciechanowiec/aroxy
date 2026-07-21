@@ -24,11 +24,10 @@ class DaemonOutputTest {
         Files.writeString(
             home.runtimeFile(),
             """
-                listen\t127.0.0.1:8788
-                upstream\thttps://api.example
-                rules\t1
                 start\t1
                 generation\t1
+                config.mask_secrets\ttrue
+                config.rule.0\taws_key
                 gateway\tClaude Code\t127.0.0.1:8788\thttps://api.example
                 gateway\tSecure endpoint\thttps://127.0.0.1:8789\thttps://codex.example
                 """
