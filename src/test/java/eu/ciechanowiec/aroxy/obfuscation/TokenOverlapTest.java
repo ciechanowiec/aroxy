@@ -39,4 +39,19 @@ class TokenOverlapTest {
         assertFalse(result.text().contains("4242"), "the digits outside the token are obfuscated");
         assertEquals(input, obfuscator.deobfuscate(result.text()), "the round trip still restores exactly");
     }
+
+    @Test
+    void obfuscatesTheTailOfAStaggeredOverlap() {
+        Rule first = RuleFixtures.regex("first", "AWS_KEY", "ABCDE");
+        Rule second = RuleFixtures.regex("second", "EMAIL", "DEFGH");
+        Obfuscator obfuscator = new Obfuscator(List.of(first, second), Vault.inMemory());
+        String input = "ABCDEFGH";
+        ObfuscationResult result = obfuscator.obfuscate(input);
+        assertEquals(
+            List.of("ABCDE", "FGH"),
+            result.matches().stream().map(ObfuscationMatch::original).toList(),
+            "the accepted match and the exact uncovered tail are both tokenized"
+        );
+        assertEquals(input, obfuscator.deobfuscate(result.text()), "the staggered overlap must round-trip exactly");
+    }
 }

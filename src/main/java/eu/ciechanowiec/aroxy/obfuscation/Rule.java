@@ -8,7 +8,7 @@ import lombok.ToString;
 /**
  * One obfuscation rule: an identifier, an enabled flag, and the two composed value objects that
  * carry its matching behaviour ({@link RulePattern}) and its labelling behaviour ({@link RuleLabel}).
- * Rules are applied in order and their matches accumulate.
+ * Configuration order breaks ties between matches with the same start and length.
  */
 @Getter
 @ToString

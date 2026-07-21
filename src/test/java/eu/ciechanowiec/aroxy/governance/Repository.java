@@ -16,10 +16,11 @@ import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /**
- * Locates the repository working tree and reads its tracked content. Binary files and files that are
- * not valid UTF-8 are reported as absent text, so the callers scan only decodable source and prose.
- * The working tree is the current directory, which is the module base directory under the build and
- * the repository root under the git hooks.
+ * Locates the repository working tree and reads tracked content that is present in it. A path deleted
+ * in an uncommitted change is absent from the working tree and therefore absent from a scan. Binary
+ * files and files that are not valid UTF-8 are reported as absent text, so the callers scan only
+ * decodable source and prose. The working tree is the current directory, which is the module base
+ * directory under the build and the repository root under the git hooks.
  */
 @UtilityClass
 final class Repository {
@@ -33,6 +34,7 @@ final class Repository {
         return Arrays.stream(listing.split("\0"))
             .filter(name -> !name.isEmpty())
             .map(root::resolve)
+            .filter(Files::isRegularFile)
             .toList();
     }
 

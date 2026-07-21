@@ -23,7 +23,7 @@ XmlTransform = Callable[[str], str]
 
 
 # ============================================================================
-# numbering.xml - heading multilevel numbering
+# numbering.xml -- heading multilevel numbering
 # ============================================================================
 #
 # Pandoc rebuilds word/numbering.xml from scratch when converting, so the
@@ -40,7 +40,13 @@ _heading_levels = []
 for i in range(9):
     pstyle = f'<w:pStyle w:val="Heading{i+1}" />' if i < 6 else ''
     lvl_text = '.'.join(f'%{j+1}' for j in range(i + 1)) + '.'
-    ind_left = i * 360
+    # Every section identifier starts at the body-text margin, whatever the
+    # section's depth, and the title hangs: wrapped title lines start at the
+    # same column as the title text after the number. The hang widens per
+    # level and is sized for the widest realistic number -- two digits per
+    # component, "10.11." -- because a number wider than the hang makes the
+    # tab overshoot to the next default stop and break the alignment.
+    hang = 720 + 360 * i
     _heading_levels.append(
         f'<w:lvl w:ilvl="{i}">'
         f'<w:start w:val="1" />'
@@ -49,7 +55,7 @@ for i in range(9):
         f'<w:suff w:val="tab" />'
         f'<w:lvlText w:val="{lvl_text}" />'
         f'<w:lvlJc w:val="left" />'
-        f'<w:pPr><w:ind w:left="{ind_left}" w:firstLine="0" /></w:pPr>'
+        f'<w:pPr><w:ind w:left="{hang}" w:hanging="{hang}" /></w:pPr>'
         f'</w:lvl>'
     )
 
@@ -88,40 +94,73 @@ def _inject_heading_numbering(numbering_xml: str) -> str:
 
 
 # ============================================================================
-# numbering.xml - ordered-list multilevel numbering
+# numbering.xml -- ordered-list multilevel numbering
 # ============================================================================
 #
 # Pandoc emits each nesting level of an ordered list as a separate
 # single-format abstract (one for decimal, one for lowerLetter, etc.), so
 # Word treats them as disconnected lists. When the author edits a list
 # manually, Word picks its own scheme for the new level. This transform
-# defines one 9-level multilevel ordered-list abstract matching
-# Asciidoctor's default (decimal, lowerLetter, lowerRoman, upperLetter,
-# upperRoman, then cycle) and remaps every ordered-list <w:num> to point
-# at it. Each <w:num> keeps its own startOverride entries, so independent
-# lists still restart at 1 / a / i / A / I.
+# defines one 9-level multilevel ordered-list abstract matching the
+# HTML/PDF exports (upperalpha, upperroman, lowergreek, lowerroman, then
+# lowerroman repeated -- see adoc-css-style.css and common-style.rb) and
+# remaps every ordered-list <w:num> to point at it. Each <w:num> keeps its
+# own startOverride entries, so independent lists still restart at
+# A / I / α / i.
+#
+# ST_NumberFormat has no Greek value, so the lowergreek level rides the
+# w14 `custom` format inside an mc:AlternateContent, the same markup Word
+# itself writes for non-enum formats. Word 2010+ and LibreOffice take the
+# w14 branch; anything older takes the lowerLetter fallback. The mc/w14
+# namespaces this needs are declared by _declare_compat_namespaces below.
 
 ORDERED_ABSTRACT_NUM_ID = "9992"
 ORDERED_NSID = "170cd2e0"  # distinctive marker for idempotency check
 
-ORDERED_FORMATS = [
-    "decimal", "lowerLetter", "lowerRoman", "upperLetter", "upperRoman",
-    "decimal", "lowerLetter", "lowerRoman", "upperLetter",
-]
+LOWER_GREEK_NUMFMT = (
+    '<mc:AlternateContent>'
+    '<mc:Choice Requires="w14">'
+    '<w:numFmt w:val="custom" w:format="α, β, γ, ..." />'
+    '</mc:Choice>'
+    '<mc:Fallback><w:numFmt w:val="lowerLetter" /></mc:Fallback>'
+    '</mc:AlternateContent>'
+)
 
+ORDERED_NUMFMT_TAGS = [
+    '<w:numFmt w:val="upperLetter" />',
+    '<w:numFmt w:val="upperRoman" />',
+    LOWER_GREEK_NUMFMT,
+] + ['<w:numFmt w:val="lowerRoman" />'] * 6
+
+# Upper-letter lists need room for Word's post-Z labels (AA., BB., ...).
+# Roman levels use a five-eighths-inch gutter so labels through XVIII., XIX.,
+# and comparable lower-Roman values retain space before their text tab.
+ORDERED_GUTTER_DXA = [540, 900, 360] + [900] * 6
+ORDERED_TEXT_LEFT_DXA = []
 _ordered_levels = []
-for i, fmt in enumerate(ORDERED_FORMATS):
-    ind_left = (i + 1) * 720
+ordered_marker_left = 0
+for i, numfmt_tag in enumerate(ORDERED_NUMFMT_TAGS):
+    # Every marker begins at the text column of its parent level. Roman
+    # numerals need a wider gutter than letters or Greek labels; otherwise
+    # VII. and VIII. cross the text tab and Word advances only those items
+    # to the next default stop. A variable gutter preserves both invariants:
+    # hierarchical marker starts and one text column within each level.
+    gutter = ORDERED_GUTTER_DXA[i]
+    ind_left = ordered_marker_left + gutter
+    ORDERED_TEXT_LEFT_DXA.append(ind_left)
     _ordered_levels.append(
         f'<w:lvl w:ilvl="{i}">'
         f'<w:start w:val="1" />'
-        f'<w:numFmt w:val="{fmt}" />'
+        f'{numfmt_tag}'
         f'<w:suff w:val="tab" />'
         f'<w:lvlText w:val="%{i+1}." />'
         f'<w:lvlJc w:val="left" />'
-        f'<w:pPr><w:ind w:left="{ind_left}" w:hanging="360" /></w:pPr>'
+        f'<w:pPr><w:tabs><w:tab w:val="num" w:pos="{ind_left}" />'
+        f'</w:tabs><w:ind w:left="{ind_left}" w:hanging="{gutter}" />'
+        f'</w:pPr>'
         f'</w:lvl>'
     )
+    ordered_marker_left = ind_left
 
 ORDERED_ABSTRACT_NUM = (
     f'<w:abstractNum w:abstractNumId="{ORDERED_ABSTRACT_NUM_ID}">'
@@ -137,9 +176,53 @@ ORDERED_FMT_RE = re.compile(
     r'|upperLetter|upperRoman)"'
 )
 
+# Pandoc's numbering.xml declares only the main wordprocessingml namespace,
+# but the lowergreek level above needs mc:AlternateContent and a
+# Requires="w14" reference. Declare both namespaces on the root element and
+# list w14 as mc:Ignorable so a consumer without the extension skips it
+# cleanly instead of rejecting the part.
+
+NUMBERING_ROOT_RE = re.compile(r'<w:numbering\b[^>]*>')
+MC_IGNORABLE_RE = re.compile(r'mc:Ignorable="([^"]*)"')
+MC_XMLNS = 'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"'
+W14_XMLNS = 'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"'
+
+
+def _declare_compat_namespaces(numbering_xml: str) -> str:
+    root_match = NUMBERING_ROOT_RE.search(numbering_xml)
+    if not root_match:
+        return numbering_xml
+    tag = new_tag = root_match.group(0)
+    if 'xmlns:mc=' not in new_tag:
+        new_tag = new_tag[:-1] + f' {MC_XMLNS}>'
+    if 'xmlns:w14=' not in new_tag:
+        new_tag = new_tag[:-1] + f' {W14_XMLNS}>'
+    ignorable = MC_IGNORABLE_RE.search(new_tag)
+    if not ignorable:
+        new_tag = new_tag[:-1] + ' mc:Ignorable="w14">'
+    elif 'w14' not in ignorable.group(1).split():
+        new_tag = new_tag.replace(
+            ignorable.group(0), f'mc:Ignorable="{ignorable.group(1)} w14"', 1,
+        )
+    return numbering_xml.replace(tag, new_tag, 1)
+
 
 def _unify_ordered_lists(numbering_xml: str) -> str:
     if f'<w:nsid w:val="{ORDERED_NSID}" />' in numbering_xml:
+        # Replace the generated abstract instead of returning unchanged, so
+        # running a newer post-processor over an older converted DOCX also
+        # picks up numbering-layout fixes.
+        abstract_start = numbering_xml.find(
+            f'<w:abstractNum w:abstractNumId="{ORDERED_ABSTRACT_NUM_ID}">'
+        )
+        abstract_end = numbering_xml.find('</w:abstractNum>', abstract_start)
+        if abstract_start != -1 and abstract_end != -1:
+            abstract_end += len('</w:abstractNum>')
+            return (
+                numbering_xml[:abstract_start]
+                + ORDERED_ABSTRACT_NUM
+                + numbering_xml[abstract_end:]
+            )
         return numbering_xml
 
     ordered_abstract_ids = set()
@@ -192,7 +275,83 @@ def _unify_ordered_lists(numbering_xml: str) -> str:
 
 
 # ============================================================================
-# styles.xml - SourceCode justification
+# numbering.xml -- bullet lists on the same margin ladder
+# ============================================================================
+#
+# Ordered lists hang each level's identifier at the text column of the
+# level above (see `_ordered_levels` above), but bullet lists keep Pandoc's
+# stock ladder of (level+1)*720. A bullet nested under ordered items would
+# then sit off the ladder. The writing guideline uses ordered levels 0-3
+# and bullet levels 4-5. Put the first bullet marker at ordered level 3's
+# text column, then continue with a 360-twip bullet gutter.
+
+BULLET_ABSTRACT_RE = re.compile(
+    r'<w:abstractNum\b[^>]*>.*?</w:abstractNum>', re.DOTALL)
+BULLET_LVL_RE = re.compile(r'<w:lvl w:ilvl="(\d)"[^>]*>.*?</w:lvl>',
+                           re.DOTALL)
+BULLET_IND_RE = re.compile(r'<w:ind w:left="\d+" w:hanging="360" />')
+
+
+def _align_bullet_lists(numbering_xml: str) -> str:
+    def fix(match: 're.Match[str]') -> str:
+        seg = match.group(0)
+        first = re.search(r'<w:lvl w:ilvl="0">.*?</w:lvl>', seg, re.DOTALL)
+        if not first or '<w:numFmt w:val="bullet" />' not in first.group(0):
+            return seg
+
+        def reladder(lvl: 're.Match[str]') -> str:
+            level = int(lvl.group(1))
+            if level == 0:
+                marker_left = 0
+            elif level <= 4:
+                marker_left = ORDERED_TEXT_LEFT_DXA[level - 1]
+            else:
+                marker_left = ORDERED_TEXT_LEFT_DXA[3] + (level - 4) * 360
+            left = marker_left + 360
+            return BULLET_IND_RE.sub(
+                f'<w:ind w:left="{left}" w:hanging="360" />', lvl.group(0))
+
+        return BULLET_LVL_RE.sub(reladder, seg)
+
+    return BULLET_ABSTRACT_RE.sub(fix, numbering_xml)
+
+
+# ============================================================================
+# styles.xml -- symmetric heading spacing
+# ============================================================================
+#
+# The reference styles give headings a large space before and a small space
+# after (e.g. Heading2: 160/80), while body paragraphs contribute the same
+# 180 above and below. The gap over a heading therefore beats the gap under
+# it. Copying `before` into `after` makes both sums equal, so a heading
+# floats evenly between its neighbors.
+
+HEADING_STYLE_RE = re.compile(
+    r'<w:style\b[^>]*w:styleId="Heading\d"[^>]*>.*?</w:style>', re.DOTALL)
+
+
+def _symmetric_heading_spacing(styles_xml: str) -> str:
+    def fix(match: 're.Match[str]') -> str:
+        seg = match.group(0)
+        spacing = re.search(r'<w:spacing\b[^/]*/>', seg)
+        if not spacing:
+            return seg
+        before = re.search(r'w:before="(\d+)"', spacing.group(0))
+        if not before:
+            return seg
+        tag = spacing.group(0)
+        if 'w:after="' in tag:
+            new_tag = re.sub(r'w:after="\d+"',
+                             f'w:after="{before.group(1)}"', tag)
+        else:
+            new_tag = tag[:-2] + f'w:after="{before.group(1)}" />'
+        return seg.replace(tag, new_tag, 1)
+
+    return HEADING_STYLE_RE.sub(fix, styles_xml)
+
+
+# ============================================================================
+# styles.xml -- SourceCode justification
 # ============================================================================
 #
 # Normal is justified (w:jc=both), and Pandoc's SourceCode paragraph style is
@@ -225,7 +384,7 @@ def _left_align_source_code(styles_xml: str) -> str:
 
 
 # ============================================================================
-# styles.xml - footnote size and paragraph spacing
+# styles.xml -- footnote size and paragraph spacing
 # ============================================================================
 #
 # FootnoteText in the reference DOCX carries no overrides, so footnotes
@@ -299,13 +458,13 @@ def _compact_footnotes(styles_xml: str) -> str:
 
 
 # ============================================================================
-# footnotes.xml - exactly one space after the footnote number
+# footnotes.xml -- exactly one space after the footnote number
 # ============================================================================
 #
 # The hanging indent of FootnoteText equals the natural width of
 # "superscript number + one word space" (see the styles transform above),
 # so the generated footnotes must read exactly "number, space, text" to
-# sit on the vertical line - same as a footnote typed by hand later.
+# sit on the vertical line -- same as a footnote typed by hand later.
 # Pandoc already separates the number from the text with a space run;
 # normalize the other shapes to it (a legacy tab run from earlier versions
 # of this script is dropped, a leading space inside the first text run is
@@ -356,7 +515,7 @@ def _align_footnote_continuations(footnotes_xml: str) -> str:
 
 
 # ============================================================================
-# document.xml - author/email separator
+# document.xml -- author/email separator
 # ============================================================================
 #
 # Pandoc joins the AsciiDoc :author: and :email: with a single space, so the
@@ -380,7 +539,7 @@ def _separate_author_email(document_xml: str) -> str:
 
 
 # ============================================================================
-# document.xml - empty heading paragraphs
+# document.xml -- empty heading paragraphs
 # ============================================================================
 #
 # With :doctype: book, Asciidoctor wraps any content between the document
@@ -407,7 +566,48 @@ def _strip_empty_headings(document_xml: str) -> str:
 
 
 # ============================================================================
-# document.xml - section-title bookmarks
+# document.xml -- paragraph headers stay with their continuation
+# ============================================================================
+#
+# A numbered paragraph header is a bold-only list item followed by its body as
+# continuation content. Pandoc emits the two parts as adjacent paragraphs.
+# Without keepNext, Word can leave the header at the foot of one page and move
+# its body to the next. Mark every bold-only numbered paragraph keep-with-next,
+# which preserves the source's header-and-body unit without affecting ordinary
+# bold text or numbered paragraphs that contain prose.
+
+RUN_RE = re.compile(r'<w:r\b[^>]*>.*?</w:r>', re.DOTALL)
+NUMPR_RE = re.compile(r'<w:numPr>')
+
+
+def _keep_paragraph_headers_with_body(document_xml: str) -> str:
+    def fix(match: 're.Match[str]') -> str:
+        para = match.group(0)
+        ppr_match = PARA_PPR_RE.search(para)
+        if not ppr_match or not NUMPR_RE.search(ppr_match.group(0)):
+            return para
+        text_runs = [
+            run.group(0)
+            for run in RUN_RE.finditer(para)
+            if any(text.strip() for text in TEXT_RUN_RE.findall(run.group(0)))
+        ]
+        if not text_runs or any('<w:b' not in run for run in text_runs):
+            return para
+        ppr = ppr_match.group(0)
+        if '<w:keepNext' in ppr:
+            return para
+        insert_at = ppr.find('>') + 1
+        style = re.search(r'<w:pStyle\b[^/]*/>', ppr)
+        if style:
+            insert_at = style.end()
+        patched_ppr = ppr[:insert_at] + '<w:keepNext />' + ppr[insert_at:]
+        return para.replace(ppr, patched_ppr, 1)
+
+    return PARAGRAPH_RE.sub(fix, document_xml)
+
+
+# ============================================================================
+# document.xml -- section-title bookmarks
 # ============================================================================
 #
 # Asciidoctor assigns every section an anchor id and Pandoc materializes
@@ -454,7 +654,7 @@ def _make_strip_bookmarks(referenced: set) -> XmlTransform:
 
 
 # ============================================================================
-# document.xml - A4 page size and margins
+# document.xml -- A4 page size and margins
 # ============================================================================
 #
 # Pandoc's reference.docx doesn't carry an explicit page size, so Word falls
@@ -495,7 +695,7 @@ def _force_a4_section(document_xml: str) -> str:
 
 
 # ============================================================================
-# document.xml - table widths
+# document.xml -- table widths
 # ============================================================================
 #
 # Pandoc emits each table with <w:tblW w:type="pct" w:w="5000" /> (= 100% of
@@ -507,9 +707,16 @@ def _force_a4_section(document_xml: str) -> str:
 # lines up with the body-text right margin while the indent is preserved on
 # the left. Column proportions are kept by scaling gridCol values to that
 # new total.
+#
+# Word additionally starts a table's grid at tblInd minus the leading cell
+# margin, so a table without tblInd juts its left border one cell margin
+# past the text edge and stops one short on the right. Writing tblInd =
+# intended_indent + cell_margin puts both borders exactly on the paragraph
+# verticals. Source-fields tables are borderless and skip the nudge.
 
 TABLE_RE = re.compile(r'<w:tbl>.*?</w:tbl>', re.DOTALL)
 TBL_IND_RE = re.compile(r'<w:tblInd w:w="(\d+)" w:type="dxa"\s*/>')
+TBL_CELL_SIDE_MARGIN = 108  # the Table style's left/right tblCellMar
 TBL_W_RE = re.compile(r'<w:tblW [^/]*/>')
 TBL_GRID_RE = re.compile(r'<w:tblGrid>(.*?)</w:tblGrid>', re.DOTALL)
 GRID_COL_RE = re.compile(r'<w:gridCol w:w="(\d+)"\s*/>')
@@ -545,6 +752,16 @@ def _fit_table_widths(document_xml: str) -> str:
         body = TBL_W_RE.sub(
             f'<w:tblW w:w="{new_total}" w:type="dxa" />', body, count=1,
         )
+        if '<w:tblStyle w:val="horizontal" />' not in body:
+            ind_tag = (f'<w:tblInd w:w="{indent + TBL_CELL_SIDE_MARGIN}" '
+                       f'w:type="dxa" />')
+            if ind_match:
+                body = TBL_IND_RE.sub(ind_tag, body, count=1)
+            else:
+                body = body.replace(
+                    f'<w:tblW w:w="{new_total}" w:type="dxa" />',
+                    f'<w:tblW w:w="{new_total}" w:type="dxa" />' + ind_tag,
+                    1)
         def scale_tc(m: 're.Match[str]') -> str:
             return f'<w:tcW w:w="{int(m.group(1)) * budget // total}" w:type="dxa" />'
         body = TC_W_RE.sub(scale_tc, body)
@@ -553,7 +770,7 @@ def _fit_table_widths(document_xml: str) -> str:
 
 
 # ============================================================================
-# document.xml - inline image sizing
+# document.xml -- inline image sizing
 # ============================================================================
 #
 # Pandoc carries through the source bitmap's pixel dimensions, so a screenshot
@@ -573,6 +790,7 @@ WP_EXTENT_RE = re.compile(r'<wp:extent\s+cx="(\d+)"\s+cy="(\d+)"\s*/>')
 A_EXT_RE = re.compile(r'<a:ext\s+cx="(\d+)"\s+cy="(\d+)"\s*/>')
 
 NumberingIndex = Dict[str, List[int]]
+NumberingLayout = Dict[str, List['tuple[int, int]']]
 
 
 def _build_numbering_index(numbering_xml: str) -> NumberingIndex:
@@ -605,6 +823,43 @@ def _build_numbering_index(numbering_xml: str) -> NumberingIndex:
     return num_to_indents
 
 
+def _build_numbering_layout(numbering_xml: str) -> NumberingLayout:
+    """Map numId levels to their text-left and hanging-indent values."""
+    abstract_layouts: Dict[str, List['tuple[int, int]']] = {}
+    for match in re.finditer(
+        r'<w:abstractNum w:abstractNumId="(\d+)">(.*?)</w:abstractNum>',
+        numbering_xml,
+        re.DOTALL,
+    ):
+        levels: List['tuple[int, int]'] = []
+        for level_match in re.finditer(
+            r'<w:lvl w:ilvl="(\d+)">(.*?)</w:lvl>',
+            match.group(2),
+            re.DOTALL,
+        ):
+            level = int(level_match.group(1))
+            indent = PARA_IND_LEFT_RE.search(level_match.group(2))
+            hanging = re.search(r'<w:ind\b[^/>]*\bw:hanging="(\d+)"',
+                                level_match.group(2))
+            value = (int(indent.group(1)) if indent else 0,
+                     int(hanging.group(1)) if hanging else 0)
+            while len(levels) <= level:
+                levels.append((0, 0))
+            levels[level] = value
+        abstract_layouts[match.group(1)] = levels
+
+    result: NumberingLayout = {}
+    for match in re.finditer(
+        r'<w:num w:numId="(\d+)">(.*?)</w:num>', numbering_xml, re.DOTALL,
+    ):
+        abstract = re.search(
+            r'<w:abstractNumId w:val="(\d+)" />', match.group(2))
+        if abstract:
+            result[match.group(1)] = abstract_layouts.get(
+                abstract.group(1), [])
+    return result
+
+
 def _paragraph_indent(paragraph_xml: str, numbering: NumberingIndex) -> int:
     ppr_m = PARA_PPR_RE.search(paragraph_xml)
     if not ppr_m:
@@ -623,6 +878,137 @@ def _paragraph_indent(paragraph_xml: str, numbering: NumberingIndex) -> int:
     ilvl = int(ilvl_m.group(1))
     indents = numbering.get(numid_m.group(1), [])
     return indents[ilvl] if ilvl < len(indents) else 0
+
+
+def _continuation_num_ids(numbering_xml: str) -> set:
+    """Return numIds whose levels carry Pandoc's invisible list marker."""
+    abstract_ids = set()
+    for match in re.finditer(
+        r'<w:abstractNum\b[^>]*w:abstractNumId="(\d+)"[^>]*>'
+        r'(.*?)</w:abstractNum>',
+        numbering_xml,
+        re.DOTALL,
+    ):
+        body = match.group(2)
+        first_level = re.search(
+            r'<w:lvl w:ilvl="0">(.*?)</w:lvl>', body, re.DOTALL)
+        if first_level and '<w:lvlText w:val=" " />' in first_level.group(1):
+            abstract_ids.add(match.group(1))
+
+    num_ids = set()
+    for match in re.finditer(
+        r'<w:num w:numId="(\d+)">(.*?)</w:num>', numbering_xml, re.DOTALL,
+    ):
+        abstract = re.search(
+            r'<w:abstractNumId w:val="(\d+)" />', match.group(2))
+        if abstract and abstract.group(1) in abstract_ids:
+            num_ids.add(match.group(1))
+    return num_ids
+
+
+def _paragraph_list_ref(paragraph_xml: str) -> 'tuple[int, str] | None':
+    ppr_match = PARA_PPR_RE.search(paragraph_xml)
+    if not ppr_match:
+        return None
+    num_match = PARA_NUMPR_RE.search(ppr_match.group(1))
+    if not num_match:
+        return None
+    level = PARA_ILVL_RE.search(num_match.group(1))
+    num_id = PARA_NUMID_RE.search(num_match.group(1))
+    if not (level and num_id):
+        return None
+    return int(level.group(1)), num_id.group(1)
+
+
+IND_TAG_RE = re.compile(r'<w:ind\b[^/]*/>')
+TABS_TAG_RE = re.compile(r'<w:tabs>.*?</w:tabs>', re.DOTALL)
+IND_LATE_PPR_TAG_RE = re.compile(
+    r'<w:(?:contextualSpacing|mirrorIndents|suppressOverlap|jc|textDirection'
+    r'|textAlignment|textboxTightWrap|outlineLvl|divId|cnfStyle|rPr|sectPr'
+    r'|pPrChange)\b')
+
+
+def _continuation_direct_indent(paragraph_xml: str, left: int) -> str:
+    """Turn an invisible-marker list paragraph into a plain aligned one."""
+    ppr_match = PARA_PPR_RE.search(paragraph_xml)
+    if not ppr_match:
+        return paragraph_xml
+    ppr = ppr_match.group(0)
+    ppr = PARA_NUMPR_RE.sub('', ppr, count=1)
+    ppr = IND_TAG_RE.sub('', ppr)
+    indent = f'<w:ind w:left="{left}" />'
+    late = IND_LATE_PPR_TAG_RE.search(ppr)
+    insert_at = late.start() if late else ppr.rfind('</w:pPr>')
+    ppr = ppr[:insert_at] + indent + ppr[insert_at:]
+    return (paragraph_xml[:ppr_match.start()] + ppr
+            + paragraph_xml[ppr_match.end():])
+
+
+def _numbered_paragraph_direct_layout(
+    paragraph_xml: str,
+    left: int,
+    hanging: int,
+) -> str:
+    """Pin the list text and marker columns in the paragraph properties."""
+    ppr_match = PARA_PPR_RE.search(paragraph_xml)
+    if not ppr_match:
+        return paragraph_xml
+    ppr = ppr_match.group(0)
+    ppr = TABS_TAG_RE.sub('', ppr)
+    ppr = IND_TAG_RE.sub('', ppr)
+    num_match = PARA_NUMPR_RE.search(ppr)
+    if not num_match:
+        return paragraph_xml
+    tabs = f'<w:tabs><w:tab w:val="num" w:pos="{left}" /></w:tabs>'
+    ppr = ppr[:num_match.end()] + tabs + ppr[num_match.end():]
+    spacing = re.search(r'<w:spacing\b[^/]*/>', ppr)
+    insert_at = spacing.end() if spacing else num_match.end() + len(tabs)
+    indent = f'<w:ind w:left="{left}" w:hanging="{hanging}" />'
+    ppr = ppr[:insert_at] + indent + ppr[insert_at:]
+    return (paragraph_xml[:ppr_match.start()] + ppr
+            + paragraph_xml[ppr_match.end():])
+
+
+def _make_align_list_continuations(
+    numbering: NumberingIndex,
+    layouts: NumberingLayout,
+    continuation_num_ids: set,
+) -> XmlTransform:
+    """Align continuation text with its numbered paragraph's text column."""
+    def _align(document_xml: str) -> str:
+        pieces: List[str] = []
+        position = 0
+        active_left_by_level: Dict[int, int] = {}
+        for match in PARAGRAPH_RE.finditer(document_xml):
+            pieces.append(document_xml[position:match.start()])
+            paragraph = match.group(0)
+            ref = _paragraph_list_ref(paragraph)
+            if ref:
+                level, num_id = ref
+                if num_id in continuation_num_ids:
+                    left = active_left_by_level.get(level)
+                    if left is not None:
+                        paragraph = _continuation_direct_indent(paragraph, left)
+                else:
+                    levels = layouts.get(num_id, [])
+                    if level < len(levels) and not HEADING_PSTYLE_RE.search(paragraph):
+                        left, hanging = levels[level]
+                        paragraph = _numbered_paragraph_direct_layout(
+                            paragraph, left, hanging)
+                    active_left_by_level = {
+                        key: value
+                        for key, value in active_left_by_level.items()
+                        if key < level
+                    }
+                    active_left_by_level[level] = _paragraph_indent(
+                        paragraph, numbering)
+            elif any(text.strip() for text in TEXT_RUN_RE.findall(paragraph)):
+                active_left_by_level = {}
+            pieces.append(paragraph)
+            position = match.end()
+        pieces.append(document_xml[position:])
+        return ''.join(pieces)
+    return _align
 
 
 def _make_resize_images(numbering: NumberingIndex) -> XmlTransform:
@@ -652,6 +1038,261 @@ def _make_resize_images(numbering: NumberingIndex) -> XmlTransform:
 
 
 # ============================================================================
+# document.xml -- symmetric table cells
+# ============================================================================
+#
+# A table cell's paragraphs carry no style, so the document default
+# `w:after="200"` hangs under the last line while the cell's top margin is
+# zero: the text hugs the top border and floats 10pt over the bottom one.
+# Zeroing the first paragraph's space-before and the last paragraph's
+# space-after leaves both edges to the cell margins, which are equal.
+# Paragraphs between the first and last keep their spacing, so a
+# multi-paragraph cell still separates its paragraphs. Bibliography
+# metadata tables (`horizontal` style) have their own compaction pass
+# below and are skipped here.
+
+CELL_TBL_RE = re.compile(r'<w:tbl>.*?</w:tbl>', re.DOTALL)
+CELL_TC_RE = re.compile(r'<w:tc>.*?</w:tc>', re.DOTALL)
+CELL_P_RE = re.compile(r'<w:p\b[^>]*/>|<w:p\b[^>]*>.*?</w:p>', re.DOTALL)
+CELL_PPR_RE = re.compile(r'<w:pPr\b[^>]*>.*?</w:pPr>|<w:pPr\b[^>]*/>',
+                         re.DOTALL)
+
+
+def _set_edge_spacing(p_xml: str, attr: str, value: str) -> str:
+    spacing_frag = f'<w:spacing w:{attr}="{value}" />'
+    empty_p = re.match(r'<w:p\b([^>]*)/>$', p_xml, re.DOTALL)
+    if empty_p:
+        return f'<w:p{empty_p.group(1)}><w:pPr>{spacing_frag}</w:pPr></w:p>'
+    ppr = CELL_PPR_RE.search(p_xml)
+    if ppr is None or ppr.group(0).endswith('/>'):
+        open_end = p_xml.find('>') + 1
+        return (p_xml[:open_end] + f'<w:pPr>{spacing_frag}</w:pPr>'
+                + p_xml[open_end:])
+    seg = ppr.group(0)
+    spacing = re.search(r'<w:spacing\b[^/]*/>', seg)
+    if spacing is None:
+        # CT_PPr is a strict sequence: w:spacing sits after w:pStyle and
+        # w:numPr; inserting it earlier makes consumers drop it.
+        insert_at = seg.find('>') + 1
+        for pat in (r'<w:pStyle\b[^/]*/>', r'</w:numPr>'):
+            anchor = re.search(pat, seg)
+            if anchor:
+                insert_at = max(insert_at, anchor.end())
+        new_seg = seg[:insert_at] + spacing_frag + seg[insert_at:]
+    elif f'w:{attr}=' in spacing.group(0):
+        new_seg = seg.replace(
+            spacing.group(0),
+            re.sub(rf'w:{attr}="\d+"', f'w:{attr}="{value}"',
+                   spacing.group(0)), 1)
+    else:
+        new_seg = seg.replace(
+            spacing.group(0),
+            spacing.group(0)[:-2] + f'w:{attr}="{value}" />', 1)
+    return p_xml.replace(seg, new_seg, 1)
+
+
+def _symmetric_table_cells(document_xml: str) -> str:
+    def fix_tc(match: 're.Match[str]') -> str:
+        tc = match.group(0)
+        paragraphs = list(CELL_P_RE.finditer(tc))
+        if not paragraphs:
+            return tc
+        last = paragraphs[-1]
+        tc = (tc[:last.start()]
+              + _set_edge_spacing(last.group(0), 'after', '0')
+              + tc[last.end():])
+        first = CELL_P_RE.search(tc)
+        return (tc[:first.start()]
+                + _set_edge_spacing(first.group(0), 'before', '0')
+                + tc[first.end():])
+
+    def fix_tbl(match: 're.Match[str]') -> str:
+        tbl = match.group(0)
+        if '<w:tblStyle w:val="horizontal" />' in tbl:
+            return tbl
+        return CELL_TC_RE.sub(fix_tc, tbl)
+
+    return CELL_TBL_RE.sub(fix_tbl, document_xml)
+
+
+# ============================================================================
+# document.xml -- symmetric space around tables
+# ============================================================================
+#
+# The gap over a table is the preceding paragraph's space-after (the
+# document default of 200 twips), but the paragraph under a table is a list
+# item or plain paragraph whose space-before is zero, so the table hugs
+# what follows it. Give the paragraph on each side of a table the same 200
+# on its table-facing edge. Headings keep their own larger spacing, and
+# bibliography metadata tables (`horizontal` style) have their own gap
+# pass below.
+
+TABLE_GAP = "200"  # the docDefaults space-after that forms the gap above
+_P_CHUNK = r'<w:p\b[^>]*>(?:(?!</w:p>).)*?</w:p>'
+P_BEFORE_TBL_RE = re.compile('(' + _P_CHUNK + r')(?=\s*<w:tbl>)', re.DOTALL)
+P_AFTER_TBL_RE = re.compile(r'(</w:tbl>\s*)(' + _P_CHUNK + ')', re.DOTALL)
+HORIZONTAL_TBL_MARKER = '<w:tblStyle w:val="horizontal" />'
+
+
+def _tbl_at_is_horizontal(document_xml: str, tbl_start: int) -> bool:
+    tblpr_end = document_xml.find('</w:tblPr>', tbl_start)
+    if tblpr_end == -1:
+        return False
+    return HORIZONTAL_TBL_MARKER in document_xml[tbl_start:tblpr_end]
+
+
+def _symmetric_table_margins(document_xml: str) -> str:
+    def pad_before(match: 're.Match[str]') -> str:
+        p_xml = match.group(1)
+        if 'w:pStyle w:val="Heading' in p_xml:
+            return p_xml
+        if _tbl_at_is_horizontal(document_xml, match.end()):
+            return p_xml
+        return _set_edge_spacing(p_xml, 'after', TABLE_GAP)
+
+    def pad_after(match: 're.Match[str]') -> str:
+        p_xml = match.group(2)
+        if 'w:pStyle w:val="Heading' in p_xml:
+            return match.group(0)
+        tbl_start = document_xml.rfind('<w:tbl>', 0, match.start())
+        if tbl_start != -1 and _tbl_at_is_horizontal(document_xml,
+                                                     tbl_start):
+            return match.group(0)
+        return match.group(1) + _set_edge_spacing(p_xml, 'before',
+                                                  TABLE_GAP)
+
+    document_xml = P_BEFORE_TBL_RE.sub(pad_before, document_xml)
+    return P_AFTER_TBL_RE.sub(pad_after, document_xml)
+
+
+# ============================================================================
+# document.xml -- source-fields tables
+# ============================================================================
+#
+# A bibliography entry's metadata block (`[horizontal.source-fields]` in the
+# AsciiDoc source) arrives from the DocBook path as a two-column table whose
+# style name carries the dlist style: <w:tblStyle w:val="horizontal" />. The
+# block is a machine-facing record and must recede behind the prose the way
+# the HTML and PDF exports render it: no borders, tight rows, small muted
+# type, bold terms. Word applies whatever the undefined "horizontal" style
+# falls back to (a bordered grid at body size), so the record's look is
+# forced here with direct formatting, which always outranks a table style.
+
+SF_TABLE_MARKER = '<w:tblStyle w:val="horizontal" />'
+SF_RUN_PROPS = (
+    '<w:color w:val="595959" /><w:sz w:val="15" /><w:szCs w:val="15" />'
+)
+SF_BORDERS_AND_MARGINS = (
+    '<w:tblBorders>'
+    '<w:top w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '<w:left w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '<w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '<w:right w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '<w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '<w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto" />'
+    '</w:tblBorders>'
+)
+SF_CELL_MARGINS = (
+    '<w:tblCellMar>'
+    '<w:top w:w="0" w:type="dxa" /><w:left w:w="0" w:type="dxa" />'
+    '<w:bottom w:w="15" w:type="dxa" /><w:right w:w="115" w:type="dxa" />'
+    '</w:tblCellMar>'
+)
+SF_PARA_SPACING = (
+    '<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto" />'
+)
+SF_TR_RE = re.compile(r'<w:tr>.*?</w:tr>', re.DOTALL)
+SF_TC_RE = re.compile(r'<w:tc>.*?</w:tc>', re.DOTALL)
+SF_PSTYLE_RE = re.compile(r'(<w:pPr><w:pStyle w:val="[^"]+" />)(</w:pPr>)?')
+
+
+def _compact_source_fields_tables(document_xml: str) -> str:
+    def compact(match: 're.Match[str]') -> str:
+        body = match.group(0)
+        if SF_TABLE_MARKER not in body or SF_RUN_PROPS in body:
+            return body
+        # Borderless, with hairline cell margins; both slot into tblPr at
+        # their schema positions (borders after tblInd, margins after
+        # tblLayout).
+        body = body.replace('<w:tblLayout w:type="fixed" />',
+                            SF_BORDERS_AND_MARGINS
+                            + '<w:tblLayout w:type="fixed" />'
+                            + SF_CELL_MARGINS, 1)
+        # Tight paragraphs: explicit spacing overrides the style's own.
+        body = SF_PSTYLE_RE.sub(
+            lambda m: m.group(1) + SF_PARA_SPACING + (m.group(2) or ''),
+            body)
+        # Small muted runs: append into existing run properties, wrap the
+        # bare runs.
+        body = body.replace('</w:rPr>', SF_RUN_PROPS + '</w:rPr>')
+        body = re.sub(r'<w:r>(?=<w:t)',
+                      '<w:r><w:rPr>' + SF_RUN_PROPS + '</w:rPr>', body)
+        # Bold terms: every run of each row's first cell.
+        def embolden_row(row_match: 're.Match[str]') -> str:
+            row = row_match.group(0)
+            cell_match = SF_TC_RE.search(row)
+            if not cell_match:
+                return row
+            cell = cell_match.group(0).replace(
+                '<w:rPr>', '<w:rPr><w:b />')
+            return row[:cell_match.start()] + cell + row[cell_match.end():]
+        body = SF_TR_RE.sub(embolden_row, body)
+        return body
+    return _equalize_source_fields_gaps(TABLE_RE.sub(compact, document_xml))
+
+
+# The gap above the record (the entry label's spacing-after) and the gap
+# below it (the next label's spacing-before, which Word defaults to zero)
+# must match. Both neighbors of every source-fields table get one explicit
+# spacing element; a label sitting between two tables receives it once.
+SF_GAP_SPACING = '<w:spacing w:before="120" w:after="120" />'
+SF_ADJACENT_PARA_RE = re.compile(
+    r'<w:p><w:pPr>((?:(?!</w:p>).)*?)</w:pPr>((?:(?!</w:p>).)*?)</w:p>(\s*)$',
+    re.DOTALL)
+SF_FOLLOWING_PARA_RE = re.compile(
+    r'^(\s*)<w:p><w:pPr>((?:(?!</w:p>).)*?)(</w:pPr>)', re.DOTALL)
+
+
+def _equalize_source_fields_gaps(document_xml: str) -> str:
+    pieces: List[str] = []
+    pos = 0
+    patch_following = False
+
+    def patch_leading(segment: str) -> str:
+        match = SF_FOLLOWING_PARA_RE.search(segment)
+        if not match or SF_GAP_SPACING in match.group(2):
+            return segment
+        return (segment[:match.end(2)] + SF_GAP_SPACING
+                + segment[match.end(2):])
+
+    def patch_trailing(segment: str) -> str:
+        match = SF_ADJACENT_PARA_RE.search(segment)
+        if not match or SF_GAP_SPACING in match.group(1):
+            return segment
+        insert_at = match.start(1) + len(match.group(1))
+        return segment[:insert_at] + SF_GAP_SPACING + segment[insert_at:]
+
+    for table_match in TABLE_RE.finditer(document_xml):
+        segment = document_xml[pos:table_match.start()]
+        if patch_following:
+            segment = patch_leading(segment)
+        body = table_match.group(0)
+        if SF_TABLE_MARKER in body:
+            segment = patch_trailing(segment)
+            patch_following = True
+        else:
+            patch_following = False
+        pieces.append(segment)
+        pieces.append(body)
+        pos = table_match.end()
+    tail = document_xml[pos:]
+    if patch_following:
+        tail = patch_leading(tail)
+    pieces.append(tail)
+    return ''.join(pieces)
+
+
+# ============================================================================
 # Pipeline
 # ============================================================================
 #
@@ -663,12 +1304,15 @@ def _make_resize_images(numbering: NumberingIndex) -> XmlTransform:
 
 TRANSFORMS: Dict[str, List[XmlTransform]] = {
     'word/numbering.xml': [
+        _declare_compat_namespaces,
         _inject_heading_numbering,
         _unify_ordered_lists,
+        _align_bullet_lists,
     ],
     'word/styles.xml': [
         _left_align_source_code,
         _compact_footnotes,
+        _symmetric_heading_spacing,
     ],
     'word/footnotes.xml': [
         _space_after_footnote_number,
@@ -677,8 +1321,12 @@ TRANSFORMS: Dict[str, List[XmlTransform]] = {
     'word/document.xml': [
         _separate_author_email,
         _strip_empty_headings,
+        _keep_paragraph_headers_with_body,
         _force_a4_section,
         _fit_table_widths,
+        _symmetric_table_cells,
+        _symmetric_table_margins,
+        _compact_source_fields_tables,
     ],
 }
 
@@ -703,7 +1351,10 @@ def main(docx_path: str) -> None:
         # per-level indents when resolving paragraph indents.
         _patch_part(tmp, 'word/numbering.xml', TRANSFORMS['word/numbering.xml'])
         with open(os.path.join(tmp, 'word', 'numbering.xml'), encoding='utf-8') as f:
-            numbering_index = _build_numbering_index(f.read())
+            numbering_xml = f.read()
+        numbering_index = _build_numbering_index(numbering_xml)
+        numbering_layout = _build_numbering_layout(numbering_xml)
+        continuation_num_ids = _continuation_num_ids(numbering_xml)
         # Collect anchors referenced anywhere so unreferenced bookmarks can
         # be dropped while cross-reference targets survive.
         part_xmls = []
@@ -718,7 +1369,9 @@ def main(docx_path: str) -> None:
             if rel_path == 'word/numbering.xml':
                 continue
             extra = (
-                [_make_resize_images(numbering_index),
+                [_make_align_list_continuations(
+                     numbering_index, numbering_layout, continuation_num_ids),
+                 _make_resize_images(numbering_index),
                  _make_strip_bookmarks(referenced_anchors)]
                 if rel_path == 'word/document.xml' else []
             )

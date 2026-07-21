@@ -1179,8 +1179,7 @@
                                     The documentation lint. scripts/lint-docs.sh runs the three-engine
                                     linter README.adoc documents (.docs/lib/adoc_lint.py: Vale for prose
                                     and typography, a structural linter, and an Asciidoctor render pass)
-                                    inside the pinned Vale image, which already carries Vale, Asciidoctor,
-                                    and Python 3. Any reported problem fails the build.
+                                    with the documented local tools. Any reported problem fails the build.
                                 -->
                                 <id>lint-docs</id>
                                 <phase>package</phase>

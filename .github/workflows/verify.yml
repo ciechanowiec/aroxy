@@ -29,8 +29,21 @@ jobs:
           java-version: '25'
           cache: 'maven'
 
+      - name: 'Install documentation lint tools'
+        env:
+          VALE_VERSION: '3.15.1'
+          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
+          archive="$RUNNER_TEMP/vale.tar.gz"
+          curl --fail --location --silent --show-error \
+            --output "$archive" \
+            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          echo "$VALE_SHA256  $archive" | sha256sum --check
+          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
+
       - name: 'Full verification (mvn clean package -Pfull)'
-        # Docker is preinstalled on GitHub-hosted ubuntu runners, so the gates that need it run here:
-        # the documentation lint, the gitleaks secret scan, and the Qodana inspection scan. Those images
-        # carry Vale, Asciidoctor, and Python, so the runner needs no extra tooling beyond the JDK.
+        # Docker is preinstalled on GitHub-hosted ubuntu runners for Gitleaks and Qodana. The
+        # documentation linter uses the tools installed above so all source formats can be verified.
         run: mvn clean package -Pfull

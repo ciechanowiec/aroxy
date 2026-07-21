@@ -10,11 +10,12 @@ import java.util.regex.Matcher;
  * Applies the configured rules to request text and reverses tokens in response text. Tokens use the
  * JSON-safe, contiguous form {@code <<PII:PLACEHOLDER:N>>}.
  *
- * <p>The engine works on raw body text and stores each match exactly as it appears, so re-inserting
- * it on the response keeps the original JSON escaping intact. Enabled rules are applied in order and
- * their matches accumulate into the {@link ObfuscationResult}. The active rule set may be swapped at
- * runtime via {@link #swapRules(Collection)} so a long-running daemon can reload its configuration without
- * restarting the proxy socket; the swap is published through a {@code volatile} reference.
+ * <p>The engine works on semantic text: structured request bodies are parsed before their string
+ * values reach it, so backslashes in paths and source code are content rather than serialization
+ * syntax. Competing matches use leftmost-longest resolution, with configuration order breaking an
+ * exact tie. The active rule set may be swapped at runtime via {@link #swapRules(Collection)} so a
+ * long-running daemon can reload its configuration without restarting the proxy socket; the swap is
+ * published through a {@code volatile} reference.
  */
 @SuppressWarnings(
     "PMD.AvoidUsingVolatile"
@@ -52,9 +53,13 @@ public final class Obfuscator {
      */
     public ObfuscationResult obfuscate(String body) {
         List<ObfuscationMatch> matches = new ArrayList<>();
+        RuleApplication application = new RuleApplication(this.rules, this.vault);
         String text = body;
-        for (Rule rule : this.rules) {
-            text = this.applyIfEnabled(rule, text, matches);
+        ObfuscationResult pass = application.run(text);
+        while (!pass.matches().isEmpty()) {
+            text = pass.text();
+            matches.addAll(pass.matches());
+            pass = application.run(text);
         }
         return new ObfuscationResult(text, matches);
     }
@@ -93,12 +98,5 @@ public final class Obfuscator {
         Optional<String> original = this.vault.originalFor(matcher.group());
         matcher.appendReplacement(out, Matcher.quoteReplacement(original.orElseGet(matcher::group)));
         return original.isPresent() ? 1 : 0;
-    }
-
-    private String applyIfEnabled(Rule rule, String text, Collection<ObfuscationMatch> matches) {
-        if (!rule.enabled()) {
-            return text;
-        }
-        return new RuleApplication(rule, this.vault, text).run(matches);
     }
 }

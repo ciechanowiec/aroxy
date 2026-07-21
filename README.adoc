@@ -49,7 +49,7 @@ image::.docs/img/architecture.drawio.png[alt="Claude Code and Codex on the left.
 
 == Default Coverage
 
-_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. The rules fall into three groups, described in this section. Rules scan textual request values. Fields that an agent protocol defines as opaque aren't scanned. For Codex, that exclusion includes `encrypted_content`, which is already encrypted and must remain unchanged. Prompts and tool input remain in scope.
+_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. Rules scan prompts and tool input while leaving protocol-opaque fields, such as Codex `encrypted_content`, unchanged.
 
 . *Secrets and credentials*
 +
@@ -194,7 +194,7 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 .. The [[default-configuration-file]]_default configuration file_, `~/.aroxy/default.conf`, is materialized from the bundled defaults on first run and is loaded on every start. You may edit it, or empty it to start from nothing.
 .. [[persistent-configuration-file]]_Persistent configuration files_ are attached with `aroxy config attach <f> --persistent`. _aroxy_ records each one in the [[registry]]_registry_ (`~/.aroxy/attachments`) and loads it on every start, so it survives restarts until you remove it with `aroxy config detach <f>`. Use them for machine-wide or company-wide rules.
 .. [[temporary-configuration-file]]_Temporary configuration files_ are attached with `aroxy config attach <f> --temporary`, which needs a running service. _aroxy_ loads the file at once but never records it, so it applies only until the service next stops or restarts, and `aroxy start` doesn't bring it back. Use one for a one-off change you don't want to keep.
-. Every loaded configuration file contributes its rules. When two configuration files define a rule with the same `id`, the configuration file loaded later wins, which lets a persistent or temporary configuration file override a rule from the default configuration file. A `[gateway]` key takes the value from the last configuration file that sets it. Rule order matters, so emptying the default configuration file gives the remaining configuration files full control of the order.
+. Every loaded configuration file contributes its rules. When two configuration files define a rule with the same `id`, the configuration file loaded later wins, which lets a persistent or temporary configuration file override a rule from the default configuration file. A `[gateway]` key takes the value from the last configuration file that sets it. Rule order breaks a tie between matches with the same start and length, so emptying the default configuration file gives the remaining configuration files full control of that tie-breaker.
 . Attaching a configuration file is allowed while the service runs, and a persistent configuration file also updates the xref:#registry[registry] and triggers a xref:#reload-command[reload]. Detaching a persistent configuration file is allowed only while the service is stopped.
 . While the service runs, `aroxy config` reads the daemon's published state rather than recomputing from the current files. Editing a loaded file therefore doesn't change the displayed rules or masking state until `aroxy reload` succeeds. While the service is stopped, the command reads the files and labels the result as the configuration for the next start.
 
@@ -260,6 +260,7 @@ aroxy config attach session.conf --temporary      # until the service stops, nee
 +
 A `literal` rule with `flags = i` matches any case. With `loose = true`, `+Initech+` also matches `+Ini tech+`, `+I.n.i.t.e.c.h+`, and `+Ini-tech+`. With `leet = true` it also matches digit look-alikes such as `+1nitech+`.
 . A `literal` rule matches its `value` as a substring, anywhere the text appears, with no word boundary. A rule for `acme` therefore obfuscates `acme` inside a domain (`acme.com` becomes `+<<PII:COMPANY:1>>.com+`), inside an email address (`john@acme.com`), inside an internal host (`db01.acme-internal.net`), and even inside a longer word (`acmecorp` becomes `+<<PII:COMPANY:1>>corp+`). This is deliberate, so that one company rule covers the name, its domains, and its addresses at once. The trade-off is that a short or common `value` can match where you didn't intend, such as `IT` inside `with`, so prefer a distinctive `value`. When you need a word boundary, write a `regex` rule instead, whose `pattern` is used verbatim, such as `\bIT\b`.
+. All enabled rules inspect the same original text before any token is inserted. When matches overlap, the match that starts first wins. Matches beginning at the same character use the longest complete match. Configuration order breaks a remaining tie. A `Northstar Labs` rule therefore wins over a `Northstar` rule for that phrase even when the shorter rule appears first, while a separate `Northstar` occurrence still matches the shorter rule.
 . Every spelling a `literal` rule matches collapses onto one _canonical value_: the `value` you configured. _aroxy_ keys the token on that canonical value, so all variants share a single token and the model reads them as one entity, not several. On the way back, _aroxy_ restores the canonical spelling through deobfuscation, not the spelling that appeared in the request. A rule with `value = Initech` therefore obfuscates `INITECH`, `Ini tech`, and `Initech` to the same `+<<PII:COMPANY:1>>+`, and the reply comes back as `Initech` in every case. A `regex` rule has no canonical value: each distinct text it matches gets its own token and is restored exactly as it appeared.
 . To turn a rule on, set its `enabled` to `true`. To turn a rule off, set `enabled = false`. To keep only the `regex` rules, set `enabled = false` on every `type = literal` rule. Changes take effect on the next `aroxy reload` or `aroxy restart`.
 
@@ -362,64 +363,51 @@ mvn clean package -Pfull
 
 == About the Document
 
-The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
+The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.
 
 === Guideline
 
-This document should follow the link:README-guideline-writing.adoc[Writing Guideline].
+The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
+
+=== Prerequisites
+
+To export and lint the source text, install the following tools:
+
+. https://asciidoctor.org/#installation[Asciidoctor^]
+. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
+. https://pandoc.org/installing.html[Pandoc^]
+. https://www.python.org/downloads/[Python 3^]
+. https://vale.sh/docs/install/[Vale^]
+. https://poppler.freedesktop.org[`pdftotext`^]
+. https://github.com/tesseract-ocr/tesseract[`tesseract`^]
 
 === Export
 
-. To export the document to the supported output formats, install the following tools:
-.. https://asciidoctor.org/#installation[Asciidoctor^]
-.. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
-.. https://pandoc.org/installing.html[Pandoc^]
-.. https://www.python.org/downloads/[Python 3^]
-
-. To export to HTML:
+. To export the source text to HTML:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
 ----
 
-. To export to PDF:
+. To export the source text to PDF:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
 ----
 
-. To export to DOCX - Asciidoctor converts the document to DocBook XML, which Pandoc then converts to DOCX:
+. To export the source text to DOCX:
 +
 [source,bash,subs="attributes+"]
 ----
-asciidoctor --backend docbook --attribute allow-uri-read --out-file - {docname}{docfilesuffix} | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx
+prepared="$(python3 {sourcedir}/.docs/lib/export_prepare.py --docx-compat {docname}{docfilesuffix})" && asciidoctor --backend docbook --attribute allow-uri-read --out-file - "$prepared" | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx && rm "$prepared"
 ----
 
 === Linting
 
-==== General Rules
+Lint the source text:
 
-. The document is linted by `link:.docs/lib/adoc_lint.py[]`, a single command that runs three engines and merges their findings into one report. The three engines are Vale, a structural linter, and an Asciidoctor render pass.
-. The first engine, https://vale.sh[Vale^], checks prose and typography. Vale is configured in `link:.vale.ini[]` and enforces the following style guides:
-.. native https://vale.sh/docs/styles#vale[Vale style^], with https://github.com/vale-cli/en_US-web/tree/master[English dictionary^] included,
-.. a curated `English` style, inspired by the https://developers.google.com/style[Google Developer Documentation Style Guide^], the https://vale.sh/hub/jdkato/write-good/[write-good^] linter, and https://github.com/amperser/proselint/[proselint^],
-.. language-neutral typography rules, applied to every language.
-. The second engine, the structural linter, checks the markup, document structure, and ASCII diagrams that Vale can't see, defined in `link:.docs/lib/adoc_lint.py[]`.
-. The third engine, https://asciidoctor.org[Asciidoctor^], renders the document to a discarded output file and reports every warning or error it logs, such as a missing include file.
-
-==== Usage
-
-. The build lints this document for you: `link:scripts/lint-docs.sh[]` runs the linter inside a pinned Vale image that already carries Vale, Asciidoctor, and Python 3, and `mvn clean package -Pfull` runs that script. Nothing needs to be installed except Docker:
-+
-[source,bash,subs="attributes+"]
-----
-./scripts/lint-docs.sh {docname}{docfilesuffix}
-----
-
-. To run the linter directly instead, install https://vale.sh/docs/install/[Vale^] and use the Python entry point. The linter requires Vale and exits with an error when Vale is missing. The structural checks need only Python 3, and the render pass needs only Asciidoctor - the exports above already require both:
-+
 [source,bash,subs="attributes+"]
 ----
 python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}

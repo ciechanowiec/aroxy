@@ -6,10 +6,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 
 /**
- * The character ranges already occupied by {@code <<PII:...>>} tokens in a body. Each rule is applied
- * over text that may already carry tokens minted by earlier rules, so protecting those ranges keeps a
- * later rule (for example a bare {@code \d+} pattern) from matching inside a token and corrupting it,
- * which would make the value impossible to reverse on the response.
+ * The character ranges already occupied by {@code <<PII:...>>} tokens in input text. Protecting those
+ * ranges keeps a rule (for example a bare {@code \d+} pattern) from matching inside a token and
+ * corrupting it, which would make the value impossible to reverse on the response.
  */
 final class TokenRegions {
 

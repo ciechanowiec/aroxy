@@ -7,7 +7,7 @@ import java.util.List;
  * token, and the immutable list of matches that fired, in order.
  *
  * @param text    the rewritten body with every sensitive value replaced by a token
- * @param matches the matches that fired, in application order
+ * @param matches the matches that fired, in resolution order
  */
 public record ObfuscationResult(String text, List<ObfuscationMatch> matches) {
 

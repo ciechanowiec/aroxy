@@ -194,7 +194,7 @@ Packages under `eu.ciechanowiec.aroxy`:
   `PathScope`, and the stream dialect as *data* (`SseDialect` composing `FragmentRule` + `SseKind`),
   with one profile class per agent (`ClaudeCode`, `CodexCli`). No vendor vocabulary lives anywhere else.
 - `obfuscation` - the engine: `Obfuscator`, `Vault`, `Rule` (composes `RulePattern` + `RuleLabel`),
-  `RuleApplication`, `JsonSafeSpan`, `PiiToken`, `MaskedSecret`, `RuleCompiler` (loose/leet),
+  `RuleApplication`, `PiiToken`, `MaskedSecret`, `RuleCompiler` (loose/leet),
   `StreamDeobfuscator` (SSE carry-buffer over text fragments), `ObfuscationResult`/`ObfuscationMatch`.
 - `config` - `ConfigFile` parser, `EffectiveConfig` merge, `AttachmentRegistry`, `Settings`
   (a `Gateway` per registered client, keyed by `ClientId`).
@@ -213,7 +213,10 @@ reload trigger), `temporaries` (this session's temporary attachments, cleared on
 
 ## Engine behaviors that must not regress
 
-- JSON-escape safety: replacing a value must never orphan a `\"` / `\\` escape (`JsonSafeSpan`).
+- Structured request safety: JSON agent requests are parsed before matching, rules see decoded string
+  values, and protocol fields declared opaque by the client profile are never transformed.
+- Overlap resolution: all rules inspect the original semantic text. Matches resolve leftmost-longest,
+  with configuration order breaking an exact tie, so a shorter literal cannot shadow a longer one.
 - Canonical keying: a literal rule's spelling variants share ONE token and restore to the configured value.
 - SSE: a token split across two streamed fragments reverses correctly (`StreamDeobfuscator`), in
   either dialect. A partial still held at a terminal event is flushed by *replaying the last fragment
@@ -238,7 +241,8 @@ reload trigger), `temporaries` (this session's temporary attachments, cleared on
 Effective config = **default.conf** (always, bundled → materialized, user may empty) →
 **persistent** attachments (machine/company-wide, every start) → **temporary** attachments (this
 session only). Settings: last file wins per key. Rules: keyed by `id`, a later file replaces an
-`id` in place; new ids append; order matters. Attach allowed while running; **detach only while stopped**.
+`id` in place; new ids append; order breaks equal-span match ties. Attach allowed while running;
+**detach only while stopped**.
 
 **A declared key must be usable.** A key states an intent, so a file that declares one its stanza does
 not define, or one whose value names nothing the proxy can act on, is broken and is not loaded. An

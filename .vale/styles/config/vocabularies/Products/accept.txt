@@ -48,6 +48,8 @@ PMD
 GPG
 JaCoCo
 SpotBugs
+gitleaks
+Qodana
 picocli
 tinylog
 Maven
@@ -104,10 +106,5 @@ Confluence
 Jira
 OneDrive
 SharePoint
-gitleaks
-Qodana
-OpenRewrite
-Lombok
-impsort
-PIT
-EditorConfig
+Contentful
+WordPress

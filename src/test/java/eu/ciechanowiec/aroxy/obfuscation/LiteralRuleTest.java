@@ -85,4 +85,32 @@ class LiteralRuleTest {
             "token restores to the canonical name"
         );
     }
+
+    @Test
+    void decodedWindowsPathReplacesTheWholeLiteral() {
+        Rule rule = RuleCompiler.loose("company_northstar", "COMPANY", LiteralSpec.loose("Northstar"));
+        Obfuscator obfuscator = RuleFixtures.obfuscator(rule);
+        String input = "C:\\Users\\analyst\\Documents\\Northstar\\Project";
+        ObfuscationResult result = obfuscator.obfuscate(input);
+        assertEquals("Northstar", result.matches().getFirst().original(), "the path separator is ordinary text");
+        assertFalse(result.text().contains("Northstar"), "the complete name must be gone");
+        assertEquals(input, obfuscator.deobfuscate(result.text()), "the path must round-trip exactly");
+    }
+
+    @Test
+    void longerLiteralWinsAnOverlapRegardlessOfConfigurationOrder() {
+        Rule shorter = RuleCompiler.loose("company_northstar", "COMPANY", LiteralSpec.loose("Northstar"));
+        Rule longer = RuleCompiler.loose(
+            "company_northstar_labs", "COMPANY", LiteralSpec.loose("Northstar Labs")
+        );
+        Obfuscator obfuscator = new Obfuscator(List.of(shorter, longer), Vault.inMemory());
+        String input = "Northstar Labs works with Northstar.";
+        ObfuscationResult result = obfuscator.obfuscate(input);
+        assertEquals(
+            List.of("Northstar Labs", "Northstar"),
+            result.matches().stream().map(ObfuscationMatch::original).toList(),
+            "matches use leftmost-longest resolution and are reported in textual order"
+        );
+        assertEquals(input, obfuscator.deobfuscate(result.text()), "both names must round-trip exactly");
+    }
 }
