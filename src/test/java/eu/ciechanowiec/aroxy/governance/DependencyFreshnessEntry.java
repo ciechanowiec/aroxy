@@ -8,10 +8,11 @@ import lombok.experimental.UtilityClass;
 
 /**
  * The dependency-freshness entry, run under the full profile through the java launcher. It reads the
- * declared dependencies, asks Maven Central for the latest stable major of each, and throws when any
- * trails by the failing bound. Because the registry read can fail, the check is deliberately not a
- * test: an unreachable registry throws and fails the build (fail-closed). Date-versioned dependencies
- * with no comparable major are skipped.
+ * declared dependencies, asks Maven Central for the latest stable comparable level of each, and throws
+ * when any trails by the failing bound. Because the registry read can fail, the check is deliberately
+ * not a test: an unreachable registry throws and fails the build (fail-closed). Calendar versions
+ * beginning with {@code 20**} compare their leading year; other schemes without a comparable level
+ * are skipped.
  */
 @UtilityClass
 final class DependencyFreshnessEntry {

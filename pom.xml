@@ -65,7 +65,7 @@
         <slf4j-api.version>2.0.18</slf4j-api.version>
         <tinylog.version>2.7.0</tinylog.version>
         <junit.version>6.1.2</junit.version>
-        <org-json.version>20260522</org-json.version>
+        <org-json.version>20260719</org-json.version>
         <aircompressor.version>2.0.3</aircompressor.version>
         <!-- Locking down Maven default plugins -->
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
@@ -84,7 +84,7 @@
         <rewrite-maven-plugin.version>6.44.0</rewrite-maven-plugin.version>
         <rewrite-static-analysis.version>2.39.0</rewrite-static-analysis.version>
         <rewrite-migrate-java.version>3.40.0</rewrite-migrate-java.version>
-        <rewrite-testing-frameworks.version>3.42.0</rewrite-testing-frameworks.version>
+        <rewrite-testing-frameworks.version>3.42.1</rewrite-testing-frameworks.version>
         <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -138,7 +138,7 @@
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
-        <pitest-maven.version>1.25.7</pitest-maven.version>
+        <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!--
             Every killable mutant in the covered packages is killed; the 16 that remain are each a

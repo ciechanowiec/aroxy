@@ -13,12 +13,13 @@ import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads the latest stable major version of a dependency from the Maven Central metadata. Pre-release
- * versions are ignored: the six forms the versions report ignores (see its ruleset in the pom), spelled
- * here as the same anchored patterns so the two agree on what counts as stable, plus snapshots, which
- * the report never meets because it reads release metadata. Any unreachable registry, non-200 response,
- * or absence of a stable release throws, so the freshness check fails closed rather than passing on
- * missing data.
+ * Reads the latest stable comparable version of a dependency from the Maven Central metadata: the
+ * numeric major for conventional versions, or the leading year for versions beginning with
+ * {@code 20**}. Pre-release versions are ignored: the six forms the versions report ignores (see its
+ * ruleset in the pom), spelled here as the same anchored patterns so the two agree on what counts as
+ * stable, plus snapshots, which the report never meets because it reads release metadata. Any
+ * unreachable registry, non-200 response, or absence of a stable release throws, so the freshness
+ * check fails closed rather than passing on missing data.
  */
 @UtilityClass
 final class MavenCentral {
@@ -35,6 +36,7 @@ final class MavenCentral {
         List<String> versions = MavenMetadata.versions(metadata);
         return versions.stream()
             .filter(version -> !PRERELEASE.matcher(version).matches())
+            .filter(version -> DependencyFreshnessRules.sameScheme(dependency.version(), version))
             .map(DependencyFreshnessRules::major)
             .flatMapToInt(OptionalInt::stream)
             .max()
