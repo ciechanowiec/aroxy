@@ -142,12 +142,14 @@
         <pitest-maven.version>1.25.8</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!--
-            Every killable mutant in the covered packages is killed; the 16 that remain are each a
-            provably equivalent mutant (see the enumerated justification on the pitest plugin below).
-            maxSurviving fails the build the moment a 17th mutant survives, so a new test gap is caught
-            while the known equivalents stay declared.
+            Mutation analysis is embarrassingly parallel: every mutant is an independent run of the
+            covering tests. Left unset PIT uses a single thread, which on any modern machine turns a
+            few minutes into the better part of an hour and makes the pre-push hook painful enough to
+            be skipped. Maven cannot read the processor count, so this is a fixed default chosen to be
+            safe on a small CI runner; a developer with more cores raises it for the run with
+            -Dpitest.threads=N.
         -->
-        <pitest.max.surviving>16</pitest.max.surviving>
+        <pitest.threads>4</pitest.threads>
         <!--
             The Docker-backed gates run pinned images, for the same reason the Maven plugins are pinned:
             an upstream release must not be able to fail a build that nothing in the repository changed.
@@ -1211,6 +1213,72 @@
             <build>
                 <plugins>
                     <plugin>
+                        <!--
+                            Mutation testing. PIT mutates the four packages listed below: a mutant that
+                            survives in them is a behaviour no test pins, and which of the four it lives in
+                            does not change that. What does change is whether killing it is worth doing, and
+                            that judgement is recorded per mutant rather than by excluding a class wholesale.
+
+                            The three packages left out - cli, daemon, fs - are the same ones the per-class
+                            coverage rule excludes, by the same argument recorded next to those exclusions:
+                            they are the process boundary. Their behaviour is driven end to end through a
+                            spawned child JVM the agent cannot see, through an environment JDK 25 forbids
+                            mutating in-process, or through a filesystem fallback that is dead on every
+                            platform the tests run on. Bringing them in is a deliberate decision to take
+                            separately rather than an oversight, and it would add mutants of exactly the
+                            kind the baseline already argues are not worth a test.
+
+                            The accepted survivors live in mutation-baseline.tsv, which the
+                            mutation-baseline exec checks the report this plugin has just written against.
+                            Why that file is a list rather than a surviving-mutant count, and what a line
+                            in it has to say, is argued in its header and only there.
+
+                            This plugin is declared ahead of exec-maven-plugin on purpose. Both bind to
+                            package, and Maven runs same-phase executions in plugin declaration order, so
+                            the analysis has to be declared first for its report to exist when the
+                            mutation-baseline exec reads it.
+                        -->
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>${pitest-maven.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>${pitest-junit5-plugin.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
+                                <param>eu.ciechanowiec.aroxy.config.*</param>
+                                <param>eu.ciechanowiec.aroxy.client.*</param>
+                                <param>eu.ciechanowiec.aroxy.proxy.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
+                                <param>eu.ciechanowiec.aroxy.config.*</param>
+                                <param>eu.ciechanowiec.aroxy.client.*</param>
+                                <param>eu.ciechanowiec.aroxy.proxy.*</param>
+                            </targetTests>
+                            <threads>${pitest.threads}</threads>
+                            <timestampedReports>false</timestampedReports>
+                            <outputFormats>
+                                <param>HTML</param>
+                                <param>XML</param>
+                            </outputFormats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>mutation-coverage</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <version>${exec-maven-plugin.version}</version>
@@ -1275,6 +1343,28 @@
                                 </configuration>
                             </execution>
                             <execution>
+                                <!--
+                                    Reads the mutation report produced moments earlier in this same
+                                    phase, so it is an entry rather than a test: surefire has long
+                                    finished by the time the report exists.
+                                -->
+                                <id>mutation-baseline</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>java</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <classpathScope>test</classpathScope>
+                                    <arguments>
+                                        <argument>-cp</argument>
+                                        <classpath/>
+                                        <argument>eu.ciechanowiec.aroxy.governance.MutationBaselineEntry</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
                                 <id>dependency-freshness</id>
                                 <phase>package</phase>
                                 <goals>
@@ -1334,78 +1424,6 @@
                                         <argument>verify</argument>
                                     </arguments>
                                 </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <!--
-                            Mutation testing. PIT mutates the declared pure-logic packages (the obfuscation
-                            engine and the config model, the value-object core where a mutant is a real test
-                            gap); the I/O and process-boundary packages (proxy, daemon, cli, fs) are left out
-                            by the same role as the per-class coverage excludes, since their behavior is
-                            driven end-to-end, not through a unit seam. Every killable mutant is killed; the
-                            build fails via maxSurviving the moment a 17th mutant survives. The 16 declared
-                            equivalent (unkillable) mutants, each verified by hand, are:
-                              - Vault.tokenFor / Vault.originalFor: removed ReentrantLock unlock; a lock is
-                                unobservable in a single-threaded deterministic test (concurrency tests are
-                                banned by the determinism rule).
-                              - Vault.<init> lambda (file.filter(Files::exists) forced true): a present-but-
-                                nonexistent path still loads an empty vault (IOException is caught), identical
-                                observable state.
-                              - TokenBoundary.openTokenBoundary / partialMarkerBoundary (two boundary and one
-                                math flip): the flipped values are unreachable given the marker lengths, so
-                                the mutated and original patterns are byte-identical.
-                              - TokenRegions.trimEnd lambda boundary: differs only at end == range[0], where
-                                max(range[0], from) already equals end.
-                              - JsonSafeSpan.advanceStart / retractEnd boundaries and trailingBackslashes
-                                increment: the stop condition and the count are consumed only through parity
-                                (count % 2), which is invariant under the flip.
-                              - PiiToken.indexOf boundary: the close marker index is always >= the colon
-                                index, never zero.
-                              - RuleCompiler.charClass boundary (codePoint < 128): differs only at 128, a
-                                non-leet char that both branches quote identically.
-                              - ConfigFile.header return / ConfigFile.pair boundary / ConfigSyntax.pair
-                                boundary: the grammar validation upstream makes the flipped boundary or the
-                                extra side effect unreachable.
-                              - DefaultConfig.missing null-return (no coverage): runs only when the bundled
-                                /default.conf resource is absent, which cannot be forced in-JVM without the
-                                reflection the ruleset bans (the same reason cli.Version is coverage-excluded).
-                        -->
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-maven</artifactId>
-                        <version>${pitest-maven.version}</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.pitest</groupId>
-                                <artifactId>pitest-junit5-plugin</artifactId>
-                                <version>${pitest-junit5-plugin.version}</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <targetClasses>
-                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
-                                <param>eu.ciechanowiec.aroxy.config.*</param>
-                                <param>eu.ciechanowiec.aroxy.client.*</param>
-                            </targetClasses>
-                            <targetTests>
-                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
-                                <param>eu.ciechanowiec.aroxy.config.*</param>
-                                <param>eu.ciechanowiec.aroxy.client.*</param>
-                            </targetTests>
-                            <maxSurviving>${pitest.max.surviving}</maxSurviving>
-                            <timestampedReports>false</timestampedReports>
-                            <outputFormats>
-                                <param>HTML</param>
-                                <param>XML</param>
-                            </outputFormats>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>mutation-coverage</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>mutationCoverage</goal>
-                                </goals>
                             </execution>
                         </executions>
                     </plugin>

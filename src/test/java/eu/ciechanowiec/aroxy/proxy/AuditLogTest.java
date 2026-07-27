@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationMatch;
@@ -23,6 +24,9 @@ class AuditLogTest {
     private static final String SECRET = "AKIAIOSFODNN7EXAMPLE";
     private static final String ENDPOINT = "/v1/messages";
     private static final String AUDIT = "audit.log";
+    private static final int MAX_LINE = 80;
+    private static final int TRUNCATED = 77;
+    private static final int OVER_LIMIT = MAX_LINE + 1;
 
     private static List<ObfuscationMatch> matches() {
         return List.of(
@@ -102,5 +106,100 @@ class AuditLogTest {
     @SneakyThrows
     private static boolean lacksSecret(Path file) {
         return !read(file).contains(SECRET);
+    }
+
+    // The audit line is what a user reads as proof, so its shape is behaviour: the placeholder column
+    // lines up, a value that spans lines is collapsed onto one, an over-long one is cut rather than
+    // wrapped, and a request that matched nothing says so instead of showing an empty list.
+    @Test
+    @SneakyThrows
+    void rendersOneAlignedLinePerMatch(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        audit.request(
+            "stamp", ENDPOINT,
+            List.of(
+                new ObfuscationMatch("short", "AWS_KEY", "value", "<<PII:AWS_KEY:1>>", false),
+                new ObfuscationMatch("wide", "AVERYWIDEPLACEHOLDER", "other", "<<PII:X:2>>", false)
+            )
+        );
+        List<String> lines = read(logs.resolve(AUDIT)).lines().filter(line -> line.contains("->")).toList();
+        assertTrue(lines.getFirst().contains("AWS_KEY       value"), lines.getFirst());
+        assertTrue(
+            lines.get(1).contains("AVERYWIDEPLACEHOLDER other"),
+            "a placeholder at or past the column width still gets one separating space: " + lines.get(1)
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void collapsesAndTruncatesAnUnwieldyValue(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String overLong = "x".repeat(OVER_LIMIT);
+        audit.request(
+            "stamp", ENDPOINT,
+            List.of(
+                new ObfuscationMatch("multi", "AWS_KEY", "two\nlines", "<<PII:AWS_KEY:1>>", false),
+                new ObfuscationMatch("long", "AWS_KEY", overLong, "<<PII:AWS_KEY:2>>", false)
+            )
+        );
+        String text = read(logs.resolve(AUDIT));
+        assertTrue(text.contains("two\\nlines"), "a newline is shown escaped, keeping the entry on one line");
+        assertFalse(text.contains(overLong), "an over-long value is cut rather than written in full");
+        assertTrue(text.contains("x".repeat(TRUNCATED) + "..."), "the cut is marked");
+    }
+
+    // Both limits are inclusive: a value exactly at the line limit is shown whole, and a placeholder
+    // exactly at the column width still gets its separating space.
+    @Test
+    @SneakyThrows
+    void treatsBothWidthLimitsAsInclusive(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String atLimit = "y".repeat(MAX_LINE);
+        audit.request(
+            "stamp", ENDPOINT,
+            List.of(
+                new ObfuscationMatch("exact", "AWSKEYPLACEHO", atLimit, "<<PII:AWS_KEY:1>>", false),
+                new ObfuscationMatch("wide", "AWSKEYPLACEHOL", "value", "<<PII:AWS_KEY:2>>", false)
+            )
+        );
+        String text = read(logs.resolve(AUDIT));
+        assertTrue(text.contains(atLimit), "a value exactly at the limit is not truncated");
+        assertTrue(
+            text.contains("AWSKEYPLACEHOL value"),
+            "a placeholder exactly at the column width keeps one separating space: " + text
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void saysSoWhenNothingMatched(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        audit.request("stamp", ENDPOINT, List.of());
+        assertTrue(
+            read(logs.resolve(AUDIT)).contains("(no rules matched)"),
+            "a request that matched nothing is recorded as such, not left blank"
+        );
+    }
+
+    @Test
+    @SneakyThrows
+    void recordsTheResponseWithItsCountAndKind(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        audit.response("stamp", ENDPOINT, 1, true);
+        audit.response("stamp", ENDPOINT, 2, false);
+        String text = read(logs.resolve(AUDIT));
+        assertTrue(text.contains("deobfuscated 1 token (stream)"), text);
+        assertTrue(text.contains("deobfuscated 2 tokens (json)"), text);
+    }
+
+    // The stamp is what ties an audit line to its wire dumps, so two requests must never share one.
+    @Test
+    @SneakyThrows
+    void issuesADistinctStampPerRequest(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String first = audit.nextStamp();
+        String second = audit.nextStamp();
+        assertFalse(first.isBlank(), "a stamp is never empty, or a dump could not be correlated");
+        assertNotEquals(first, second, "two requests get two stamps: " + first + " and " + second);
     }
 }

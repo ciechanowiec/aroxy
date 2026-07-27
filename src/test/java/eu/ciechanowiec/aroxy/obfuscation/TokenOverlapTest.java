@@ -54,4 +54,40 @@ class TokenOverlapTest {
         );
         assertEquals(input, obfuscator.deobfuscate(result.text()), "the staggered overlap must round-trip exactly");
     }
+
+    // Two matches that touch without overlapping are both whole matches. Treating the second as a tail
+    // of the first would key it on its raw surface instead of its canonical spelling, so a variant of a
+    // value already in the vault would leave under a second, different token.
+    @Test
+    void keepsCanonicalKeyingForAMatchThatBeginsWhereTheLastOneEnds() {
+        Obfuscator obfuscator = RuleFixtures.obfuscator(
+            RuleCompiler.loose("company", "COMPANY", LiteralSpec.loose("Netscape"))
+        );
+        ObfuscationResult joined = obfuscator.obfuscate("NetscapeNet scape");
+        assertEquals(2, joined.matches().size(), "adjacency does not swallow the second match");
+        List<String> tokens = joined.matches().stream().map(ObfuscationMatch::token).distinct().toList();
+        assertEquals(
+            1, tokens.size(),
+            "a spelling variant touching the canonical one still collapses onto the same token: " + tokens
+        );
+    }
+
+    // A shorter match wholly inside one already accepted adds nothing: its span is covered. Admitting it
+    // as a tail would mint a token for an empty remainder.
+    @Test
+    void dropsAMatchWhollyInsideOneAlreadyAccepted() {
+        Obfuscator obfuscator = new Obfuscator(
+            List.of(
+                RuleFixtures.regex("full", "COMPANY", "ExampleCorp"),
+                RuleFixtures.regex("part", "COMPANY", "Corp")
+            ),
+            Vault.inMemory()
+        );
+        ObfuscationResult result = obfuscator.obfuscate("ExampleCorp");
+        assertEquals(
+            1, result.matches().size(),
+            "a match ending where the accepted one ends adds no second, empty match: " + result.matches()
+        );
+        assertFalse(result.text().contains("Corp"), result.text());
+    }
 }

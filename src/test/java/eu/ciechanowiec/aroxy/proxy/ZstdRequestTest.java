@@ -192,4 +192,45 @@ class ZstdRequestTest {
             "only an encoding the proxy can undo is undone; the rest keeps its header and its bytes"
         );
     }
+
+    // Inflating a body rebuilds the request. Everything except the now-false content-encoding has to
+    // survive that rebuild: the authentication header the upstream needs, and the query the path
+    // carries. Dropping either would be invisible in the body yet fatal to the request.
+    @Test
+    @SneakyThrows
+    void inflationKeepsEveryOtherHeaderAndTheQuery(@TempDir Path logs) {
+        FakeUpstream upstream = new FakeUpstream(CannedReply.json("{\"ok\":true}"));
+        ProxyHarness harness = new ProxyHarness(upstream, logs);
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(harness.base().resolve(Http.MESSAGES + "?beta=true"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer keep-me")
+                .header("Content-Encoding", "zstd")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(compressed("{\"q\":\"hi\"}")))
+                .build();
+            discard(request);
+            assertEquals(
+                "Bearer keep-me", upstream.lastAuthorization().orElse(""),
+                "the authentication header survives the rebuild"
+            );
+            assertEquals(
+                Http.MESSAGES + "?beta=true", upstream.lastTarget(),
+                "and so does the query string"
+            );
+            assertTrue(
+                upstream.lastContentEncoding().isEmpty(),
+                "while the encoding the proxy undid is gone"
+            );
+        } finally {
+            harness.stop();
+        }
+    }
+
+    @SneakyThrows
+    private static void discard(HttpRequest request) {
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            client.send(request, HttpResponse.BodyHandlers.discarding());
+        }
+    }
 }
