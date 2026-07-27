@@ -26,4 +26,16 @@ record CannedReply(int status, Map<String, String> headers, String body) {
     static CannedReply sse(String body) {
         return new CannedReply(Http.OK, Map.of("Content-Type", "text/event-stream"), body);
     }
+
+    static CannedReply connect(String body) {
+        return new CannedReply(Http.OK, Map.of("Content-Type", "application/connect+json"), body);
+    }
+
+    static CannedReply connectProtobuf(String body) {
+        return new CannedReply(Http.OK, Map.of("Content-Type", "application/connect+proto"), body);
+    }
+
+    static CannedReply protobuf() {
+        return new CannedReply(Http.OK, Map.of("Content-Type", "application/proto"), "");
+    }
 }

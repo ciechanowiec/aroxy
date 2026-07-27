@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
+import org.eclipse.jetty.http.HttpFields;
 
 /**
  * Copies the upstream response headers onto the downstream exchange, dropping the headers this proxy
@@ -22,6 +23,16 @@ final class ResponseHeaderCopier {
 
     static void copy(Map<String, List<String>> from, Map<String, List<String>> to) {
         from.forEach((name, values) -> copyOne(name, values, to));
+    }
+
+    static void copy(Map<String, List<String>> from, HttpFields.Mutable to) {
+        from.forEach(
+            (name, values) -> {
+                if (isCopyable(name)) {
+                    values.forEach(value -> to.add(name, value));
+                }
+            }
+        );
     }
 
     private static void copyOne(String name, List<String> values, Map<String, List<String>> to) {

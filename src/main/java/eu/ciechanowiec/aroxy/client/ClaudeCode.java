@@ -42,8 +42,7 @@ public final class ClaudeCode {
             "Claude Code",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(MESSAGES), MESSAGES),
-            RequestBodyPolicy.jsonExcept(Set.of()),
-            dialect()
+            new BufferedTransport(RequestBodyPolicy.jsonExcept(Set.of()), dialect())
         );
     }
 

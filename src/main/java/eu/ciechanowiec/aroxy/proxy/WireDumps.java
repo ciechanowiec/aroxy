@@ -16,8 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Writes wire dumps under {@code logs/wire/}: the redacted (already obfuscated) request actually sent
  * upstream and the raw (token-bearing) upstream response. Neither artifact contains a secret, and the
- * pre-obfuscation original is never written by default. A retention sweep deletes dumps older than a
- * maximum age and keeps the directory under a maximum file count so multi-day runs stay bounded.
+ * pre-obfuscation original is never written by default. Each dump is named for the {@link WireBody} it
+ * holds, so its extension is a true statement about the bytes inside it. A retention sweep deletes
+ * dumps older than a maximum age and keeps the directory under a maximum file count so multi-day runs
+ * stay bounded.
  *
  * <p>The sweep runs on the request thread after every dump, so it reads each entry's kind and
  * modification time exactly once, into a {@link Dump}. Ordering by modification time therefore costs
@@ -36,12 +38,12 @@ final class WireDumps {
         RestrictedDir.create(directory);
     }
 
-    void redactedRequest(String stamp, byte[] body) {
-        this.write(stamp + "-redacted-request.json", body);
+    void redactedRequest(String stamp, byte[] body, WireBody kind) {
+        this.write(kind.requestFile(stamp), body);
     }
 
-    void rawResponse(String stamp, byte[] body) {
-        this.write(stamp + "-raw-response.txt", body);
+    void rawResponse(String stamp, byte[] body, WireBody kind) {
+        this.write(kind.responseFile(stamp), body);
     }
 
     private void write(String name, byte[] body) {

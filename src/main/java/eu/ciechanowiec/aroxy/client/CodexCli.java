@@ -48,8 +48,7 @@ public final class CodexCli {
             "Codex CLI",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(RESPONSES), RESPONSES),
-            RequestBodyPolicy.jsonExcept(Set.of("encrypted_content")),
-            dialect()
+            new BufferedTransport(RequestBodyPolicy.jsonExcept(Set.of("encrypted_content")), dialect())
         );
     }
 

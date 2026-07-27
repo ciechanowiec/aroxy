@@ -64,8 +64,7 @@ final class ProxyHarness {
 
     ProxyHarness(FakeUpstream upstream, Path logsDirectory, ClientProfile profile) throws IOException {
         this.upstream = upstream;
-        List<Rule> rules = EffectiveConfig.merge(List.of(ConfigFile.parse("test", RULES))).rules();
-        Obfuscator obfuscator = new Obfuscator(rules, new Vault(Optional.empty()));
+        Obfuscator obfuscator = obfuscator();
         AuditLog audit = new AuditLog(logsDirectory);
         Gateway gateway = new Gateway(0, upstream.uri());
         ProxyParts parts = new ProxyParts(obfuscator, new Upstream(gateway), audit, profile);
@@ -75,6 +74,11 @@ final class ProxyHarness {
 
     URI base() {
         return URI.create("http://" + LocalHost.HOST + ":" + this.server.port());
+    }
+
+    static Obfuscator obfuscator() {
+        List<Rule> rules = EffectiveConfig.merge(List.of(ConfigFile.parse("test", RULES))).rules();
+        return new Obfuscator(rules, new Vault(Optional.empty()));
     }
 
     FakeUpstream upstream() {

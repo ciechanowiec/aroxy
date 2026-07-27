@@ -29,6 +29,7 @@ class ClientRegistryTest {
 
     private static final int CLAUDE_CODE_PORT = 8788;
     private static final int CODEX_PORT = 8789;
+    private static final int CURSOR_PORT = 8790;
     private static final int OTHER_PORT = 9999;
 
     @Test
@@ -37,6 +38,7 @@ class ClientRegistryTest {
         assertEquals(Set.copyOf(ids).size(), ids.size(), "no client is registered twice");
         assertTrue(ids.contains(ClaudeCode.ID), "Claude Code is served");
         assertTrue(ids.contains(CodexCli.ID), "Codex is served");
+        assertTrue(ids.contains(CursorCli.ID), "Cursor is served");
     }
 
     @Test
@@ -87,6 +89,7 @@ class ClientRegistryTest {
         assertEquals(ClientRegistry.profiles().size(), gateways.size(), "one gateway per client");
         assertEquals(CLAUDE_CODE_PORT, port(gateways, ClaudeCode.ID), "Claude Code keeps its port");
         assertEquals(CODEX_PORT, port(gateways, CodexCli.ID), "Codex takes its own port");
+        assertEquals(CURSOR_PORT, port(gateways, CursorCli.ID), "Cursor takes the next port");
     }
 
     private static int port(Map<ClientId, Gateway> gateways, ClientId id) {
@@ -128,7 +131,7 @@ class ClientRegistryTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> new ClientProfile(
-                valid.id(), " ", valid.gateway(), valid.scope(), valid.requestBody(), valid.dialect()
+                valid.id(), " ", valid.gateway(), valid.scope(), valid.transport()
             )
         );
     }
@@ -136,8 +139,29 @@ class ClientRegistryTest {
     private static ClientProfile profile(String slug, int port) {
         return new ClientProfile(
             new ClientId(slug), slug, new Gateway(port, URI.create("https://" + slug + ".example")),
-            new PathScope(List.of("/responses"), "/responses"), RequestBodyPolicy.text(),
-            new SseDialect(List.of(), Set.of(), Set.of())
+            new PathScope(List.of("/responses"), "/responses"),
+            new BufferedTransport(RequestBodyPolicy.text(), new SseDialect(List.of(), Set.of(), Set.of()))
         );
+    }
+
+    // Cursor's routing paths and its streamed-fragment field paths are carried by the transport as
+    // data, so the proxy names neither. Both readings are exercised here because a profile that
+    // declared them and a proxy that ignored them would look identical from the outside.
+    @Test
+    void cursorTransportCarriesItsRoutingAndFragmentPaths() {
+        CursorTransport transport = (CursorTransport) CursorCli.profile().transport();
+        assertEquals(List.of(CursorCli.RUN, CursorCli.RUN_SSE), transport.streamingPaths());
+        assertEquals(
+            List.of(true, false),
+            List.of(transport.isStreaming(CursorCli.RUN), transport.isStreaming(CursorCli.APPEND)),
+            "Run streams and BidiAppend is buffered"
+        );
+        assertEquals(2, transport.deltaPaths().size(), "text and thinking are the chunked fields");
+        assertEquals(
+            List.of(true, false),
+            List.of(transport.isDelta(List.of(1, 1, 1)), transport.isDelta(List.of(1, 2, 1))),
+            "the visible text delta is a fragment and an unlisted field arrives whole"
+        );
+        assertEquals("turnEnded", transport.json().turnEndKey());
     }
 }

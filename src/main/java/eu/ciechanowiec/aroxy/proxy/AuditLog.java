@@ -134,11 +134,11 @@ public final class AuditLog {
         );
     }
 
-    void wireRedactedRequest(String stamp, byte[] body) {
-        this.wire.redactedRequest(stamp, body);
+    void wireRedactedRequest(String stamp, byte[] body, WireBody kind) {
+        this.wire.redactedRequest(stamp, body, kind);
     }
 
-    void wireRawResponse(String stamp, byte[] body) {
-        this.wire.rawResponse(stamp, body);
+    void wireRawResponse(String stamp, byte[] body, WireBody kind) {
+        this.wire.rawResponse(stamp, body, kind);
     }
 }

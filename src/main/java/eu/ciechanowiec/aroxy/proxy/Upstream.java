@@ -86,4 +86,8 @@ public final class Upstream {
             // HttpClient restricts a few header names, so skip rather than fail the whole request.
         }
     }
+
+    String base() {
+        return this.base;
+    }
 }

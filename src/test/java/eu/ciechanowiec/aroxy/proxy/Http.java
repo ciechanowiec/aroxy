@@ -15,6 +15,8 @@ import lombok.experimental.UtilityClass;
 final class Http {
 
     static final int OK = 200;
+    static final int BAD_REQUEST = 400;
+    static final int UNSUPPORTED_MEDIA_TYPE = 415;
     static final int TOO_MANY_REQUESTS = 429;
     static final int BAD_GATEWAY = 502;
     static final String MESSAGES = "/v1/messages";

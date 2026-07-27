@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
+import eu.ciechanowiec.aroxy.client.BufferedTransport;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Reversal;
@@ -46,11 +47,15 @@ final class ProxyResponder {
     private final Obfuscator obfuscator;
     private final AuditLog audit;
     private final ClientProfile profile;
+    private final BufferedTransport transport;
 
-    ProxyResponder(Obfuscator obfuscator, AuditLog audit, ClientProfile profile) {
+    ProxyResponder(
+        Obfuscator obfuscator, AuditLog audit, ClientProfile profile, BufferedTransport transport
+    ) {
         this.obfuscator = obfuscator;
         this.audit = audit;
         this.profile = profile;
+        this.transport = transport;
     }
 
     void respond(HttpExchange exchange, UpstreamReply reply, ProxyRequest request, String stamp) throws IOException {
@@ -129,8 +134,10 @@ final class ProxyResponder {
     private static boolean looksLikeSse(byte[] prefix, int length) {
         String text = new String(prefix, 0, length, StandardCharsets.UTF_8);
         int start = 0;
-        while (start < text.length()
-            && (Character.isWhitespace(text.charAt(start)) || text.charAt(start) == BYTE_ORDER_MARK)) {
+        while (
+            start < text.length()
+                && (Character.isWhitespace(text.charAt(start)) || text.charAt(start) == BYTE_ORDER_MARK)
+        ) {
             start++;
         }
         String first = text.substring(start);
@@ -152,7 +159,7 @@ final class ProxyResponder {
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
         StreamDeobfuscator deobfuscator = new StreamDeobfuscator(this.obfuscator);
         try (OutputStream out = exchange.getResponseBody(); InputStream body = reply.body()) {
-            pump(body, capture, new SseTransformer(out, deobfuscator, this.profile.dialect()));
+            pump(body, capture, new SseTransformer(out, deobfuscator, this.transport.dialect()));
         } catch (IOException exception) {
             afterStreamInterrupted(exception);
         } finally {
@@ -175,12 +182,12 @@ final class ProxyResponder {
 
     private void recordStream(String stamp, ByteArrayOutputStream capture, StreamDeobfuscator deobfuscator) {
         this.audit.response(stamp, this.profile.scope().auditLabel(), deobfuscator.reversedCount(), true);
-        this.audit.wireRawResponse(stamp, capture.toByteArray());
+        this.audit.wireRawResponse(stamp, capture.toByteArray(), WireBody.TEXT);
     }
 
     private void bufferedJson(HttpExchange exchange, UpstreamReply reply, String stamp) throws IOException {
         byte[] raw = readAll(reply);
-        this.audit.wireRawResponse(stamp, raw);
+        this.audit.wireRawResponse(stamp, raw, WireBody.TEXT);
         Reversal reversed = this.obfuscator.restore(new String(raw, StandardCharsets.UTF_8));
         this.audit.response(stamp, this.profile.scope().auditLabel(), reversed.count(), false);
         writeFixed(exchange, reply.status(), reversed.text().getBytes(StandardCharsets.UTF_8));

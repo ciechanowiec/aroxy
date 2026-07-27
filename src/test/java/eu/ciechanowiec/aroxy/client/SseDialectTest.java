@@ -44,12 +44,12 @@ class SseDialectTest {
         }
     )
     void codexClassifiesEachEventType(String type, SseKind expected) {
-        assertEquals(expected, CodexCli.profile().dialect().classify(event(type)), type);
+        assertEquals(expected, TransportFixtures.buffered(CodexCli.profile()).dialect().classify(event(type)), type);
     }
 
     @Test
     void codexStreamsEveryFragmentUnderTheDeltaKey() {
-        SseDialect dialect = CodexCli.profile().dialect();
+        SseDialect dialect = TransportFixtures.buffered(CodexCli.profile()).dialect();
         assertTrue(
             dialect.fragments().stream().allMatch(rule -> "\"delta\":\"".equals(rule.fieldKey())),
             "every Codex fragment carries its text under delta, unlike the done events"
@@ -58,7 +58,7 @@ class SseDialectTest {
 
     @Test
     void everyCodexStreamEndingEventIsTerminal() {
-        SseDialect dialect = CodexCli.profile().dialect();
+        SseDialect dialect = TransportFixtures.buffered(CodexCli.profile()).dialect();
         assertTrue(dialect.isTerminal(event("response.completed")), "the stream end flushes a held partial");
         assertTrue(dialect.isTerminal(event("response.failed")), "a failed stream also flushes");
         assertTrue(dialect.isTerminal(event("response.incomplete")), "an incomplete stream also flushes");
@@ -80,7 +80,11 @@ class SseDialectTest {
         }
     )
     void claudeCodeClassifiesEachEventType(String shape, SseKind expected) {
-        assertEquals(expected, ClaudeCode.profile().dialect().classify(claudeCodeBlock(shape)), shape);
+        assertEquals(
+            expected,
+            TransportFixtures.buffered(ClaudeCode.profile()).dialect().classify(claudeCodeBlock(shape)),
+            shape
+        );
     }
 
     private static String claudeCodeBlock(String shape) {
@@ -95,7 +99,7 @@ class SseDialectTest {
     @Test
     void claudeCodeDeclaresNoWholeBlocksBecauseItsDeltasAreAuthoritative() {
         assertTrue(
-            ClaudeCode.profile().dialect().wholeMarkers().isEmpty(),
+            TransportFixtures.buffered(ClaudeCode.profile()).dialect().wholeMarkers().isEmpty(),
             "nothing repeats the streamed text, so there is no second copy to reverse"
         );
     }
@@ -103,7 +107,8 @@ class SseDialectTest {
     @Test
     void aMessageDeltaIsDeliberatelyNotTerminalForClaudeCode() {
         assertFalse(
-            ClaudeCode.profile().dialect().isTerminal("data: {\"type\":\"message_delta\",\"usage\":{}}"),
+            TransportFixtures.buffered(ClaudeCode.profile()).dialect()
+                .isTerminal("data: {\"type\":\"message_delta\",\"usage\":{}}"),
             "it arrives after the block closed, so replaying a fragment there would land under a "
                 + "content block whose stop has already passed"
         );

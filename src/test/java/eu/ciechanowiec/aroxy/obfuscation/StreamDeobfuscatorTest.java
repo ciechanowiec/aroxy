@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -88,5 +89,19 @@ class StreamDeobfuscatorTest {
         String tail = "x".repeat(LONG_RUN);
         String emitted = stream.accept("<<PII:" + tail);
         assertTrue(emitted.contains(tail), "a run longer than the cap is treated as ordinary text");
+    }
+
+    // Whether a partial is held decides, for the Cursor protobuf stream, which frame gets replayed at
+    // the end. Reporting "holding" unconditionally would replay a frame with nothing in it.
+    @Test
+    void reportsWhetherAPartialIsCurrentlyHeld() {
+        StreamDeobfuscator deobfuscator = stream(Vault.inMemory());
+        assertFalse(deobfuscator.holding(), "nothing has been accepted yet");
+        deobfuscator.accept("a whole sentence with no token");
+        assertFalse(deobfuscator.holding(), "text that cannot begin a token holds nothing back");
+        deobfuscator.accept("trailing <<PII:AWS_");
+        assertTrue(deobfuscator.holding(), "an unfinished token is held for the next fragment");
+        deobfuscator.flush();
+        assertFalse(deobfuscator.holding(), "flushing releases what was held");
     }
 }

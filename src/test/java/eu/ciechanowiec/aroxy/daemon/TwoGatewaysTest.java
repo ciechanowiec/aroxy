@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
+import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.client.CodexCli;
 import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
@@ -79,7 +80,11 @@ class TwoGatewaysTest {
 
     @Test
     void bindsOneListenerPerRegisteredClient() {
-        assertEquals(2, this.snapshot().gateways().size(), "one listener per registered client");
+        assertEquals(
+            ClientRegistry.profiles().size(),
+            this.snapshot().gateways().size(),
+            "one listener per registered client"
+        );
         assertNotEquals(
             listenOf(CLAUDE_NAME), listenOf(CODEX_NAME),
             "each client gets its own socket, so neither has to be routed by guessing a path"

@@ -62,6 +62,15 @@ public final class StreamDeobfuscator {
     }
 
     /**
+     * Whether a trailing partial token is currently held back, waiting for a later fragment.
+     *
+     * @return whether the carry buffer is non-empty
+     */
+    public boolean holding() {
+        return !this.carry.isEmpty();
+    }
+
+    /**
      * The total number of tokens reversed across every fragment accepted so far.
      *
      * @return the running count of reversed tokens

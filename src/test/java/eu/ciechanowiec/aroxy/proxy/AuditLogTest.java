@@ -21,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 class AuditLogTest {
 
     private static final String SECRET = "AKIAIOSFODNN7EXAMPLE";
+    private static final String ENDPOINT = "/v1/messages";
+    private static final String AUDIT = "audit.log";
 
     private static List<ObfuscationMatch> matches() {
         return List.of(
@@ -39,10 +41,12 @@ class AuditLogTest {
     void auditLogMasksSecretShowsKeywordAndDumpsWire(@TempDir Path logs) {
         AuditLog audit = new AuditLog(logs);
         String stamp = audit.nextStamp();
-        audit.request(stamp, "/v1/messages", matches());
-        audit.wireRedactedRequest(stamp, "{\"q\":\"see <<PII:AWS_KEY:1>>\"}".getBytes(StandardCharsets.UTF_8));
-        audit.wireRawResponse(stamp, "data: <<PII:AWS_KEY:1>>".getBytes(StandardCharsets.UTF_8));
-        String log = read(logs.resolve("audit.log"));
+        audit.request(stamp, ENDPOINT, matches());
+        audit.wireRedactedRequest(
+            stamp, "{\"q\":\"see <<PII:AWS_KEY:1>>\"}".getBytes(StandardCharsets.UTF_8), WireBody.TEXT
+        );
+        audit.wireRawResponse(stamp, "data: <<PII:AWS_KEY:1>>".getBytes(StandardCharsets.UTF_8), WireBody.TEXT);
+        String log = read(logs.resolve(AUDIT));
         assertFalse(log.contains(SECRET), "the sensitive original is masked, never written in full");
         assertTrue(log.contains("[masked]"), "the sensitive line is marked masked");
         assertTrue(log.contains("Helios"), "the non-sensitive keyword is shown in full");
@@ -54,8 +58,8 @@ class AuditLogTest {
     void maskSecretsFalseShowsSensitiveValueInFull(@TempDir Path logs) {
         AuditLog audit = new AuditLog(logs, false);
         String stamp = audit.nextStamp();
-        audit.request(stamp, "/v1/messages", matches());
-        String log = read(logs.resolve("audit.log"));
+        audit.request(stamp, ENDPOINT, matches());
+        String log = read(logs.resolve(AUDIT));
         assertTrue(log.contains(SECRET), "with mask_secrets=false the sensitive original is shown in full");
         assertFalse(log.contains("[masked]"), "nothing is marked masked when masking is disabled");
     }
@@ -67,7 +71,7 @@ class AuditLogTest {
         audit.request("first", "/responses", matches());
         audit.setMaskSecrets(false);
         audit.request("second", "/responses", matches());
-        String log = read(logs.resolve("audit.log"));
+        String log = read(logs.resolve(AUDIT));
         assertFalse(log.substring(0, log.indexOf("[second]")).contains(SECRET), log);
         assertTrue(log.substring(log.indexOf("[second]")).contains(SECRET), log);
     }

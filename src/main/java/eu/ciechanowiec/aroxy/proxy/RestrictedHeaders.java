@@ -9,6 +9,11 @@ import lombok.experimental.UtilityClass;
  * {@link java.net.http.HttpClient} manages most of these itself, and forwarding them either corrupts
  * the request or is rejected outright. Every other header (notably the authentication headers) is
  * passed through unchanged.
+ *
+ * <p>Both HTTP clients consult this one list, {@link Upstream} for the buffered routes and
+ * {@link CursorDuplexUpstream} for Cursor's stream. A per-client list would let one of them forward a
+ * header the other drops, and which headers reach a vendor is a property of the proxy rather than of the
+ * client library it happens to be using.
  */
 @UtilityClass
 final class RestrictedHeaders {

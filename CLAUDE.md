@@ -5,10 +5,11 @@ obfuscates secrets and configured keywords in each request before egress and deo
 response before it reaches the agent, so the client sees real values while the network and the vendor
 see only tokens like `<<PII:AWS_KEY:1>>`.
 
-Two agents are served, each on its own port, by one daemon sharing one vault, one rule set, and one
-audit log: **Claude Code** on `8788` to `api.anthropic.com`, and **Codex CLI signed in with ChatGPT**
-on `8789` to `chatgpt.com/backend-api/codex`. A port per agent means no request is routed by guessing
-which vendor a path belongs to.
+Three agents are served, each on its own port, by one daemon sharing one vault, one rule set, and one
+audit log: **Claude Code** on `8788` to `api.anthropic.com`, **Codex CLI signed in with ChatGPT** on
+`8789` to `chatgpt.com/backend-api/codex`, and **Cursor CLI** (`agent`) on `8790` to
+`api2.cursor.sh`. A port per agent means no request is routed by guessing which vendor a path belongs
+to.
 
 **Boundary:** this is data minimization, not circumvention. It removes sensitive content from what
 leaves the machine. It does not hide that an agent is used or change the destination.
@@ -202,8 +203,10 @@ aroxy CLI (picocli) ──state files + signal──> aroxy daemon (background J
   logs/config attach|detach|list                │     obfuscate ⇄ deobfuscate ── api.anthropic.com
                                                 ├─ listener 127.0.0.1:8789 ── Codex CLI
                                                 │     obfuscate ⇄ deobfuscate ── chatgpt.com/backend-api/codex
+                                                ├─ listener 127.0.0.1:8790 ── Cursor CLI (HTTP/1.1 + HTTP/2)
+                                                │     Run / RunSSE / BidiAppend ⇄ api2.cursor.sh
                                                 └─ reload watcher (polls control files)
-                                        one Obfuscator + one Vault + one AuditLog, shared by both
+                                        one Obfuscator + one Vault + one AuditLog, shared by all
 ```
 
 The CLI drives the daemon with no control socket: `status`/`config`/`list` read the daemon's
@@ -211,35 +214,73 @@ published `runtime` snapshot, `reload`/`attach` touch a `reload` trigger the dae
 `stop` sends a process signal that the daemon's shutdown hook turns into a clean teardown. This
 removes the network-reachable control plane entirely.
 
+Cursor's agent stream was observed negotiating `application/connect+proto` over cleartext HTTP/2,
+not the JSON dialect, and chunking its visible text at roughly eleven characters - shorter than a
+token. That is why `CursorTransport` carries protobuf field-number paths for the streamed values and
+why the response path holds a partial token across frames: without it every token in a reply reaches
+the terminal unreversed. The JSON dialect is still accepted and still reassembles, but it is the path
+Cursor does not take.
+
 One shared daemon serves every agent session on the machine: Claude Code points
 `ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex points a `~/.codex/config.toml` provider `base_url`
-(with `requires_openai_auth = true`, so ChatGPT sign-in is kept) at `127.0.0.1:8789`. They share one
-proxy, one vault, and one audit log, so a secret carries the same token whichever agent sends it.
-Shell completion is set up by `install.sh` (a managed block in the user's rc); the
+(with `requires_openai_auth = true`, so ChatGPT sign-in is kept) at `127.0.0.1:8789`, and Cursor CLI
+points `--endpoint` or `CURSOR_API_ENDPOINT` at `http://localhost:8790`. Cursor's listener accepts its
+native cleartext HTTP/2 stream and its HTTP/1.1 compatibility transport. They share one proxy, one
+vault, and one audit log, so a secret carries the same token whichever agent sends it.
+Shell completion is set up by `install.sh` (a managed block in the user's rc). The
 `generate-completion` subcommand it calls is hidden from `--help`. `uninstall.sh` reverses install.
 
-**Adding or removing a client is additive.** `client/ClientRegistry` is the only place that enumerates
-agents; everything else iterates it (listeners bound, `[gateway]` listen keys accepted and validated,
-`aroxy status`/`config` lines rendered, `runtime` records published). `ClientId` is an open, validated
-slug value rather than an enum, so a new agent is one `ClientProfile` (an id and display name, a
-`Gateway`, a `PathScope`, and an `SseDialect`) plus one line in the registry.
+**Adding or removing a client is additive as far as the registry goes, and only that far.**
+`client/ClientRegistry` is the only place that enumerates agents, and everything else iterates it
+(listeners bound, `[gateway]` listen keys accepted and validated, `aroxy status`/`config` lines
+rendered, `runtime` records published). `ClientId` is an open, validated slug value rather than an
+enum, so nothing has to be taught that another agent exists.
+
+How far that reaches depends on how the new agent talks, and there are two cases rather than one.
+An agent whose conversation is one of the shapes already carried is genuinely one `ClientProfile` (an
+id and display name, a `Gateway`, a `PathScope`, and a `ClientTransport`) plus one line in the
+registry: Codex was added that way, being a `BufferedTransport` like Claude Code with a different
+`SseDialect`. An agent needing a conversation shape aroxy does not yet have is a larger change, and
+Cursor is the worked example: `ClientTransport` is **sealed**, so a third variant means permitting it
+there, adding an arm to the exhaustive `switch` in `ProxyServer`, and writing the listener that arm
+returns. The seal is what makes that visible. It is why the compiler names every place that must
+change rather than letting a new transport reach a listener that silently cannot serve it, and it is
+the reason the cost lands at compile time instead of at the first request.
 
 Packages under `eu.ciechanowiec.aroxy`:
 - `client` - the extension point: `ClientId`, `ClientProfile`, `ClientRegistry`, `Gateway`,
-  `PathScope`, and the stream dialect as *data* (`SseDialect` composing `FragmentRule` + `SseKind`),
-  with one profile class per agent (`ClaudeCode`, `CodexCli`). No vendor vocabulary lives anywhere else.
+  `PathScope`, and the transport as *data* (buffered HTTP with an `SseDialect`, or Cursor protobuf),
+  with one profile class per agent. No vendor vocabulary lives outside the corresponding profile or
+  transport implementation.
 - `obfuscation` - the engine: `Obfuscator`, `Vault`, `Rule` (composes `RulePattern` + `RuleLabel`),
   `RuleApplication`, `PiiToken`, `MaskedSecret`, `RuleCompiler` (loose/leet),
   `StreamDeobfuscator` (SSE carry-buffer over text fragments), `ObfuscationResult`/`ObfuscationMatch`.
 - `config` - `ConfigFile` parser, `EffectiveConfig` merge, `AttachmentRegistry`, `Settings`
   (a `Gateway` per registered client, keyed by `ClientId`).
-- `proxy` - `ProxyServer` (one per client), `Upstream` (plain `HttpClient`, default proxy/trust),
+- `proxy` - `ProxyServer` (one per client) picking a `ProxyListener` off the sealed transport,
   request handling, `ZstdBody` request inflation, `WebSocketUpgrade` refusal, `SseTransformer`
-  (interprets a dialect; knows no vendor's event names), `AuditLog`, wire dumps.
+  (interprets a dialect, knowing no vendor's event names), Cursor's protobuf (`ProtobufWire`,
+  `ProtobufTransformer`, `ProtobufLeaf`) and Connect exchange (`ConnectJsonFrame`,
+  `CursorConnectStream`, `CursorDeltaStream`, `CursorResponseStream`), `AuditLog`, wire dumps.
 - `daemon` - background launcher, PID file, the file/signal control channel (`ControlFiles`,
   `RuntimeSnapshot`/`SnapshotPublisher`, `ReloadWatcher`), `GatewayAddress`/`GatewayListing`,
   `Home` path layout.
 - `cli` - picocli root `Aroxy`, its subcommands, and shell autocompletion (`generate-completion`).
+
+**Two HTTP stacks, on purpose.** `JdkProxyListener` (the JDK `HttpServer`) serves the buffered clients
+and `Upstream` (the JDK `HttpClient`) forwards them. Cursor needs more than either can do: its native
+`Run` is cleartext HTTP/2, and it keeps the request open *while* the response streams, which the JDK
+client cannot express (it withholds response headers until the request publisher completes). So Cursor
+alone runs on **Jetty** - `CursorProxyListener` (HTTP/1.1 + h2c on one port) and `CursorDuplexUpstream`
+(async request content + streaming response listener). Cursor's *buffered* routes still use `Upstream`,
+so the plain case stays on the plain client.
+
+Carrying two HTTP clients means their reach is made to agree deliberately, because their defaults do
+not. Trust already agrees (Jetty with no key store of its own builds from the platform default trust
+managers). The proxy does not: Jetty starts with an empty proxy configuration and would go direct where
+the JDK client honours `https.proxyHost`. `JdkProxySelection` reads the same `ProxySelector` and hands
+Jetty the answer, so a machine behind an egress proxy reaches all three upstreams or none - never two of
+three, failing at connect time with nothing naming the cause.
 
 State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `reload` (the
 reload trigger), `temporaries` (this session's temporary attachments, cleared on start),

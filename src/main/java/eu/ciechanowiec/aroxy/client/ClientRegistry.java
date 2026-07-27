@@ -23,7 +23,7 @@ import lombok.experimental.UtilityClass;
 public final class ClientRegistry {
 
     private static final List<ClientProfile> PROFILES = validated(
-        List.of(ClaudeCode.profile(), CodexCli.profile())
+        List.of(ClaudeCode.profile(), CodexCli.profile(), CursorCli.profile())
     );
 
     /**

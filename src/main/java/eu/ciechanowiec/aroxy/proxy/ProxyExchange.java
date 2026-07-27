@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import eu.ciechanowiec.aroxy.client.BufferedTransport;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationResult;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
@@ -39,14 +40,18 @@ final class ProxyExchange implements HttpHandler {
     private final Upstream upstream;
     private final AuditLog audit;
     private final ClientProfile profile;
+    private final BufferedTransport transport;
     private final ProxyResponder responder;
 
-    ProxyExchange(ProxyParts parts) {
+    ProxyExchange(ProxyParts parts, BufferedTransport transport) {
         this.obfuscator = parts.obfuscator();
         this.upstream = parts.upstream();
         this.audit = parts.audit();
         this.profile = parts.profile();
-        this.responder = new ProxyResponder(parts.obfuscator(), parts.audit(), parts.profile());
+        this.transport = transport;
+        this.responder = new ProxyResponder(
+            parts.obfuscator(), parts.audit(), parts.profile(), transport
+        );
     }
 
     @Override
@@ -122,11 +127,11 @@ final class ProxyExchange implements HttpHandler {
         if (!this.transforms(request)) {
             return request.body();
         }
-        ObfuscationResult result = new RequestObfuscation(this.profile.requestBody(), this.obfuscator)
+        ObfuscationResult result = new RequestObfuscation(this.transport.requestBody(), this.obfuscator)
             .apply(new String(request.body(), StandardCharsets.UTF_8));
         byte[] redacted = result.text().getBytes(StandardCharsets.UTF_8);
         this.audit.request(stamp, request.path(), result.matches());
-        this.audit.wireRedactedRequest(stamp, redacted);
+        this.audit.wireRedactedRequest(stamp, redacted, WireBody.TEXT);
         return redacted;
     }
 
