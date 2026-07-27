@@ -46,6 +46,11 @@ class ReloadWatcherTest {
         }
     }
 
+    @Test
+    void workerThreadCannotKeepTheProcessAlive() {
+        assertTrue(ReloadWatcher.thread(Thread::onSpinWait).isDaemon(), "the watcher uses a daemon thread");
+    }
+
     private static void waitForSeveralPolls() {
         int attempt = 0;
         while (attempt < POLLS_TO_OBSERVE) {

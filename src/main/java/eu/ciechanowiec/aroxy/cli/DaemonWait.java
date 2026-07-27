@@ -15,16 +15,20 @@ final class DaemonWait {
     private static final int ATTEMPTS = 50;
     private static final long PAUSE_MILLIS = 100L;
 
+    static void untilStopped(PidFile pid) throws InterruptedException {
+        untilStopped(pid, ATTEMPTS, PAUSE_MILLIS);
+    }
+
     @Justification(
         "bounded liveness poll: the sleep is intentional"
     )
     @SuppressWarnings(
         "BusyWait"
     )
-    static void untilStopped(PidFile pid) throws InterruptedException {
+    static void untilStopped(PidFile pid, int attempts, long pauseMillis) throws InterruptedException {
         int attempt = 0;
-        while (attempt < ATTEMPTS && pid.isRunning()) {
-            Thread.sleep(PAUSE_MILLIS);
+        while (attempt < attempts && pid.isRunning()) {
+            Thread.sleep(pauseMillis);
             attempt++;
         }
     }

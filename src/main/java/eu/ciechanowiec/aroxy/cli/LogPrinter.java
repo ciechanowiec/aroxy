@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.cli;
 
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -33,19 +32,21 @@ final class LogPrinter {
         this.out.line(this.read(file).stripTrailing());
     }
 
-    @Justification(
-        "intentional bounded polling loop"
-    )
-    @SuppressWarnings(
-        "BusyWait"
-    )
     void follow(Path file) throws InterruptedException {
+        this.follow(file, () -> Thread.sleep(PAUSE_MILLIS));
+    }
+
+    void follow(Path file, Pause pause) throws InterruptedException {
         LogFollower follower = new LogFollower(file);
         Thread current = Thread.currentThread();
         while (!current.isInterrupted()) {
-            follower.poll().ifPresent(text -> this.out.line(text.stripTrailing()));
-            Thread.sleep(PAUSE_MILLIS);
+            this.print(follower);
+            pause.run();
         }
+    }
+
+    void print(LogFollower follower) {
+        follower.poll().ifPresent(text -> this.out.line(text.stripTrailing()));
     }
 
     private String read(Path file) {
@@ -54,5 +55,11 @@ final class LogPrinter {
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read " + file, exception);
         }
+    }
+
+    @FunctionalInterface
+    public interface Pause {
+
+        void run() throws InterruptedException;
     }
 }

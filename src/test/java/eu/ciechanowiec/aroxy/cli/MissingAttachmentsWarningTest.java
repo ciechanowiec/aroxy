@@ -32,6 +32,8 @@ class MissingAttachmentsWarningTest {
         String out = this.checkWith(this.base.resolve("gone.conf"));
         assertTrue(out.contains("! Some persistent configuration files are unavailable"), out);
         assertTrue(out.contains("gone.conf"), out);
+        assertTrue(out.contains("Their rules will not be loaded."), out);
+        assertTrue(out.contains("aroxy config detach"), out);
     }
 
     @Test

@@ -25,7 +25,7 @@ final class EntryFileRules {
      * @param instructionFile the name of the instruction file the entry file points at
      * @return the offending lines, in the order the entry file holds them
      */
-    static List<String> beyondTheReference(String content, String instructionFile) {
+    static List<String> beyondTheReference(String content, CharSequence instructionFile) {
         return content.lines()
             .filter(line -> !line.isBlank())
             .filter(line -> statesMore(line, instructionFile))
@@ -35,17 +35,17 @@ final class EntryFileRules {
     /**
      * Whether {@code content} points at {@code instructionFile} at all. An entry file that states no
      * rule and names nothing either is empty of instruction, which reads as compliant to
-     * {@link #beyondTheReference(String, String)} while leaving the tool that opens it with nothing.
+     * {@link #beyondTheReference(String, CharSequence)} while leaving the tool that opens it with nothing.
      *
      * @param content         the entry file's text
      * @param instructionFile the name of the instruction file the entry file points at
      * @return whether the reference is present
      */
-    static boolean referencesInstructionFile(String content, String instructionFile) {
+    static boolean referencesInstructionFile(String content, CharSequence instructionFile) {
         return content.contains(instructionFile);
     }
 
-    private static boolean statesMore(String line, String instructionFile) {
+    private static boolean statesMore(String line, CharSequence instructionFile) {
         String remainder = line.replace(instructionFile, "");
         return remainder.chars().anyMatch(Character::isLetterOrDigit);
     }

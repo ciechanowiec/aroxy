@@ -85,6 +85,18 @@ class DaemonLifecycleTest {
     }
 
     @Test
+    @SneakyThrows
+    void directReloadUpdatesAuditMasking() {
+        Path settings = this.base.resolve("show-secrets.conf");
+        Files.writeString(settings, "[gateway]\nmask_secrets = false\n");
+        new ControlFiles(this.home).appendTemporary(settings);
+        this.daemon.reload();
+        this.proxyPost("{\"text\":\"" + DaemonHarness.SECRET + "\"}");
+        String audit = Files.readString(this.home.auditLog());
+        assertTrue(audit.contains(DaemonHarness.SECRET), audit);
+    }
+
+    @Test
     void touchingTheReloadTriggerCausesAReload() {
         long before = this.snapshot().generation();
         new ControlFiles(this.home).touch();

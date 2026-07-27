@@ -151,6 +151,15 @@
         -->
         <pitest.threads>4</pitest.threads>
         <!--
+            PIT treats a mutant as timed out after the covering test's normal runtime multiplied by
+            this factor, plus the constant allowance. A large constant makes every genuine hang take
+            seconds even when its test normally finishes at once. The smaller constant keeps those
+            mutants cheap, while the runtime factor and constant still leave slow integration tests
+            room for scheduler and CI variance. Both remain overridable for a constrained runner.
+        -->
+        <pitest.timeout.constant>2000</pitest.timeout.constant>
+        <pitest.timeout.factor>1.25</pitest.timeout.factor>
+        <!--
             The Docker-backed gates run pinned images, for the same reason the Maven plugins are pinned:
             an upstream release must not be able to fail a build that nothing in the repository changed.
             The Qodana image is passed to its script, which is otherwise self-contained.
@@ -1214,19 +1223,17 @@
                 <plugins>
                     <plugin>
                         <!--
-                            Mutation testing. PIT mutates the four packages listed below: a mutant that
-                            survives in them is a behaviour no test pins, and which of the four it lives in
-                            does not change that. What does change is whether killing it is worth doing, and
-                            that judgement is recorded per mutant rather than by excluding a class wholesale.
+                            Mutation testing. PIT targets every production class under aroxy: a mutant that
+                            survives is a behaviour no test pins, and which package it lives in does not
+                            change that. What does change is whether killing it is worth doing, and that
+                            judgement is recorded per mutant rather than by excluding a class wholesale.
 
-                            The three packages left out - cli, daemon, fs - are the same ones the per-class
-                            coverage rule excludes, by the same argument recorded next to those exclusions:
-                            they are the process boundary. Their behaviour is driven end to end through a
-                            spawned child JVM the agent cannot see, through an environment JDK 25 forbids
-                            mutating in-process, or through a filesystem fallback that is dead on every
-                            platform the tests run on. Bringing them in is a deliberate decision to take
-                            separately rather than an oversight, and it would add mutants of exactly the
-                            kind the baseline already argues are not worth a test.
+                            The explicit exclusions below mirror the process-boundary roles excluded from
+                            per-class coverage. Their behaviour is driven end to end through a spawned child
+                            JVM the agent cannot see, through an environment JDK 25 forbids mutating
+                            in-process, or through a filesystem fallback that is dead on every platform the
+                            tests run on. The rest of cli, daemon and fs remains in scope because package
+                            placement alone is not a reason to omit otherwise testable logic.
 
                             The accepted survivors live in mutation-baseline.tsv, which the
                             mutation-baseline exec checks the report this plugin has just written against.
@@ -1250,18 +1257,26 @@
                         </dependencies>
                         <configuration>
                             <targetClasses>
-                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
-                                <param>eu.ciechanowiec.aroxy.config.*</param>
-                                <param>eu.ciechanowiec.aroxy.client.*</param>
-                                <param>eu.ciechanowiec.aroxy.proxy.*</param>
+                                <param>eu.ciechanowiec.aroxy.*</param>
                             </targetClasses>
+                            <excludedClasses>
+                                <param>eu.ciechanowiec.aroxy.cli.Aroxy</param>
+                                <param>eu.ciechanowiec.aroxy.cli.*Command</param>
+                                <param>eu.ciechanowiec.aroxy.cli.DaemonEntry</param>
+                                <param>eu.ciechanowiec.aroxy.cli.Version</param>
+                                <param>eu.ciechanowiec.aroxy.daemon.Launcher*</param>
+                                <param>eu.ciechanowiec.aroxy.daemon.LaunchCommand</param>
+                                <param>eu.ciechanowiec.aroxy.daemon.DaemonProcess</param>
+                                <param>eu.ciechanowiec.aroxy.daemon.Daemon</param>
+                                <param>eu.ciechanowiec.aroxy.daemon.Home</param>
+                                <param>eu.ciechanowiec.aroxy.fs.RestrictedDir</param>
+                            </excludedClasses>
                             <targetTests>
-                                <param>eu.ciechanowiec.aroxy.obfuscation.*</param>
-                                <param>eu.ciechanowiec.aroxy.config.*</param>
-                                <param>eu.ciechanowiec.aroxy.client.*</param>
-                                <param>eu.ciechanowiec.aroxy.proxy.*</param>
+                                <param>eu.ciechanowiec.aroxy.*</param>
                             </targetTests>
                             <threads>${pitest.threads}</threads>
+                            <timeoutConstant>${pitest.timeout.constant}</timeoutConstant>
+                            <timeoutFactor>${pitest.timeout.factor}</timeoutFactor>
                             <timestampedReports>false</timestampedReports>
                             <outputFormats>
                                 <param>HTML</param>

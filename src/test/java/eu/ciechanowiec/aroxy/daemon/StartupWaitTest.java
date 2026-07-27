@@ -17,12 +17,13 @@ import org.junit.jupiter.api.io.TempDir;
 class StartupWaitTest {
 
     private static final long LAUNCHED_AT = 200L;
+    private static final String RUNTIME = "runtime";
 
     @Test
     @SneakyThrows
     void freshSnapshotFromLiveProcessIsReady(@TempDir Path directory) {
         PidFile pid = livePid(directory);
-        Path runtime = directory.resolve("runtime");
+        Path runtime = directory.resolve(RUNTIME);
         snapshot(LAUNCHED_AT, listeners()).writeTo(runtime);
         assertTrue(ready(pid, runtime), "a fresh snapshot proves the listeners bound");
     }
@@ -31,7 +32,7 @@ class StartupWaitTest {
     @SneakyThrows
     void staleSnapshotCannotMakeANewLaunchLookReady(@TempDir Path directory) {
         PidFile pid = livePid(directory);
-        Path runtime = directory.resolve("runtime");
+        Path runtime = directory.resolve(RUNTIME);
         snapshot(LAUNCHED_AT - 1, listeners()).writeTo(runtime);
         assertFalse(ready(pid, runtime), "a previous daemon's snapshot is not a readiness signal");
     }
@@ -40,9 +41,20 @@ class StartupWaitTest {
     @SneakyThrows
     void snapshotWithoutBoundListenersIsNotReady(@TempDir Path directory) {
         PidFile pid = livePid(directory);
-        Path runtime = directory.resolve("runtime");
+        Path runtime = directory.resolve(RUNTIME);
         snapshot(LAUNCHED_AT, List.of()).writeTo(runtime);
         assertFalse(ready(pid, runtime), "startup completes only after listeners bind");
+    }
+
+    @Test
+    @SneakyThrows
+    void snapshotWithABlankListenerIsNotReady(@TempDir Path directory) {
+        PidFile pid = livePid(directory);
+        Path runtime = directory.resolve(RUNTIME);
+        snapshot(
+            LAUNCHED_AT, List.of(new GatewayAddress("Codex CLI", "", "https://example.test"))
+        ).writeTo(runtime);
+        assertFalse(ready(pid, runtime), "a listener is not bound until it has an address");
     }
 
     @Test
@@ -50,7 +62,7 @@ class StartupWaitTest {
     void deadRecordedProcessCannotBeReady(@TempDir Path directory) {
         PidFile pid = new PidFile(directory.resolve("aroxy.pid"));
         pid.write(Long.MAX_VALUE);
-        Path runtime = directory.resolve("runtime");
+        Path runtime = directory.resolve(RUNTIME);
         snapshot(LAUNCHED_AT, listeners()).writeTo(runtime);
         assertFalse(ready(pid, runtime), "a snapshot cannot revive a child that already exited");
     }
@@ -59,7 +71,7 @@ class StartupWaitTest {
     @SneakyThrows
     void differentRecordedProcessCannotSatisfyLaunch(@TempDir Path directory) {
         PidFile pid = livePid(directory);
-        Path runtime = directory.resolve("runtime");
+        Path runtime = directory.resolve(RUNTIME);
         snapshot(LAUNCHED_AT, listeners()).writeTo(runtime);
         assertFalse(
             StartupWait.untilReady(
@@ -68,6 +80,24 @@ class StartupWaitTest {
             ),
             "readiness belongs to the exact child that was launched"
         );
+    }
+
+    @Test
+    @SneakyThrows
+    void productionPolicyRecognizesAnImmediatelyReadyDaemon(@TempDir Path directory) {
+        PidFile pid = livePid(directory);
+        Path runtime = directory.resolve(RUNTIME);
+        snapshot(LAUNCHED_AT, listeners()).writeTo(runtime);
+        long expected = pid.read().orElseThrow();
+        assertTrue(StartupWait.untilReady(pid, runtime, LAUNCHED_AT, expected));
+    }
+
+    @Test
+    @SneakyThrows
+    void productionPolicyRejectsADeadDaemonWithoutWaiting(@TempDir Path directory) {
+        PidFile pid = new PidFile(directory.resolve("aroxy.pid"));
+        pid.write(Long.MAX_VALUE);
+        assertFalse(StartupWait.untilReady(pid, directory.resolve(RUNTIME), LAUNCHED_AT, Long.MAX_VALUE));
     }
 
     private static PidFile livePid(Path directory) {

@@ -68,6 +68,25 @@ class LogPrinterTest {
 
     @Test
     @SneakyThrows
+    void printEmitsTheAvailableLogChunk() {
+        Path log = this.directory.resolve("app.log");
+        Files.writeString(log, "new line\n");
+        this.printer.print(new LogFollower(log));
+        assertTrue(this.captured().contains("new line"), "an available follow chunk reaches the output");
+    }
+
+    @Test
+    @SneakyThrows
+    void followPrintsBeforeItsNextPause() {
+        Path log = this.directory.resolve("app.log");
+        Files.writeString(log, "followed line\n");
+        this.printer.follow(log, () -> Thread.currentThread().interrupt());
+        assertTrue(this.captured().contains("followed line"), "the follow loop emits each available chunk");
+        assertTrue(Thread.interrupted(), "the test pause ends the follow loop by interrupting its thread");
+    }
+
+    @Test
+    @SneakyThrows
     void followReturnsWhenTheThreadIsAlreadyInterrupted() {
         Path log = this.directory.resolve("app.log");
         Files.writeString(log, "x\n");

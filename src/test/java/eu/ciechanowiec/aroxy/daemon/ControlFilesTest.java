@@ -18,6 +18,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class ControlFilesTest {
 
+    private static final long FUTURE_STAMP = Long.MAX_VALUE - 1;
+
     @Test
     void triggerStampEmptyUntilTouched(@TempDir Path directory) {
         ControlFiles control = new ControlFiles(new Home(directory));
@@ -34,6 +36,16 @@ class ControlFilesTest {
         control.touch();
         long second = control.triggerStamp().orElseThrow();
         assertTrue(second > first, "each touch writes a larger stamp, even within one filesystem mtime tick");
+    }
+
+    @Test
+    @SneakyThrows
+    void aFutureStampStillAdvancesByOne(@TempDir Path directory) {
+        Home home = new Home(directory);
+        Files.writeString(home.reloadTrigger(), Long.toString(FUTURE_STAMP));
+        ControlFiles control = new ControlFiles(home);
+        control.touch();
+        assertEquals(FUTURE_STAMP + 1, control.triggerStamp().orElseThrow());
     }
 
     @Test

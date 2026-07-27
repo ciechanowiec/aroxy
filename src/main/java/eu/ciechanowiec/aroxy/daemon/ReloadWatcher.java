@@ -55,7 +55,7 @@ final class ReloadWatcher {
         }
     }
 
-    private static Thread thread(Runnable task) {
+    static Thread thread(Runnable task) {
         Thread worker = new Thread(task, "aroxy-reload-watcher");
         worker.setDaemon(true);
         return worker;

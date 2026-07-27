@@ -19,15 +19,19 @@ final class ReloadRequest {
     private static final long MISSING = -1L;
 
     static boolean send(Home home) {
-        long before = generationOf(home);
-        new ControlFiles(home).touch();
-        return awaitAdvance(home, before);
+        return send(home, ReloadRequest::sleep);
     }
 
-    private static boolean awaitAdvance(Home home, long before) {
+    static boolean send(Home home, Runnable pause) {
+        long before = generationOf(home);
+        new ControlFiles(home).touch();
+        return awaitAdvance(home, before, pause);
+    }
+
+    private static boolean awaitAdvance(Home home, long before, Runnable pause) {
         int attempt = 0;
         while (attempt < ATTEMPTS && generationOf(home) <= before) {
-            sleep();
+            pause.run();
             attempt++;
         }
         return generationOf(home) > before;
@@ -37,7 +41,7 @@ final class ReloadRequest {
         return RuntimeSnapshot.read(home.runtimeFile()).map(RuntimeSnapshot::generation).orElse(MISSING);
     }
 
-    private static void sleep() {
+    static void sleep() {
         try {
             Thread.sleep(PAUSE_MILLIS);
         } catch (InterruptedException _) {

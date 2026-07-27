@@ -50,7 +50,7 @@ class EntryFileTest {
         Optional<String> content = Repository.readText(Repository.root().resolve(INSTRUCTIONS));
         assertTrue(
             content.filter(text -> !text.isBlank()).isPresent(),
-            () -> INSTRUCTIONS + " is where every rule lives, so an entry file pointing at it must resolve"
+            INSTRUCTIONS + " is where every rule lives, so an entry file pointing at it must resolve"
         );
     }
 

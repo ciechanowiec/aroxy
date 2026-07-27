@@ -139,15 +139,15 @@ implying a gate that does not exist. Beyond static analysis and coverage, the ha
   tree the build reshaped on its way past. Behind them, `scripts/tree-snapshot.sh` fingerprints the tree
   at `validate` and compares at `package` (and again after the Docker-backed gates under `-Pfull`),
   catching any writer the three do not cover. Apply with `-Pformat`, which unbinds both comparisons.
-- **Mutation testing.** PIT mutates `obfuscation`, `config`, `client` and `proxy` under `-Pfull`: a
-  mutant that survives in them is a behaviour no test pins. The process-boundary packages (`cli`,
-  `daemon`, `fs`) are left out by the same argument as the per-class coverage excludes, and the pom
-  records it. The survivors this repository accepts are listed one per line, each with its reason, in
-  `mutation-baseline.tsv`, and the `mutation-baseline` exec fails on either disagreement with the
-  report: a survivor the file does not list, which is a new gap, or a listed entry that no longer
-  survives, which is a line to delete. That file's header is the one place the arrangement is argued,
-  down to what a reason must say and what an `[intermittent]` entry suspends. It is not repeated here
-  or in the pom, because three copies of one argument are three things to keep in agreement.
+- **Mutation testing.** PIT mutates every production class under `eu.ciechanowiec.aroxy` except the
+  explicit process-boundary classes that the pom excludes by the same role-based argument as the
+  per-class coverage exclusions. A mutant that survives is a behaviour no test pins. The survivors
+  this repository accepts are listed one per line, each with its reason, in `mutation-baseline.tsv`,
+  and the `mutation-baseline` exec fails on either disagreement with the report: a survivor the file
+  does not list, which is a new gap, or a listed entry that no longer survives, which is a line to
+  delete. That file's header is the one place the arrangement is argued, down to what a reason must
+  say and what an `[intermittent]` entry suspends. It is not repeated here or in the pom, because
+  three copies of one argument are three things to keep in agreement.
 - **Qodana (IntelliJ inspections).** Under `-Pfull`, `scripts/qodana.sh` runs the Qodana engine over
   `qodana/profile.xml` and fails on any finding (`qodana.yaml` sets `failThreshold: 0`). The profile is
   a curated IntelliJ inspection profile, reusable across repositories. The only inspections disabled in
@@ -183,9 +183,10 @@ What a new project changes:
   configs name (`System.getenv` is confined to `daemon/Home` here, which is an aroxy rule). The
   fully-qualified-name rule in `checkstyle.xml` names the group root alongside `java`/`javax`/`jakarta`,
   so a copied harness that leaves it pointing at another project's group enforces less than it says.
-- **PIT targets** - `targetClasses`/`targetTests` name aroxy's pure-logic packages, and every line of
-  `mutation-baseline.tsv` describes aroxy's code. Both are re-derived per project. A copied baseline is
-  meaningless, and a copied one that is never regenerated is worse than none.
+- **PIT targets** - `targetClasses`/`targetTests` name aroxy's package root, `excludedClasses` names
+  its process-boundary roles, and every line of `mutation-baseline.tsv` describes aroxy's code. All
+  three are re-derived per project. A copied baseline is meaningless, and a copied one that is never
+  regenerated is worse than none.
 - **JaCoCo excludes** - the per-class exclusions name aroxy classes, by the role argued next to them.
 - **Banned dependencies** - the enforcer bans Mockito and logback because aroxy's conventions do. A
   project that mocks or uses logback drops that rule. It is a choice, not part of the harness.

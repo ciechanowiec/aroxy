@@ -19,6 +19,7 @@ import java.io.IOException;
  */
 public final class ProxyServer {
 
+    private static final int STOP_DELAY_SECONDS = 1;
     private final ProxyListener listener;
 
     /**
@@ -59,6 +60,10 @@ public final class ProxyServer {
      * Stops the server with a short grace delay and drains the worker pool.
      */
     public void stop() {
-        this.listener.stop();
+        this.listener.stop(STOP_DELAY_SECONDS);
+    }
+
+    void stopImmediately() {
+        this.listener.stop(0);
     }
 }

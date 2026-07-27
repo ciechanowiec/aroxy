@@ -29,7 +29,7 @@ class DaemonWaitTest {
     void returnsAfterExhaustingAttemptsForALiveProcess(@TempDir Path directory) {
         PidFile pid = new PidFile(directory.resolve("aroxy.pid"));
         pid.write(ProcessHandle.current().pid());
-        DaemonWait.untilStopped(pid);
+        DaemonWait.untilStopped(pid, 1, 0L);
         assertTrue(pid.isRunning(), "a process that never stops exhausts the bounded attempts and still returns");
     }
 }

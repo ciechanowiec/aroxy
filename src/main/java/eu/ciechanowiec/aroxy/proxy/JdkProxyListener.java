@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 final class JdkProxyListener implements ProxyListener {
 
     private static final int THREADS = 32;
-    private static final int STOP_DELAY_SECONDS = 1;
+    private static final int DRAIN_SECONDS = 1;
     private final HttpServer server;
     private final ExecutorService executor;
 
@@ -38,8 +38,8 @@ final class JdkProxyListener implements ProxyListener {
     }
 
     @Override
-    public void stop() {
-        this.server.stop(STOP_DELAY_SECONDS);
+    public void stop(int delaySeconds) {
+        this.server.stop(delaySeconds);
         this.executor.shutdown();
         if (!awaitTermination(this.executor)) {
             this.executor.shutdownNow();
@@ -48,7 +48,7 @@ final class JdkProxyListener implements ProxyListener {
 
     private static boolean awaitTermination(ExecutorService executor) {
         try {
-            return executor.awaitTermination(STOP_DELAY_SECONDS, TimeUnit.SECONDS);
+            return executor.awaitTermination(DRAIN_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return false;

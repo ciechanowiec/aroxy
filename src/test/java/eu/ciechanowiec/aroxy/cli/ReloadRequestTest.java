@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,38 +18,29 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class ReloadRequestTest {
 
-    private static final long BUMP_PAUSE_MILLIS = 150L;
-    private static final long JOIN_MILLIS = 1000L;
-
     @Test
-    @SneakyThrows
     void confirmsOnceTheDaemonAdvancesTheGeneration(@TempDir Path directory) {
         Home home = new Home(directory);
         writeRuntime(home.runtimeFile(), 1);
-        Thread bumper = new Thread(() -> bumpAfterPause(home.runtimeFile()));
-        bumper.start();
-        try {
-            assertTrue(ReloadRequest.send(home), "the reload is confirmed once the generation advances");
-        } finally {
-            bumper.join(JOIN_MILLIS);
-        }
+        assertTrue(
+            ReloadRequest.send(home, () -> writeRuntime(home.runtimeFile(), 2)),
+            "the reload is confirmed once the generation advances"
+        );
     }
 
     @Test
     void reportsFailureWhenNoDaemonEverAdvancesTheGeneration(@TempDir Path directory) {
         assertFalse(
-            ReloadRequest.send(new Home(directory)),
+            ReloadRequest.send(new Home(directory), Thread::onSpinWait),
             "with no daemon to advance the generation, the bounded wait exhausts and reports failure"
         );
     }
 
-    private static void bumpAfterPause(Path runtime) {
-        try {
-            Thread.sleep(BUMP_PAUSE_MILLIS);
-            writeRuntime(runtime, 2);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
-        }
+    @Test
+    void anInterruptedPauseRestoresTheFlag() {
+        Thread.currentThread().interrupt();
+        ReloadRequest.sleep();
+        assertTrue(Thread.interrupted(), "the reload wait preserves an interrupt for its caller");
     }
 
     private static void writeRuntime(Path runtime, int generation) {

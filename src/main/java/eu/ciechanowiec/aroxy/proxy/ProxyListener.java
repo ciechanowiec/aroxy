@@ -9,5 +9,5 @@ interface ProxyListener {
 
     int port();
 
-    void stop();
+    void stop(int delaySeconds);
 }

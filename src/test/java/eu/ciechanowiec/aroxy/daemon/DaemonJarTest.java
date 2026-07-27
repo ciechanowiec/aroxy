@@ -39,7 +39,7 @@ class DaemonJarTest {
         assertFalse(jar.isStale(), "nothing is staged yet, so nothing is stale");
         jar.stage();
         assertFalse(jar.isStale(), "a daemon launched from the current jar is current");
-        Files.writeString(installed, "build-two");
+        Files.writeString(installed, "xuild-one");
         assertTrue(jar.isStale(), "installing a new jar leaves the running daemon behind");
     }
 

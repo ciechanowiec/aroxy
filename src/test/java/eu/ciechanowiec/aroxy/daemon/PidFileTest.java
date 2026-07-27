@@ -20,11 +20,14 @@ class PidFileTest {
     private Path directory;
 
     @Test
+    @SneakyThrows
     void writeReadClearRoundTrips() {
-        PidFile pid = new PidFile(this.directory.resolve(PID_FILE));
+        Path file = this.directory.resolve(PID_FILE);
+        PidFile pid = new PidFile(file);
         long current = ProcessHandle.current().pid();
         pid.write(current);
         assertEquals(current, pid.read().orElseThrow());
+        assertTrue(Files.readString(file).startsWith(current + "\t"), "a live pid records its start time");
         pid.clear();
         assertTrue(pid.read().isEmpty());
     }

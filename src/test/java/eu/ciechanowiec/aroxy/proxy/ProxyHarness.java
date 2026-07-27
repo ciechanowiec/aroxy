@@ -86,7 +86,7 @@ final class ProxyHarness {
     }
 
     void stop() {
-        this.server.stop();
+        this.server.stopImmediately();
         this.upstream.stop();
     }
 }
