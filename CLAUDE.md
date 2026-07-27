@@ -64,7 +64,8 @@ leaves the machine. It does not hide that an agent is used or change the destina
   if/for/try; ≤ 2 returns (≤ 1 in a void method); no
   `catch (Exception)`, and a caught exception is named `_` when unused or `exception` when used; names
   spell their words out (`directory`, not `dir`, and `logsDirectory` as surely as `directory`); braces on
-  every control statement; no magic numbers; a literal repeated > 6 times must be a constant; method ≤ 50
+  every control statement; no `final` on a parameter or a local (effective finality is enough);
+  no magic numbers; a literal repeated > 6 times must be a constant; method ≤ 50
   lines; file ≤ 500 lines; line ≤ 120 (Java only); no useless `@SuppressWarnings`; `System.getenv` only in
   `daemon/Home`; no call into a deprecated API. The PMD `reportLevel` for the two complexity metrics reads
   one higher than the cap, because PMD reports a method that reaches the level, not one that passes it.
@@ -163,7 +164,9 @@ injection and servlet rules are there for the AEM projects, not for this one.
 
 What a new project changes:
 - **Coordinates** - `groupId`, `artifactId`, `main.class`, `finalName`, and the package the analysis
-  configs name (`System.getenv` is confined to `daemon/Home` here; that is an aroxy rule).
+  configs name (`System.getenv` is confined to `daemon/Home` here, which is an aroxy rule). The
+  fully-qualified-name rule in `checkstyle.xml` names the group root alongside `java`/`javax`/`jakarta`,
+  so a copied harness that leaves it pointing at another project's group enforces less than it says.
 - **PIT targets** - `targetClasses`/`targetTests` name aroxy's pure-logic packages, and the enumerated
   equivalent mutants with `pitest.max.surviving` describe aroxy's code. Both are re-derived per project;
   a copied `maxSurviving` is meaningless.

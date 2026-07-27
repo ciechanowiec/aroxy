@@ -90,21 +90,27 @@
 
         <!--
         Custom AST checks supplied by qulice-maven-plugin on the plugin classpath (see pom.xml).
-        BracketsStructureCheck is the paired-brackets notation: when a bracketed construct spans
-        multiple lines, the opening bracket must be the last symbol on its line and the closing
-        bracket must sit alone on its own line. See
+        BracketsStructureCheck applies paired-parentheses notation to multiline calls, constructor
+        invocations, annotations and try-with-resources: the content starts after the opening
+        parenthesis's line and ends before the closing parenthesis's line. The PairedConditionParentheses
+        rule in pmd.xml extends that layout to multiline if/while conditions. See
         https://www.yegor256.com/2014/10/23/paired-brackets-notation.html
-        The remaining checks enforce constructor order, curly-bracket structure, empty-line and
-        Javadoc conventions, no extra semicolons, no nested switch, and no protected methods in
-        final classes. ConstantUsageCheck is intentionally NOT used: it scans only a single file's
-        text and so mis-fires on Lombok @Getter value objects, whose fields are read via generated
+        The remaining checks enforce constructor order, curly-bracket structure, the empty line before
+        a first member, Javadoc conventions, no extra semicolons, no nested switch, and no protected
+        methods in final classes. ConstantUsageCheck is intentionally NOT used: it scans only a single
+        file's text and so mis-fires on Lombok @Getter value objects, whose fields are read via generated
         accessors from other files; PMD/SpotBugs already cover genuinely unused private fields.
+        EmptyLinesCheck is intentionally NOT used either: it reads raw lines and so cannot tell a blank
+        line between statements, which is what it means to forbid, from one inside a text block, which is
+        content. A blank line is what terminates a Server-Sent Event, so any fixture holding one tripped
+        it, while the formatter insisted the fixture be a text block and Qodana insisted its newline be
+        real - three rules with no form that satisfied all of them. The check has no properties to narrow,
+        so it is dropped rather than worked around.
         -->
         <module name="com.qulice.checkstyle.BracketsStructureCheck"/>
         <module name="com.qulice.checkstyle.ConstructorsOrderCheck"/>
         <module name="com.qulice.checkstyle.CurlyBracketsStructureCheck"/>
         <module name="com.qulice.checkstyle.EmptyLineBeforeFirstMemberCheck"/>
-        <module name="com.qulice.checkstyle.EmptyLinesCheck"/>
         <module name="com.qulice.checkstyle.ExtraSemicolonCheck"/>
         <module name="com.qulice.checkstyle.JavadocEmptyLineCheck"/>
         <module name="com.qulice.checkstyle.JavadocFirstLineCheck"/>
@@ -254,6 +260,25 @@
                       value="//METHOD_DEF[./IDENT[@text='main'] and ./MODIFIERS/LITERAL_PUBLIC and ./MODIFIERS/LITERAL_STATIC and ./TYPE/LITERAL_VOID]"/>
             <message key="matchxpath.match"
                      value="The 'public' modifier is redundant on 'static void main' since Java 25 (JEP 512); remove it."/>
+        </module>
+        <module name="MatchXpath">
+            <!--
+            'final' on a parameter or a local says nothing the compiler does not already know: a value
+            that is never reassigned is effectively final either way, and the keyword only adds a word to
+            every declaration that has one. The two queries are separate because the AST is: a parameter
+            is a PARAMETER_DEF, a local is a VARIABLE_DEF outside a class body. A field is untouched,
+            where 'final' does carry a guarantee.
+            -->
+            <property name="query"
+                      value="//PARAMETER_DEF[./MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match"
+                     value="Method and constructor parameters must not be declared final; effective-final semantics are sufficient."/>
+        </module>
+        <module name="MatchXpath">
+            <property name="query"
+                      value="//VARIABLE_DEF[not(parent::OBJBLOCK) and ./MODIFIERS/FINAL]"/>
+            <message key="matchxpath.match"
+                     value="Local variables must not be declared final; effective-final semantics are sufficient."/>
         </module>
         <module name="MissingSwitchDefault"/>
         <module name="ModifiedControlVariable"/>
@@ -445,11 +470,16 @@
                       value="Usage of org.apache.sling.models.annotations.DefaultInjectionStrategy.OPTIONAL is a bad practice and is not allowed"/>
         </module>
         <module name="RegexpSinglelineJava">
-            <!-- Unnecessary fully-qualified JDK name in code; add an import instead (imports/Javadoc exempt). -->
-            <property name="format" value="^(?!import )(?!package ).*\b(java|javax)(\.[a-z][a-zA-Z0-9]*)+\.[A-Z]"/>
+            <!--
+            Unnecessary fully-qualified name in code; add an import instead (imports/Javadoc exempt). The
+            roots are the JDK, Jakarta EE, and this project's own group, which is the set a file can always
+            import from. A copied harness renames the group root along with the other coordinates;
+            leaving it pointing at another project's group makes the rule quietly enforce less than it says.
+            -->
+            <property name="format" value="^(?!import )(?!package ).*\b(java|javax|jakarta|eu\.ciechanowiec)(\.[a-z][a-zA-Z0-9]*)+\.[A-Z]"/>
             <property name="ignoreComments" value="true"/>
             <property name="message"
-                      value="Unnecessary fully-qualified name; import the type instead of qualifying it inline."/>
+                      value="Unnecessary fully-qualified JDK, Jakarta or project name; import the type instead of qualifying it inline."/>
         </module>
         <module name="RegexpSinglelineJava">
             <!--

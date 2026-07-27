@@ -197,6 +197,38 @@
         </properties>
     </rule>
 
+    <rule name="PairedConditionParentheses"
+        language="java"
+        message="A multiline if/while condition must start on the line after '(' and end on the line before ')'."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            Extends paired-parentheses notation to if and while conditions. A one-line condition stays compact; once
+            the condition spans lines, the opening parenthesis ends its line, the condition occupies the inner lines,
+            and the closing parenthesis starts the following line.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+(//IfStatement | //WhileStatement)[
+    let $condition := *[1],
+        $body := *[2],
+        $opening := pmd:startLine(.),
+        $first := pmd:startLine($condition),
+        $last := pmd:endLine($condition),
+        $closing := pmd:startLine($body)
+    return
+        ($opening != $first or $first != $last or $last != $closing)
+        and (
+            $opening = $first
+            or $last = $closing
+        )
+]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
     <rule name="UninitializedLocalVariable"
         language="java"
         message="Don't declare a local variable without an initializer in order to assign it later, e.g. in the branches of a 'try/catch' or 'if/else' statement. Initialize the variable at the declaration or return directly from every branch. Suppress this rule explicitly in the rare cases where the deferred assignment is genuinely the most reasonable approach."
