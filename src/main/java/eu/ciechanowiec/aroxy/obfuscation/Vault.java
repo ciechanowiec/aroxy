@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -38,7 +39,9 @@ import lombok.extern.slf4j.Slf4j;
  * mutating and reading methods are synchronized.
  */
 @Slf4j
-// field count is governed by the project's own PMD cap
+@Justification(
+    "field count is governed by the project's own PMD cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyFields"
 )

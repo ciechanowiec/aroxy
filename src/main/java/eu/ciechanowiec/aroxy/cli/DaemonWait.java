@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.PidFile;
+import eu.ciechanowiec.governance.Justification;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -14,7 +15,9 @@ final class DaemonWait {
     private static final int ATTEMPTS = 50;
     private static final long PAUSE_MILLIS = 100L;
 
-    // bounded liveness poll: the sleep is intentional
+    @Justification(
+        "bounded liveness poll: the sleep is intentional"
+    )
     @SuppressWarnings(
         "BusyWait"
     )

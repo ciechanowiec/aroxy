@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
 import eu.ciechanowiec.aroxy.client.PathScope;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -24,7 +25,9 @@ import java.util.stream.Collectors;
  * @param headers      the inbound request headers
  * @param body         the fully-read request body
  */
-// mutable-component exposure is accepted (see spotbugs-exclude.xml EI_EXPOSE); byte[] body cloned in and out
+@Justification(
+    "mutable-component exposure is accepted (see spotbugs-exclude.xml EI_EXPOSE), byte[] body cloned in and out"
+)
 @SuppressWarnings(
     {"ArrayRecordComponent", "AssignmentOrReturnOfFieldWithMutableType"}
 )

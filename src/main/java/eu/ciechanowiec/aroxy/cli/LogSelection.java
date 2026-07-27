@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -16,43 +17,53 @@ import picocli.CommandLine.Option;
  */
 final class LogSelection {
 
-    // CLI default flag; picocli injects it via reflection, behavior falls through to AUDIT
     @Option(
         names = "--audit", description = "The obfuscation audit log (default)."
+    )
+    @Justification(
+        "a CLI default flag injected by picocli via reflection, with behavior falling through to AUDIT"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private boolean audit;
 
-    // picocli injects this field via reflection
     @Option(
         names = "--app", description = "The daemon diagnostic log."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private boolean app;
 
-    // picocli injects this field via reflection
     @Option(
         names = "--wire", description = "List the wire dump files."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private boolean wire;
 
-    // picocli injects this field via reflection
     @Option(
         names = "--all", description = "Dump the audit and app logs together."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private boolean all;
 
-    // CLI command returns a fixed exit code by contract
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
     @SuppressWarnings(
         "SameReturnValue"
     )

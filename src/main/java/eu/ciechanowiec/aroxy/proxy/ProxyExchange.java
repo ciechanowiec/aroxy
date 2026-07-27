@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpHandler;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationResult;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +23,9 @@ import org.json.JSONException;
  * the proxy cannot inspect would violate the data-minimization guarantee.
  */
 @Slf4j
-// composed class; coupling is governed by the project's own Checkstyle cap
+@Justification(
+    "a composed class whose coupling is governed by the project's own Checkstyle cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )

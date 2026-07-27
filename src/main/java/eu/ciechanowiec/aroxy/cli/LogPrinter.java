@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -32,7 +33,9 @@ final class LogPrinter {
         this.out.line(this.read(file).stripTrailing());
     }
 
-    // intentional bounded polling loop
+    @Justification(
+        "intentional bounded polling loop"
+    )
     @SuppressWarnings(
         "BusyWait"
     )

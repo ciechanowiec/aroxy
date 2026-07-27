@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,9 +85,12 @@ public record RuntimeSnapshot(
         }
     }
 
+    @Justification(
+        "parsed once on one thread from a small fixed file"
+    )
     @SuppressWarnings(
         "PMD.UseConcurrentHashMap"
-    ) // parsed once on one thread from a small fixed file
+    )
     private static Optional<RuntimeSnapshot> parse(Iterable<String> lines) {
         Map<String, String> head = new HashMap<>();
         List<AttachmentInfo> files = new ArrayList<>();

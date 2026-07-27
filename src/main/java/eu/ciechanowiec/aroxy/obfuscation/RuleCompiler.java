@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import eu.ciechanowiec.governance.Justification;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -33,7 +34,9 @@ public final class RuleCompiler {
     /**
      * An exact-spelling literal rule; only the verbatim value matches, restoring to itself.
      */
-    // the single argument value is fixed by the callers
+    @Justification(
+        "the single argument value is fixed by the callers"
+    )
     @SuppressWarnings(
         "SameParameterValue"
     )
@@ -45,7 +48,9 @@ public final class RuleCompiler {
     /**
      * A loose (and optionally leet) literal rule, matched case-insensitively.
      */
-    // the single argument value is fixed by the callers
+    @Justification(
+        "the single argument value is fixed by the callers"
+    )
     @SuppressWarnings(
         "SameParameterValue"
     )
@@ -85,7 +90,9 @@ public final class RuleCompiler {
         return Pattern.compile(Pattern.quote(spec.patternOrValue()));
     }
 
-    // the flags are computed at runtime
+    @Justification(
+        "the flags are computed at runtime"
+    )
     @SuppressWarnings(
         "MagicConstant"
     )

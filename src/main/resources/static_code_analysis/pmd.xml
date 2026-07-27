@@ -177,6 +177,26 @@
     <!--
     CUSTOM
     -->
+    <rule name="SuppressionNeedsJustification"
+        language="java"
+        message="A @SuppressWarnings must be accompanied by @Justification stating why the suppressed rule does not apply here."
+        class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>
+            A suppression records that a rule was consciously set aside. Without the reason, a later reader cannot
+            tell a considered exception from a silenced defect, so the suppression becomes permanent by default.
+            Pairing every @SuppressWarnings with @Justification keeps the reason in the code. The annotation has
+            SOURCE retention and is filtered out of the executable jar.
+        </description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//Annotation[@SimpleName = 'SuppressWarnings'][not(../Annotation[@SimpleName = 'Justification'])]
+                ]]></value>
+            </property>
+        </properties>
+    </rule>
+
     <rule name="UninitializedLocalVariable"
         language="java"
         message="Don't declare a local variable without an initializer in order to assign it later, e.g. in the branches of a 'try/catch' or 'if/else' statement. Initialize the variable at the declaration or return directly from every branch. Suppress this rule explicitly in the rare cases where the deferred assignment is genuinely the most reasonable approach."

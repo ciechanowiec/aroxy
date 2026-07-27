@@ -5,6 +5,7 @@ import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.RuleCompiler;
+import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -19,7 +20,9 @@ import java.util.stream.Collectors;
  * keeping its first-seen position, new ids append, and {@code enabled = false} rules are dropped from
  * the effective list. The contributing-file labels are retained for {@code aroxy config}.
  */
-// composed class; coupling is governed by the project's own Checkstyle cap
+@Justification(
+    "a composed class whose coupling is governed by the project's own Checkstyle cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )
@@ -87,9 +90,12 @@ public final class EffectiveConfig {
         );
     }
 
+    @Justification(
+        "insertion order is the merge contract, and access is single-threaded"
+    )
     @SuppressWarnings(
         "PMD.UseConcurrentHashMap"
-    ) // insertion order is the merge contract; access is single-threaded
+    )
     private static Map<String, RuleEntry> mergeRules(Iterable<ConfigFile> files) {
         Map<String, RuleEntry> byId = new LinkedHashMap<>();
         files.forEach(file -> file.rules().forEach(entry -> byId.put(entry.id(), entry)));

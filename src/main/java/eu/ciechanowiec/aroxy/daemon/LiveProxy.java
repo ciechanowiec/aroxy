@@ -12,6 +12,7 @@ import eu.ciechanowiec.aroxy.proxy.AuditLog;
 import eu.ciechanowiec.aroxy.proxy.ProxyParts;
 import eu.ciechanowiec.aroxy.proxy.ProxyServer;
 import eu.ciechanowiec.aroxy.proxy.Upstream;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +31,9 @@ import java.util.Optional;
  * audit masking are updated in place, so a reload never drops a connection or rebinds a port, and
  * every listener reloads together.
  */
-// composes the whole proxy stack once per client; coupling is governed by the project's own Checkstyle cap
+@Justification(
+    "composes the whole proxy stack once per client, and coupling is governed by the project's own Checkstyle cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )
@@ -61,9 +64,12 @@ final class LiveProxy {
      * bind. Without that, a port already taken by another process would leave this daemon holding
      * sockets it will never serve.
      */
+    @Justification(
+        "built once on the start path and only read afterwards"
+    )
     @SuppressWarnings(
         "PMD.UseConcurrentHashMap"
-    ) // built once on the start path and only read afterwards
+    )
     private static Map<ClientId, ProxyServer> bindAll(
         Settings settings, Obfuscator obfuscator, AuditLog audit
     ) throws IOException {

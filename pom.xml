@@ -503,6 +503,17 @@
                                 warnings shade emits when several jars contribute the same module-info.
                             -->
                             <filters>
+                                <!--
+                                    The @Justification annotation is a build-time governance construct with
+                                    SOURCE retention: nothing reads it at runtime, so it has no place in the
+                                    executable artifact.
+                                -->
+                                <filter>
+                                    <artifact>${project.groupId}:${project.artifactId}</artifact>
+                                    <excludes>
+                                        <exclude>eu/ciechanowiec/governance/**</exclude>
+                                    </excludes>
+                                </filter>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
@@ -822,7 +833,9 @@
                                         POSIX test platform (macOS/Linux);
                                       - cli.Version: the picocli version provider, whose only uncovered lines are
                                         the missing/unreadable-resource guards around a resource that is always
-                                        present, with no seam to force the failure without banned reflection.
+                                        present, with no seam to force the failure without banned reflection;
+                                      - governance.Justification: an annotation type, which declares no
+                                        executable code at all and so can never be covered by anything.
                                 -->
                                 <rule>
                                     <element>CLASS</element>
@@ -837,6 +850,7 @@
                                         <exclude>eu.ciechanowiec.aroxy.daemon.Daemon</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.daemon.Home</exclude>
                                         <exclude>eu.ciechanowiec.aroxy.fs.RestrictedDir</exclude>
+                                        <exclude>eu.ciechanowiec.governance.Justification</exclude>
                                     </excludes>
                                     <limits>
                                         <limit>

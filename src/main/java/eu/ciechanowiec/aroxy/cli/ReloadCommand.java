@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
+import eu.ciechanowiec.governance.Justification;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 
@@ -40,7 +41,9 @@ final class ReloadCommand implements Callable<Integer> {
         return confirmed ? 0 : UNCONFIRMED;
     }
 
-    // CLI command returns a fixed exit code by contract
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
     @SuppressWarnings(
         "SameReturnValue"
     )

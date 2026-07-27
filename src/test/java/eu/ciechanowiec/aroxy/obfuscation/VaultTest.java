@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -120,7 +121,9 @@ class VaultTest {
         );
     }
 
-    // "v" + index builds sequential fixture names like v1, v2; no whitespace is intended
+    @Justification(
+        "\"v\" + index builds sequential fixture names like v1, v2. No whitespace is intended"
+    )
     @SuppressWarnings(
         "StringConcatenationMissingWhitespace"
     )
@@ -161,7 +164,9 @@ class VaultTest {
         assertEquals(Optional.of("v4"), vault.originalFor(fourth), "the newest pair survives the trim");
     }
 
-    // "v" + index builds sequential fixture names like v1, v2; no whitespace is intended
+    @Justification(
+        "\"v\" + index builds sequential fixture names like v1, v2. No whitespace is intended"
+    )
     @SuppressWarnings(
         "StringConcatenationMissingWhitespace"
     )

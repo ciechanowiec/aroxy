@@ -3,6 +3,7 @@ package eu.ciechanowiec.aroxy.config;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.client.Gateway;
+import eu.ciechanowiec.governance.Justification;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.Collections;
@@ -65,9 +66,12 @@ public record Settings(
             .orElseThrow(() -> new IllegalStateException("No gateway is configured for " + id));
     }
 
+    @Justification(
+        "a local copy, made immutable by the constructor before it escapes"
+    )
     @SuppressWarnings(
         "PMD.UseConcurrentHashMap"
-    ) // a local copy, made immutable by the constructor before it escapes
+    )
     Settings withGateway(ClientId id, Gateway gateway) {
         Map<ClientId, Gateway> merged = new LinkedHashMap<>(this.gateways);
         merged.put(id, gateway);

@@ -6,6 +6,7 @@ import eu.ciechanowiec.aroxy.config.InvalidConfigException;
 import eu.ciechanowiec.aroxy.daemon.ControlFiles;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
+import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -28,25 +29,31 @@ final class AttachCommand implements Callable<Integer> {
 
     private static final int FAILED = 1;
     private final CliOutput out;
-    // picocli injects this field via reflection
     @Parameters(
         index = "0", paramLabel = "<f>", description = "Configuration file to attach."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private Path file;
-    // picocli injects this field via reflection
     @Option(
         names = "--temporary", description = "Attach for this session only (requires a running daemon)."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
     )
     private boolean temporary;
-    // CLI default flag; picocli injects it via reflection, behavior keys off !temporary
     @Option(
         names = "--persistent", description = "Record in the persistent registry (default)."
+    )
+    @Justification(
+        "a CLI default flag injected by picocli via reflection, with behavior keying off !temporary"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
@@ -94,7 +101,9 @@ final class AttachCommand implements Callable<Integer> {
         return ReloadRequest.send(home) ? this.attached() : this.unconfirmed();
     }
 
-    // CLI command returns a fixed exit code by contract
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
     @SuppressWarnings(
         "SameReturnValue"
     )
@@ -123,7 +132,9 @@ final class AttachCommand implements Callable<Integer> {
         return FAILED;
     }
 
-    // CLI command returns a fixed exit code by contract
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
     @SuppressWarnings(
         "SameReturnValue"
     )

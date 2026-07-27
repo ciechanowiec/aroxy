@@ -5,6 +5,7 @@ import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Reversal;
 import eu.ciechanowiec.aroxy.obfuscation.StreamDeobfuscator;
+import eu.ciechanowiec.governance.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,7 +31,9 @@ import lombok.extern.slf4j.Slf4j;
  * the deobfuscator, which would corrupt it.
  */
 @Slf4j
-// composed class; coupling is governed by the project's own Checkstyle cap
+@Justification(
+    "a composed class whose coupling is governed by the project's own Checkstyle cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )
@@ -105,7 +108,9 @@ final class ProxyResponder {
         return inferred(reply);
     }
 
-    // ownership of body moves into the returned reply and the response writer closes it
+    @Justification(
+        "ownership of body moves into the returned reply and the response writer closes it"
+    )
     @SuppressWarnings(
         "PMD.CloseResource"
     )

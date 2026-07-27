@@ -8,6 +8,7 @@ import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -23,14 +24,18 @@ import java.util.Optional;
  * <p>The listener serves whichever {@link ClientProfile} it is given, defaulting to
  * {@link ClaudeCode}, so the same harness drives any client's path scope and stream dialect.
  */
-// the harness legitimately composes the whole proxy stack for socket-level tests
+@Justification(
+    "the harness legitimately composes the whole proxy stack for socket-level tests"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )
 final class ProxyHarness {
 
     static final String SECRET = "AKIAIOSFODNN7EXAMPLE";
-    // kept with its logical owner
+    @Justification(
+        "kept with its logical owner"
+    )
     @SuppressWarnings(
         "StaticMethodOnlyUsedInOneClass"
     )

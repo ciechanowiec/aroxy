@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -12,9 +13,12 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 final class CliCapture {
 
+    @Justification(
+        "the replacement stream wraps an in-memory buffer, so closing it is moot"
+    )
     @SuppressWarnings(
         "PMD.CloseResource"
-    ) // the replacement stream wraps an in-memory buffer; closing it is moot
+    )
     static Result run(String... args) {
         PrintStream original = System.out;
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

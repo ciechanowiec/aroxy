@@ -6,6 +6,7 @@ import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.OfflineConfig;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
 import eu.ciechanowiec.aroxy.daemon.RuntimeSnapshot;
+import eu.ciechanowiec.governance.Justification;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -44,7 +45,9 @@ final class ListCommand implements Callable<Integer> {
         return 0;
     }
 
-    // CLI command returns a fixed exit code by contract
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
     @SuppressWarnings(
         "SameReturnValue"
     )

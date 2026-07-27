@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.governance.Justification;
 import java.util.Optional;
 import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
@@ -47,9 +48,12 @@ public final class Aroxy implements Runnable {
         return commandLine;
     }
 
+    @Justification(
+        "CLI entry point: propagate picocli's exit code to the process"
+    )
     @SuppressWarnings(
         "PMD.DoNotTerminateVM"
-    ) // CLI entry point: propagate picocli's exit code to the process
+    )
     static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);

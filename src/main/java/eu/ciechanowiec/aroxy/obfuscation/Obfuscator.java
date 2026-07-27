@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import eu.ciechanowiec.governance.Justification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -17,9 +18,12 @@ import java.util.regex.Matcher;
  * long-running daemon can reload its configuration without restarting the proxy socket; the swap is
  * published through a {@code volatile} reference.
  */
+@Justification(
+    "lock-free publication of an immutable rule snapshot on reload"
+)
 @SuppressWarnings(
     "PMD.AvoidUsingVolatile"
-) // lock-free publication of an immutable rule snapshot on reload
+)
 public final class Obfuscator {
 
     private volatile List<Rule> rules;

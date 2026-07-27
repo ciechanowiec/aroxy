@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import eu.ciechanowiec.governance.Justification;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,9 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 @RequiredArgsConstructor
-// Lombok value class; cannot be a record
+@Justification(
+    "a Lombok value class, which cannot be a record"
+)
 @SuppressWarnings(
     "ClassCanBeRecord"
 )

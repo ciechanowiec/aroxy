@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.governance.Justification;
 import java.util.Map;
 
 /**
@@ -10,7 +11,9 @@ import java.util.Map;
  * @param headers the response headers to send
  * @param body    the response body
  */
-// the headers map is an immutable Map.of() built by the factory methods
+@Justification(
+    "the headers map is an immutable Map.of() built by the factory methods"
+)
 @SuppressWarnings(
     "AssignmentOrReturnOfFieldWithMutableType"
 )

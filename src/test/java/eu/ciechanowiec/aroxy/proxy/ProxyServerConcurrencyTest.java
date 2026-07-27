@@ -8,6 +8,7 @@ import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -28,7 +29,9 @@ import org.junit.jupiter.api.io.TempDir;
  * The drain must fall back to a forced shutdown rather than wait out a request that outlives the grace
  * period, so {@code stop} returns well before the stuck upstream call would have completed.
  */
-// drives the whole proxy stack over real sockets; coupling is governed by the project's own Checkstyle cap
+@Justification(
+    "drives the whole proxy stack over real sockets, and coupling is governed by the project's own Checkstyle cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyDependencies"
 )

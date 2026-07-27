@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
+import eu.ciechanowiec.governance.Justification;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -17,9 +18,11 @@ import picocli.CommandLine.Option;
 )
 final class LogsCommand implements Callable<Integer> {
 
-    // picocli injects this field via reflection
     @Option(
         names = {"-f", "--follow"}, description = "Keep streaming new lines (Ctrl-C to stop)."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
@@ -27,7 +30,9 @@ final class LogsCommand implements Callable<Integer> {
     private boolean follow;
 
     @ArgGroup
-    // populated by picocli via reflection
+    @Justification(
+        "populated by picocli via reflection"
+    )
     @SuppressWarnings(
         {"PMD.ImmutableField", "CanBeFinal", "FieldMayBeFinal"}
     )

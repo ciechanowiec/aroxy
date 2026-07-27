@@ -4,6 +4,7 @@ import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.config.InvalidConfigException;
 import eu.ciechanowiec.aroxy.config.Settings;
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -24,7 +25,9 @@ import lombok.extern.slf4j.Slf4j;
  * are cleared on start, so they never survive a restart, by design.
  */
 @Slf4j
-// field/dependency counts are governed by the project's own PMD and Checkstyle caps
+@Justification(
+    "field/dependency counts are governed by the project's own PMD and Checkstyle caps"
+)
 @SuppressWarnings(
     {
         "PMD.AvoidSynchronizedAtMethodLevel", "PMD.AvoidUsingVolatile",

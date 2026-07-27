@@ -8,6 +8,7 @@ import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.RuleKind;
 import eu.ciechanowiec.aroxy.obfuscation.RuleSpec;
+import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +21,12 @@ import org.junit.jupiter.api.Test;
  * expected {@link RuleSpec}, the {@code [gateway]} keys become a typed {@link Settings} overlay, and
  * comments and blank lines are ignored.
  */
+@Justification(
+    "local addresses appear inside config-text fixtures"
+)
 @SuppressWarnings(
     "PMD.AvoidUsingHardCodedIP"
-) // local addresses appear inside config-text fixtures
+)
 class ConfigFileParsingTest {
 
     private static final int DEFAULT_PORT = 8788;

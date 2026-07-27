@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.Serial;
 
 /**
@@ -7,7 +8,9 @@ import java.io.Serial;
  * when the client vanishes mid-write, so the benign-disconnect classifier's by-type branch can be
  * exercised without depending on a container-specific class.
  */
-// deliberately checked to mimic the container EofException whose by-type branch is under test
+@Justification(
+    "deliberately checked to mimic the container EofException whose by-type branch is under test"
+)
 @SuppressWarnings(
     "CheckedExceptionClass"
 )

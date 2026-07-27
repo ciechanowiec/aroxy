@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
@@ -31,7 +32,9 @@ final class LogFollower {
         return this.read();
     }
 
-    // the caught exception covers its subtypes uniformly
+    @Justification(
+        "the caught exception covers its subtypes uniformly"
+    )
     @SuppressWarnings(
         "OverlyBroadCatchBlock"
     )

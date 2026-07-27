@@ -1,5 +1,7 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import eu.ciechanowiec.governance.Justification;
+
 /**
  * A flat, declarative description of one obfuscation rule as read from a configuration file, before
  * it is compiled into a {@link Rule} by {@link RuleCompiler#compile(RuleSpec)}. A record is used so
@@ -17,7 +19,9 @@ package eu.ciechanowiec.aroxy.obfuscation;
  * @param loose          for literal rules, also match respellings with separators between letters
  * @param leet           for literal rules, also match digit look-alikes ({@code o}->{@code 0}, ...)
  */
-// field count is governed by the project's own PMD cap
+@Justification(
+    "field count is governed by the project's own PMD cap"
+)
 @SuppressWarnings(
     "ClassWithTooManyFields"
 )

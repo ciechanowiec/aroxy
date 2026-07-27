@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.config;
 
+import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -49,7 +50,9 @@ public final class DefaultConfig {
         }
     }
 
-    // the stream is closed by the caller's try-with-resources
+    @Justification(
+        "the stream is closed by the caller's try-with-resources"
+    )
     @SuppressWarnings(
         "resource"
     )

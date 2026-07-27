@@ -90,6 +90,27 @@ implying a gate that does not exist. Beyond static analysis and coverage, the ha
 - **Typography.** The em dash, en dash, single-character ellipsis, and curly quotation marks are banned
   from every tracked file and every commit message; use the plain ASCII hyphen, three periods, and
   straight quotes. Vendored roles are exempt: `.vale/`, `.idea/`, `.docs/themes/`, and binaries.
+- **Comment prose.** No comment in a tracked Java source joins two clauses with a semicolon: a comment
+  is read under time pressure, so the sentence that survives is the short one, and there is always a
+  shorter reading (a full stop where both clauses stand alone, a comma where the second is
+  subordinate). A `@return` is the exception in both directions, being a fragment completing
+  "returns ...": it carries **no** full stop, and with none available a semicolon is what joins a
+  second clause to it. Every comment form counts (Javadoc, block, and line), in main and test sources
+  alike, and so does a `@Justification` value, which is a comment that happens to be written as an
+  annotation. Exempting it would let a suppression's reason say what a comment beside it may not. Every
+  other string literal is tokenized out, so a `"https://..."` is never read as a comment. Code
+  inside `<pre>`, an inline `{@code}`/`{@literal}`/`{@link}`, and HTML entities are skipped, because a
+  semicolon in them is syntax. The em and en dash are **not** this rule's concern. `TypographyRules`
+  owns them for every file, and one guideline gets one owner.
+- **Prose in the Markdown and AsciiDoc documents follows the same guideline, but binds by inspection.**
+  No gate reads them, because the two uses a gate would have to tell apart are not distinguishable by
+  pattern. A semicolon *joining two clauses* has a shorter reading and is what the guideline is about.
+  A semicolon *separating items in a series whose items already contain commas* has no shorter reading:
+  the static-analysis enumeration under Conventions above is one list of some twenty items, and commas
+  there would be ambiguous while twenty sentences would be unreadable. Those stay. So does a semicolon
+  inside a labelled counter-example, of which `README-guideline-writing.adoc` has one on purpose. Both
+  are the prose equivalent of the `<pre>` and `{@code}` regions the Java scan already skips, and a rule
+  that flagged them would be teaching the wrong lesson rather than enforcing this one.
 - **Secrets.** `gitleaks` scans the whole history for credentials under `-Pfull` (via Docker). Fake
   test fixtures are allowlisted in `.gitleaks.toml`; a real secret must never reach a commit.
 - **Dependency licenses.** Every resolved dependency must carry a license on the allowlist (Apache-2.0,
@@ -117,11 +138,17 @@ implying a gate that does not exist. Beyond static analysis and coverage, the ha
   `WeakerAccess` vs `ClassEscapesItsScope`). A finding that is a genuine project-specific false positive
   is suppressed locally, not by weakening the profile.
 - **Suppressions.** A suppression is never useless: PMD's `UnnecessaryWarningSuppression` fails the
-  build on one that suppresses nothing. That it also carries a one-line justification and never spans a
-  whole file binds by inspection, not by a gate. A static-analysis suppression names a rule from the
-  configs under `src/main/resources/static_code_analysis/`. A Qodana suppression names the inspection and
-  lives at the finding (`@SuppressWarnings("<inspection suppress id>")`, or a `//noinspection <Id>` line
-  where the annotation form does not apply). Prefer decomposition or a fix over a suppression.
+  build on one that suppresses nothing. It is never unexplained either: every `@SuppressWarnings` is
+  paired with `@Justification("...")` saying why the rule does not apply there, enforced by the custom
+  PMD rule `SuppressionNeedsJustification`. The annotation lives in `eu.ciechanowiec.governance`, has
+  `SOURCE` retention, and is filtered out of the executable jar, so it costs the artifact nothing. It
+  sits outside the project's own package so the harness stays copyable. That a suppression never spans a
+  whole file still binds by inspection rather than by a gate. A static-analysis suppression names a rule
+  from the configs under `src/main/resources/static_code_analysis/`. A Qodana suppression names the
+  inspection and lives at the finding (`@SuppressWarnings("<inspection suppress id>")`, or a
+  `//noinspection <Id>` line where the annotation form does not apply - that form carries its reason as
+  an adjacent comment, since no annotation attaches to it). Prefer decomposition or a fix over a
+  suppression.
 
 ## Reusing this harness
 
@@ -129,7 +156,8 @@ The harness is written to be lifted into other Java projects, AEM and Sling amon
 carries no trace of aroxy and is copied as it stands: the `scripts/`, the `.githooks/`, the
 `.github/workflows/`, `.docs/lib/adoc_lint.py` with `.vale/` and `.vale.ini`, `qodana/profile.xml` and
 `qodana.yaml`, `.editorconfig`, `.gitleaks.toml`, `rewrite.yml`, the configs under
-`src/main/resources/static_code_analysis/`, and the `governance` test package. Rules that no aroxy class
+`src/main/resources/static_code_analysis/`, the `governance` test package, and the
+`eu.ciechanowiec.governance` annotation in main sources. Rules that no aroxy class
 can trip are kept on purpose, because a project that inherits the harness will trip them: the Sling
 injection and servlet rules are there for the AEM projects, not for this one.
 

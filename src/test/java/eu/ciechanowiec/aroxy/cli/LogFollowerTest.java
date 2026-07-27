@@ -3,6 +3,7 @@ package eu.ciechanowiec.aroxy.cli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -47,7 +48,9 @@ class LogFollowerTest {
         );
     }
 
-    // the single caller appends one fixture line; parameterizing keeps the append helper reusable
+    @Justification(
+        "the single caller appends one fixture line, and parameterizing keeps the append helper reusable"
+    )
     @SuppressWarnings(
         "SameParameterValue"
     )

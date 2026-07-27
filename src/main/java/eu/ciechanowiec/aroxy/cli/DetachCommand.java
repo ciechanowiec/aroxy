@@ -3,6 +3,7 @@ package eu.ciechanowiec.aroxy.cli;
 import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
+import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -20,9 +21,11 @@ final class DetachCommand implements Callable<Integer> {
 
     private static final int REFUSED = 1;
 
-    // picocli injects this field via reflection
     @Parameters(
         index = "0", paramLabel = "<f>", description = "Configuration file to detach."
+    )
+    @Justification(
+        "picocli injects this field via reflection"
     )
     @SuppressWarnings(
         {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}

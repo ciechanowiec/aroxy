@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Path;
 import lombok.experimental.UtilityClass;
 
@@ -22,7 +23,9 @@ final class StartupWait {
         return untilReady(pid, runtime, new Attempt(launchedAt, expectedPid, DEFAULT));
     }
 
-    // package seam keeps failure-path tests immediate rather than sleeping for the production timeout
+    @Justification(
+        "package seam keeps failure-path tests immediate rather than sleeping for the production timeout"
+    )
     @SuppressWarnings(
         "BusyWait"
     )

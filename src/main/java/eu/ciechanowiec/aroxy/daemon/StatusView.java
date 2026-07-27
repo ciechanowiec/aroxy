@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.governance.Justification;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,7 +43,9 @@ public final class StatusView {
         );
     }
 
-    // intended format: no space between each number and its unit (12h 5m 3s)
+    @Justification(
+        "intended format: no space between each number and its unit (12h 5m 3s)"
+    )
     @SuppressWarnings(
         "StringConcatenationMissingWhitespace"
     )
