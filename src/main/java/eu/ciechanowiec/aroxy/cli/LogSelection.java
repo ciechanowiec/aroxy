@@ -11,8 +11,8 @@ import picocli.CommandLine.Option;
 
 /**
  * The mutually exclusive log source flags for {@code aroxy logs}. {@code --audit} (the implicit
- * default) and {@code --app} select a single appendable file that can be dumped or followed;
- * {@code --wire} lists the redacted/raw wire dumps; {@code --all} dumps the audit and app logs
+ * default) and {@code --app} select a single appendable file that can be dumped or followed.
+ * {@code --wire} lists the redacted/raw wire dumps. {@code --all} dumps the audit and app logs
  * together. Following only applies to a single file, so {@code --all} and {@code --wire} ignore it.
  */
 final class LogSelection {

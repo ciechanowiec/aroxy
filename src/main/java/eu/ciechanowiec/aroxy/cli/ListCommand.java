@@ -15,7 +15,7 @@ import picocli.CommandLine.Command;
  * {@code aroxy config list}: lists the contributing configuration files, labelling each as the
  * bundled default, persistent, or temporary. The always-present {@code default.conf} is listed first.
  * When the daemon is running it reads the published runtime snapshot (default plus persistent registry
- * entries plus session temporaries, each with its load time); when stopped it reads the registry
+ * entries plus session temporaries, each with its load time). When stopped it reads the registry
  * directly, where the default and every entry are shown as not yet loaded.
  */
 @Command(

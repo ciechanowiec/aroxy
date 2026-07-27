@@ -10,9 +10,9 @@ import java.util.Locale;
 /**
  * One parsed configuration file in the stanza/INI format: a {@code [gateway]} overlay carrying only
  * the keys it declares, and an ordered list of {@code [rule]} entries. A line beginning with
- * {@code #} is a comment; {@code [gateway]} or {@code [rule]} opens a stanza; every other non-blank
+ * {@code #} is a comment. {@code [gateway]} or {@code [rule]} opens a stanza. Every other non-blank
  * line is {@code key = value}, split on the first {@code =}. The value is trimmed of surrounding
- * whitespace and otherwise kept as written, so regex patterns need no escaping; a pattern that must
+ * whitespace and otherwise kept as written, so regex patterns need no escaping. A pattern that must
  * match leading or trailing spaces should anchor them (for example with {@code \s}).
  */
 public final class ConfigFile {

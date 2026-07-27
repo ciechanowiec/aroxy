@@ -11,7 +11,7 @@ import lombok.experimental.UtilityClass;
  * declared dependencies, asks Maven Central for the latest stable comparable level of each, and throws
  * when any trails by the failing bound. Because the registry read can fail, the check is deliberately
  * not a test: an unreachable registry throws and fails the build (fail-closed). Calendar versions
- * beginning with {@code 20**} compare their leading year; other schemes without a comparable level
+ * beginning with {@code 20**} compare their leading year, and other schemes without a comparable level
  * are skipped.
  */
 @UtilityClass

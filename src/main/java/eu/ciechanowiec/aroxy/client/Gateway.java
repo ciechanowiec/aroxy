@@ -7,7 +7,7 @@ import java.net.URI;
  * the two is what makes a socket unambiguous about its destination, so no request has to be routed by
  * guessing which vendor a path belongs to.
  *
- * <p>The upstream is fixed per client and is not configurable; only the port is. {@link #withUpstream}
+ * <p>The upstream is fixed per client and is not configurable. Only the port is. {@link #withUpstream}
  * exists so tests can point a listener at an in-JVM stand-in.
  *
  * @param listenPort the local port this client's listener binds

@@ -6,7 +6,7 @@ import lombok.experimental.UtilityClass;
 /**
  * Reads the scalar values a configuration key may carry. Every reader returns an empty result rather
  * than a fallback when the text does not name a usable value, so the caller decides that the file is
- * broken; a value is never quietly coerced into a default. Kept separate so the stanza readers stay
+ * broken. A value is never quietly coerced into a default. Kept separate so the stanza readers stay
  * focused on structure rather than value coercion.
  */
 @UtilityClass

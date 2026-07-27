@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * A persistent registry of attached configuration files, stored one absolute path per line. Attaching
- * is idempotent (a path already present is not appended again); detaching removes a path; listing
+ * is idempotent (a path already present is not appended again). Detaching removes a path. Listing
  * returns the current set in order. A missing backing file is treated as an empty registry.
  */
 public final class AttachmentRegistry {
@@ -40,7 +40,7 @@ public final class AttachmentRegistry {
     }
 
     /**
-     * Detaches a path; a no-op when the path is not present.
+     * Detaches a path. A no-op when the path is not present.
      *
      * @param path the configuration file path to detach
      */
@@ -54,7 +54,7 @@ public final class AttachmentRegistry {
     }
 
     /**
-     * The currently attached paths, in order; empty when the backing file is missing.
+     * The currently attached paths, in order. Empty when the backing file is missing.
      *
      * @return the attached paths in registry order
      */

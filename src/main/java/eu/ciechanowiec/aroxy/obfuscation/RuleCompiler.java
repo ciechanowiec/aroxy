@@ -32,7 +32,7 @@ public final class RuleCompiler {
     );
 
     /**
-     * An exact-spelling literal rule; only the verbatim value matches, restoring to itself.
+     * An exact-spelling literal rule. Only the verbatim value matches, restoring to itself.
      */
     @Justification(
         "the single argument value is fixed by the callers"

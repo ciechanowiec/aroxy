@@ -7,7 +7,7 @@ import lombok.experimental.UtilityClass;
 /**
  * The hop-by-hop and restricted request headers that must not be forwarded to the upstream. The
  * {@link java.net.http.HttpClient} manages most of these itself, and forwarding them either corrupts
- * the request or is rejected outright; every other header (notably the authentication headers) is
+ * the request or is rejected outright. Every other header (notably the authentication headers) is
  * passed through unchanged.
  */
 @UtilityClass

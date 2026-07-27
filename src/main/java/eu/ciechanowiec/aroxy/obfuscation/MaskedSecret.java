@@ -4,7 +4,7 @@ import lombok.experimental.UtilityClass;
 
 /**
  * Masks a sensitive value for safe display in logs. A long value keeps its first two and last two
- * characters and reports its length (for example {@code AK...LE (20 chars)}); a short value is
+ * characters and reports its length (for example {@code AK...LE (20 chars)}). A short value is
  * fully hidden so that no meaningful fragment leaks.
  */
 @UtilityClass

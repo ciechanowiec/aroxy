@@ -23,7 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
  * pid file pointing at this test process makes the commands treat it as running. Covers the
  * {@code status}, {@code reload}, and {@code attach} "while running" paths end to end. The daemon
  * binds a free port through {@link DaemonSeam#onEphemeralPort()}, so it never contends for the
- * production port; these commands read the address back from the published snapshot, so the port is
+ * production port. These commands read the address back from the published snapshot, so the port is
  * immaterial to them.
  */
 class RunningCommandsTest {

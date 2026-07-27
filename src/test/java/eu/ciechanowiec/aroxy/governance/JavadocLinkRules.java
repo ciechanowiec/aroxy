@@ -10,7 +10,7 @@ import lombok.experimental.UtilityClass;
 /**
  * Finds names in a Javadoc comment that denote a type the compiler could resolve from that file, yet
  * are written as prose or as {@code @code} rather than as a link. A type that resolves is always
- * written as a link, so a reader can reach it and the Javadoc tool can check it; {@code @code} is what
+ * written as a link, so a reader can reach it and the Javadoc tool can check it. {@code @code} is what
  * is left for the things a link cannot reach, such as literals, command names and configuration keys.
  *
  * <p>What a name denotes is not decidable from the text, so the caller decides: it supplies the names

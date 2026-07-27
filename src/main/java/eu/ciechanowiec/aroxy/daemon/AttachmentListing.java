@@ -15,7 +15,7 @@ public final class AttachmentListing {
     private static final String NONE = "(no configuration files)";
 
     /**
-     * Renders the attachment list, one line per file; an empty list renders a placeholder line.
+     * Renders the attachment list, one line per file. An empty list renders a placeholder line.
      *
      * @param infos the attachments to render, in order
      * @return the rendered, newline-separated listing

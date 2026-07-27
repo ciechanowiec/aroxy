@@ -6,7 +6,7 @@ package eu.ciechanowiec.aroxy.obfuscation;
  * fragments, this class holds back any trailing partial token until a later fragment completes it,
  * and {@link #flush()} emits whatever remains. It also tracks how many tokens it has reversed.
  *
- * <p>This operates on already-extracted text; parsing the surrounding SSE event framing is the
+ * <p>This operates on already-extracted text. Parsing the surrounding SSE event framing is the
  * concern of a separate, later layer.
  */
 public final class StreamDeobfuscator {
@@ -37,7 +37,7 @@ public final class StreamDeobfuscator {
     }
 
     /**
-     * Emits and reverses any held-back remainder; call once the stream is complete.
+     * Emits and reverses any held-back remainder. Call once the stream is complete.
      */
     public String flush() {
         String remainder = this.carry;
@@ -52,7 +52,7 @@ public final class StreamDeobfuscator {
      * the authoritative copy. Such a block arrives whole, so no token in it can be split and the carry
      * buffer must be left alone for the fragment run it belongs to. Reversing that copy matters
      * because a client may persist it into its conversation history and echo it back on the next
-     * request; reversing only the fragments would leave tokens in that history to egress again.
+     * request. Reversing only the fragments would leave tokens in that history to egress again.
      *
      * @param text the complete text to reverse
      * @return the text with every token restored to its original value

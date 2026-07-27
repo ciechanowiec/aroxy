@@ -9,7 +9,7 @@ import lombok.experimental.UtilityClass;
  * Validates that a file follows the stanza grammar before it is accepted as configuration. A
  * meaningful line (neither blank nor a comment) must be a {@code [gateway]}/{@code [rule]} header or
  * a {@code key = value} pair inside an already-opened stanza. A file of only blanks and comments is
- * valid (an emptied {@code default.conf} is a legitimate no-op); any other file - a Markdown or
+ * valid (an emptied {@code default.conf} is a legitimate no-op). Any other file - a Markdown or
  * prose document - is rejected with an {@link InvalidConfigException} reporting how many of its
  * meaningful lines are not configuration, so the user sees that the whole file, not one stray line,
  * is the problem, instead of the file being silently ingested as an empty configuration.

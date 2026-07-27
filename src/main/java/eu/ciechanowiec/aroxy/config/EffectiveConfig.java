@@ -112,7 +112,7 @@ public final class EffectiveConfig {
 
     /**
      * Returns a copy in which every client forwards to the given upstream instead of its own fixed
-     * one. An upstream is not configurable; this is a test-only seam so an in-process daemon can point
+     * one. An upstream is not configurable. This is a test-only seam so an in-process daemon can point
      * at an in-JVM stand-in rather than at a real API.
      *
      * @param upstream the upstream API base address every client forwards to

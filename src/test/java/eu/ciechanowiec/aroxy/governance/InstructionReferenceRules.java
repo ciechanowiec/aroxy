@@ -12,13 +12,13 @@ import lombok.experimental.UtilityClass;
  * holds. Two shapes are checked, each narrow enough to stay free of false positives on prose. A token
  * counts as a repository path only when it is a plain path whose first segment is a real top-level
  * directory, so runtime paths (for example under a home directory), hosts, and identifiers are ignored.
- * A token counts as a type name only when it is multi-word CamelCase, which no prose word is; a name
+ * A token counts as a type name only when it is multi-word CamelCase, which no prose word is. A name
  * the instructions invent for a class that was renamed or never written is otherwise invisible, since
  * it carries no slash for the path check to catch.
  *
  * <p>Fenced code blocks are removed before anything is read. A fence is three backticks, so leaving one
  * in place would pair its third backtick with the closing fence's first, swallow the block as a single
- * token, and consume an odd number of backticks; every span after it would then pair the prose between
+ * token, and consume an odd number of backticks. Every span after it would then pair the prose between
  * the references instead of the references themselves, and the rest of the file would go unchecked.
  */
 @UtilityClass

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Trimming a later rule's match around a token an earlier rule already minted. The token occupies the
- * half-open range {@code [4, 15]} in the fixture text; a match is trimmed to its largest token-free
+ * half-open range {@code [4, 15]} in the fixture text. A match is trimmed to its largest token-free
  * sub-range, dropped when it lies inside or still straddles the token, and kept verbatim when it is
  * clear of the token entirely.
  */

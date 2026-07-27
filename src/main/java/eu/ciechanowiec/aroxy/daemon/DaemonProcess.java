@@ -6,7 +6,7 @@ import lombok.experimental.UtilityClass;
 
 /**
  * The naming and JVM-flag contract shared between the {@link Launcher} that spawns the background
- * daemon and the CLI entry that runs it. {@link #NAME} is the hidden subcommand the launcher passes;
+ * daemon and the CLI entry that runs it. {@link #NAME} is the hidden subcommand the launcher passes.
  * {@link #loggingFlags(Home)} are the {@code -D} overrides that route tinylog to a rolling
  * {@code aroxy.log} under {@link Home}{@code /logs} without the CLI process needing a compile-time logging
  * dependency.

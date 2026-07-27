@@ -18,7 +18,7 @@ import org.json.JSONException;
  * so there is text to work on, obfuscates it for the paths in that client's {@link ClientProfile}
  * scope, records the matches to the {@link AuditLog} and dumps the redacted request, forwards through
  * {@link Upstream}, and lets the {@link ProxyResponder} write the (de)obfuscated reply. A benign
- * client disconnect is swallowed quietly; a genuine upstream failure becomes an HTTP 502 with a small
+ * client disconnect is swallowed quietly. A genuine upstream failure becomes an HTTP 502 with a small
  * JSON error body. An in-scope body that remains encoded is rejected locally, because forwarding bytes
  * the proxy cannot inspect would violate the data-minimization guarantee.
  */
@@ -166,7 +166,7 @@ final class ProxyExchange implements HttpHandler {
             exchange.sendResponseHeaders(status, message.length);
             this.flush(exchange, message);
         } catch (IOException _) {
-            // The client may already be gone; there is nothing more to do.
+            // The client may already be gone, and there is nothing more to do.
         }
     }
 

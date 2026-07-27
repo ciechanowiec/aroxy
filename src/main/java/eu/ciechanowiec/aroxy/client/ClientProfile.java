@@ -8,7 +8,7 @@ import java.util.Objects;
  * its request-body policy, and the {@link SseDialect} its replies are streamed in.
  *
  * <p>This record is the extension point. Supporting another agent means writing one more profile and
- * registering it in the {@link ClientRegistry}; dropping support means deleting it. Nothing outside the
+ * registering it in the {@link ClientRegistry}. Dropping support means deleting it. Nothing outside the
  * registry enumerates client types, so neither change ripples.
  *
  * @param id          the client this profile describes

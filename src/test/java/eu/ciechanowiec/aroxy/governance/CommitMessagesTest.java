@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The one parsing seam both readers share. The hook reads the message file before git has cleaned it,
- * so the comment block git appends must not count as a body; the whole-history reader gets the cleaned
+ * so the comment block git appends must not count as a body. The whole-history reader gets the cleaned
  * message and must parse to the same header and body from it.
  */
 class CommitMessagesTest {

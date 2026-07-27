@@ -72,7 +72,7 @@ public final class Daemon {
     }
 
     /**
-     * Starts the proxy and the reload watcher; returns once the proxy is bound and listening.
+     * Starts the proxy and the reload watcher. Returns once the proxy is bound and listening.
      *
      * @throws IOException if the proxy socket cannot be bound
      */
@@ -109,7 +109,7 @@ public final class Daemon {
     }
 
     /**
-     * Rebuilds the effective config and swaps the live rule set; a no-op when not running.
+     * Rebuilds the effective config and swaps the live rule set. A no-op when not running.
      */
     public synchronized void reload() {
         this.running.ifPresent(this::applyReload);

@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * Accumulates the parsed stanzas of one configuration file: the merged {@code [gateway]} keys and an
  * ordered list of {@code [rule]} entries. The parser feeds it one stanza header and one
- * {@code key = value} pair at a time; pairs are routed to the currently open stanza.
+ * {@code key = value} pair at a time. Pairs are routed to the currently open stanza.
  */
 final class StanzaSink {
 

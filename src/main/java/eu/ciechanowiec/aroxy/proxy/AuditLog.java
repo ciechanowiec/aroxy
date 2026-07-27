@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Writes proof artifacts directly to disk (not via the logging framework, so it is unit-testable): a
  * human-readable before/after audit to {@code audit.log} with size-based rotation, and wire dumps of
  * the redacted request and the raw response under {@code logs/wire/}. A sensitive match's original is
- * masked via {@link MaskedSecret}; a non-sensitive match (for example a keyword) is shown in full.
+ * masked via {@link MaskedSecret}. A non-sensitive match (for example a keyword) is shown in full.
  * No secret and no pre-obfuscation original is ever written.
  */
 public final class AuditLog {

@@ -18,7 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Guards the bundled {@code generic_secret} rule against false positives on source code. The rule is
- * shared by every listener, so these cases protect each agent's traffic alike; the fragments below are
+ * shared by every listener, so these cases protect each agent's traffic alike. The fragments below are
  * drawn from Claude Code, which sends file content as a JSON string with escaped newlines
  * ({@code \n}) and {@code cat -n} line numbers. An unrestricted value class used to run a match past a
  * line boundary into the next line's number and to swallow ordinary code such as

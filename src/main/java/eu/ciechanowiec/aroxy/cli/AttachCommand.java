@@ -17,10 +17,10 @@ import picocli.CommandLine.Parameters;
 
 /**
  * {@code aroxy config attach <f>}: attaches a configuration file. {@code --persistent} (the default)
- * records it in the registry so it survives restarts; {@code --temporary} records it in the session
+ * records it in the registry so it survives restarts. {@code --temporary} records it in the session
  * temporaries file for this session only. While the daemon runs, the attach also touches the reload
  * trigger and waits for the live rules to swap. While stopped, a persistent attach edits the registry
- * directly; a temporary attach needs a running daemon and is reported as such.
+ * directly. A temporary attach needs a running daemon and is reported as such.
  */
 @Command(
     name = "attach", description = "Attach a configuration file."

@@ -9,7 +9,7 @@ import picocli.CommandLine.Option;
 
 /**
  * {@code aroxy logs}: tails a log file under {@link Home}{@code /logs}. The mutually exclusive
- * {@code --audit} (default), {@code --app}, {@code --wire} and {@code --all} flags choose the source;
+ * {@code --audit} (default), {@code --app}, {@code --wire} and {@code --all} flags choose the source.
  * {@code -f}/{@code --follow} keeps streaming appended lines. The audit log is the default because it
  * is the obfuscation proof artifact users most often want to watch.
  */

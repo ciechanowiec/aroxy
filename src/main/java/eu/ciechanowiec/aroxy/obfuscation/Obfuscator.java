@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
  * values reach it, so backslashes in paths and source code are content rather than serialization
  * syntax. Competing matches use leftmost-longest resolution, with configuration order breaking an
  * exact tie. The active rule set may be swapped at runtime via {@link #swapRules(Collection)} so a
- * long-running daemon can reload its configuration without restarting the proxy socket; the swap is
+ * long-running daemon can reload its configuration without restarting the proxy socket. The swap is
  * published through a {@code volatile} reference.
  */
 @Justification(
@@ -41,7 +41,7 @@ public final class Obfuscator {
     }
 
     /**
-     * Atomically replaces the active rule set; in-flight requests finish on their prior snapshot.
+     * Atomically replaces the active rule set. In-flight requests finish on their prior snapshot.
      *
      * @param replacement the new rule set, defensively copied
      */
@@ -69,7 +69,7 @@ public final class Obfuscator {
     }
 
     /**
-     * Reverses every known token in {@code text}; unknown tokens are left untouched.
+     * Reverses every known token in {@code text}. Unknown tokens are left untouched.
      *
      * @param text the response text to restore
      * @return the text with every known token replaced by its original value

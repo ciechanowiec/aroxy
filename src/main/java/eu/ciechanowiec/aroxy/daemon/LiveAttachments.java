@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The daemon's in-memory record of when each contributing file was first loaded. The temporary
- * attachment <em>list</em> lives in the {@link ControlFiles} temporaries file; this class keeps only
+ * attachment <em>list</em> lives in the {@link ControlFiles} temporaries file. This class keeps only
  * the per-file load timestamps, so {@code status} and {@code config list} can show a load time for
  * every contributing file.
  */
@@ -19,7 +19,7 @@ final class LiveAttachments {
     }
 
     /**
-     * Records the first-seen time for any path not stamped yet; already-known paths keep theirs.
+     * Records the first-seen time for any path not stamped yet. Already-known paths keep theirs.
      */
     void stamp(Iterable<Path> paths, long millis) {
         paths.forEach(path -> this.loadedAtMillis.putIfAbsent(path, millis));

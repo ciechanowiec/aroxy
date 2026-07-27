@@ -6,7 +6,7 @@ import lombok.experimental.UtilityClass;
 /**
  * Finds the blank-line delimiter that separates Server-Sent-Events in a byte buffer. A blank line is
  * framed either as {@code \n\n} (the form the upstreams emit) or as {@code \r\n\r\n} (the form some
- * HTTP intermediaries rewrite it to); both are recognised so events drain incrementally either way
+ * HTTP intermediaries rewrite it to). Both are recognised so events drain incrementally either way
  * rather than piling up until the stream ends. The framing is the same whichever agent is served, so
  * this class is shared by every dialect.
  */

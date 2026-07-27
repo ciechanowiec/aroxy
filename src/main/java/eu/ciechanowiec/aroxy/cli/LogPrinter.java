@@ -9,7 +9,7 @@ import java.nio.file.Path;
 /**
  * Prints log files to the CLI output: a one-shot dump of an existing file, and a follow loop that
  * keeps emitting appended bytes via a {@link LogFollower} until the thread is interrupted. The follow
- * loop is the CLI's {@code tail -f}; it is intentionally not exercised by unit tests, which drive the
+ * loop is the CLI's {@code tail -f}. It is intentionally not exercised by unit tests, which drive the
  * pollable {@link LogFollower} directly.
  */
 final class LogPrinter {

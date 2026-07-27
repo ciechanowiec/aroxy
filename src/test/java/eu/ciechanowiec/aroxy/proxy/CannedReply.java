@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * A canned upstream reply: a status code, a set of response headers, and a body string. SSE replies
- * set {@code Content-Type: text/event-stream}; JSON replies set {@code application/json}.
+ * set {@code Content-Type: text/event-stream}, and JSON replies set {@code application/json}.
  *
  * @param status  the HTTP status code to return
  * @param headers the response headers to send

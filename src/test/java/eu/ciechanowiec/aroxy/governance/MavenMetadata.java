@@ -9,7 +9,7 @@ import org.w3c.dom.NodeList;
 
 /**
  * Reads the list of published versions out of a Maven {@code maven-metadata.xml} document. The order
- * is preserved as published; the freshness check filters and compares the entries.
+ * is preserved as published, and the freshness check filters and compares the entries.
  */
 @UtilityClass
 final class MavenMetadata {

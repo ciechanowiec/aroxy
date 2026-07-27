@@ -21,7 +21,7 @@ public final class GatewayListing {
     private static final String SCHEME = "http://";
 
     /**
-     * Renders the listener list, one line per client; an empty list renders a placeholder line.
+     * Renders the listener list, one line per client. An empty list renders a placeholder line.
      *
      * @param gateways the listeners to render, in registration order
      * @return the rendered, newline-separated listing

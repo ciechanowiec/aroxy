@@ -12,7 +12,7 @@ import lombok.experimental.UtilityClass;
  * and its {@link DiffStat}. It enforces the Conventional Commits header with a closed type list, a
  * subject of the right length with no trailing period and no junk word, a body for a non-trivial
  * change, and the absence of any marker that attributes the change to an AI agent. Merge and revert
- * headers keep their fixed git forms, so they are exempt from the header shape alone; the attribution
+ * headers keep their fixed git forms, so they are exempt from the header shape alone. The attribution
  * ban holds for every commit, because a fixed header form is no licence to name an agent in the body.
  *
  * <p>Every attribution pattern is written over the whole agent list rather than over one vendor, so

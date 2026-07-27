@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Printing log files to the CLI output.
  * A one-shot dump announces a missing file, prints an existing file's content, and errors on an
- * unreadable one; the follow loop keeps running until its thread is interrupted.
+ * unreadable one. The follow loop keeps running until its thread is interrupted.
  */
 class LogPrinterTest {
 

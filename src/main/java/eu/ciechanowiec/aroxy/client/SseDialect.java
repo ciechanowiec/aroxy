@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * The shape of one client's Server-Sent-Events stream, held as data rather than as code, so that
  * supporting another client means writing another value of this type rather than another subclass. The
- * proxy interprets a dialect; it does not know any vendor's vocabulary itself.
+ * proxy interprets a dialect. It does not know any vendor's vocabulary itself.
  *
  * <p>A block is classified as one {@link SseKind}: a {@link FragmentRule} match makes it a
  * {@link SseKind#FRAGMENT}, a {@link #wholeMarkers} match makes it a {@link SseKind#WHOLE}, and

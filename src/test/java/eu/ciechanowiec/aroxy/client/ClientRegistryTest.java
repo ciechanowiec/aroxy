@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Pins the contract a registered client must satisfy, so a client added later is either complete or
  * fails the build rather than half-working. Every profile needs its own identity, its own port, and
- * its own configuration key; two clients sharing any of those would make one of them unreachable, and
+ * its own configuration key. Two clients sharing any of those would make one of them unreachable, and
  * the failure would surface as a confusing bind error rather than as a broken registration.
  */
 @Justification(

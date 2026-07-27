@@ -7,7 +7,7 @@ import lombok.experimental.UtilityClass;
 
 /**
  * The {@link ClientProfile} of Codex CLI signed in with ChatGPT, forwarded to the ChatGPT backend.
- * Signing in with ChatGPT rather than with an API key is what puts the traffic on this host; the
+ * Signing in with ChatGPT rather than with an API key is what puts the traffic on this host. The
  * bearer token it sends is forwarded unchanged, and the separate token refresh it performs never
  * reaches this listener.
  *
@@ -21,8 +21,8 @@ import lombok.experimental.UtilityClass;
  * The whole-block pass also handles complete values whose key is {@code text}, {@code arguments}, or
  * {@code input} rather than {@code delta}, without teaching the transformer those field names.
  *
- * <p>{@code response.completed}, {@code response.failed}, and {@code response.incomplete} end a stream;
- * there is no separate sentinel event.
+ * <p>{@code response.completed}, {@code response.failed}, and {@code response.incomplete} end a stream.
+ * There is no separate sentinel event.
  */
 @UtilityClass
 public final class CodexCli {

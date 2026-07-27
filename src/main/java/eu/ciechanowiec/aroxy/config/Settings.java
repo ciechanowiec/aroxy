@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * so registering another client in the {@link ClientRegistry} does not reshape this record or anything
  * that reads it.
  *
- * <p>Each {@link Gateway} carries a fixed upstream that no configuration key reaches;
+ * <p>Each {@link Gateway} carries a fixed upstream that no configuration key reaches.
  * {@link #withUpstreams} exists only so tests can point the listeners at an in-JVM stand-in.
  *
  * @param listenHost  the local host {@code 127.0.0.1} every listener binds to

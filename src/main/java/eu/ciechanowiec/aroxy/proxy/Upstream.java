@@ -83,7 +83,7 @@ public final class Upstream {
         try {
             builder.header(name, value);
         } catch (IllegalArgumentException _) {
-            // HttpClient restricts a few header names; skip rather than fail the whole request.
+            // HttpClient restricts a few header names, so skip rather than fail the whole request.
         }
     }
 }

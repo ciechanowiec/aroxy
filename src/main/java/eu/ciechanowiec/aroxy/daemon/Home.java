@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * The {@code ~/.aroxy} state directory layout. The base directory defaults to {@code ~/.aroxy} but
  * is overridable via the {@code AROXY_HOME} environment variable so tests can point it at a
- * {@code @TempDir}. Every accessor returns the canonical path for a state artifact; the directory
+ * {@code @TempDir}. Every accessor returns the canonical path for a state artifact. The directory
  * accessors create the directory on demand so callers never have to.
  *
  * @param base the base state directory, defaulting to {@code ~/.aroxy}
