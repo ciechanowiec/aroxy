@@ -83,6 +83,10 @@ implying a gate that does not exist. Beyond static analysis and coverage, the ha
   drivers that read real `git` and filesystem state (no mocks). They cover commit messages, typography,
   dependency freshness, instruction-file references, and Javadoc links, and are held to the same static
   analysis as production code.
+- **What a file-scanning check reads** is every file a commit from the working tree would carry:
+  what git tracks, plus what is present and not ignored (`Repository.trackedFiles`). Scanning only
+  what git already tracks would pass over a whole feature's worth of new sources and report green on
+  a tree it had not read, then fail on the next run once those files were committed.
 - **Typography.** The em dash, en dash, single-character ellipsis, and curly quotation marks are banned
   from every tracked file and every commit message; use the plain ASCII hyphen, three periods, and
   straight quotes. Vendored roles are exempt: `.vale/`, `.idea/`, `.docs/themes/`, and binaries.

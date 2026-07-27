@@ -16,9 +16,9 @@ import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /**
- * Locates the repository working tree and reads tracked content that is present in it. A path deleted
- * in an uncommitted change is absent from the working tree and therefore absent from a scan. Binary
- * files and files that are not valid UTF-8 are reported as absent text, so the callers scan only
+ * Locates the repository working tree and reads the content a commit from it would carry. A path
+ * deleted in an uncommitted change is absent from the working tree and therefore absent from a scan.
+ * Binary files and files that are not valid UTF-8 are reported as absent text, so the callers scan only
  * decodable source and prose. The working tree is the current directory, which is the module base
  * directory under the build and the repository root under the git hooks.
  */
@@ -29,12 +29,28 @@ final class Repository {
         return Path.of("").toAbsolutePath().normalize();
     }
 
+    /**
+     * Every file a commit from this working tree would carry: what git already tracks, plus what is
+     * present and not ignored.
+     *
+     * <p>A file only git tracks is the wrong set to scan. New work is untracked until it is staged, so
+     * a scan of the tracked set alone would pass over a whole feature's worth of new sources and report
+     * green on a tree it had not read, then fail on the next run once those files were committed. The
+     * gate is meant to answer whether this tree is fit to commit, so it reads the tree that would be
+     * committed. Ignored files stay out, being build output rather than content.
+     *
+     * @param root the working tree root
+     * @return the committable files present in the working tree
+     */
     static List<Path> trackedFiles(Path root) {
-        String listing = GitPlumbing.run(root, List.of("ls-files", "-z"));
+        String listing = GitPlumbing.run(
+            root, List.of("ls-files", "-z", "--cached", "--others", "--exclude-standard")
+        );
         return Arrays.stream(listing.split("\0"))
             .filter(name -> !name.isEmpty())
             .map(root::resolve)
             .filter(Files::isRegularFile)
+            .distinct()
             .toList();
     }
 
