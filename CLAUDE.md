@@ -244,7 +244,8 @@ Packages under `eu.ciechanowiec.aroxy`:
 State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `reload` (the
 reload trigger), `temporaries` (this session's temporary attachments, cleared on start),
 `default.conf` (materialized, user-editable), `attachments` (persistent registry), `vault.tsv`,
-`logs/{aroxy.log,audit.log,wire/}`.
+`.daemon.jar` (the snapshot a running daemon executes, staged at launch so replacing the installed
+jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
 
 ## Engine behaviors that must not regress
 

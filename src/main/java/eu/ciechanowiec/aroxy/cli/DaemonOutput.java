@@ -22,9 +22,22 @@ final class DaemonOutput {
         this.details(home);
     }
 
-    void alreadyRunning(Home home) {
+    /**
+     * Reports a daemon that was already up. A running daemon executes the snapshot it staged at launch,
+     * so an install that lands afterwards does not reach it. Saying so is the difference between
+     * "already running" meaning "you are covered" and it quietly meaning "you are on the previous
+     * build". Whether that is the case is decided by the caller, which knows where the installed jar
+     * is, leaving this class with only the rendering.
+     *
+     * @param home       the state directory to read the running details from
+     * @param staleBuild whether the running daemon predates the installed jar
+     */
+    void alreadyRunning(Home home, boolean staleBuild) {
         this.out.info("Daemon already running");
         this.details(home);
+        if (staleBuild) {
+            this.out.detail("Build", "older than the installed jar; restart to pick it up");
+        }
     }
 
     void failed(Home home, String action) {

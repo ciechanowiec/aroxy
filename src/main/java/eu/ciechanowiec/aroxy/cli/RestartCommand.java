@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.aroxy.daemon.DaemonJar;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.Launcher;
 import eu.ciechanowiec.aroxy.daemon.Launcher.Outcome;
@@ -44,7 +45,7 @@ final class RestartCommand implements Callable<Integer> {
         DaemonOutput daemon = new DaemonOutput(this.out);
         return switch (outcome) {
             case STARTED -> finish(() -> daemon.ready(home, "restarted"), 0);
-            case ALREADY_RUNNING -> finish(() -> daemon.alreadyRunning(home), 0);
+            case ALREADY_RUNNING -> finish(() -> daemon.alreadyRunning(home, new DaemonJar(home).isStale()), 0);
             case FAILED -> finish(() -> daemon.failed(home, "restart"), 1);
         };
     }

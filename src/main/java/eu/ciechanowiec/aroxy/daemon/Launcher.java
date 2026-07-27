@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * a fresh {@link RuntimeSnapshot}, which happens only after every proxy listener has bound. Launch
  * attempts are serialized across CLI processes. A child that exits, times out, or cannot be recorded
  * is terminated and its stale control files are cleared. It is idempotent: if a live daemon is
- * already recorded it does nothing. {@link #buildCommand()} is exposed so tests can assert the launch
+ * already recorded it does nothing. {@link #buildCommand(String)} is exposed so tests can assert the launch
  * command without spawning a real process.
  */
 public final class Launcher {
@@ -95,18 +95,24 @@ public final class Launcher {
     }
 
     /**
-     * The exact command used to launch the detached daemon JVM.
+     * The exact command used to launch the detached daemon JVM, for the jar it will actually run. The
+     * jar is a parameter rather than looked up here, because {@link #spawn()} runs the staged snapshot
+     * and not the installed artifact. A no-argument form would describe a launch that never happens.
+     *
+     * @param jar the jar the daemon is launched from
+     * @return the launch command
      */
-    List<String> buildCommand() {
+    List<String> buildCommand(String jar) {
         List<String> command = new ArrayList<>();
         command.add(LaunchCommand.java());
         command.addAll(DaemonProcess.loggingFlags(this.home));
-        command.addAll(List.of("-jar", LaunchCommand.jar(), DaemonProcess.NAME));
+        command.addAll(List.of("-jar", jar, DaemonProcess.NAME));
         return command;
     }
 
     private Process spawn() {
-        ProcessBuilder builder = new ProcessBuilder(this.buildCommand());
+        String jar = new DaemonJar(this.home, LaunchCommand.jar()).stage();
+        ProcessBuilder builder = new ProcessBuilder(this.buildCommand(jar));
         builder.redirectOutput(Redirect.appendTo(this.home.stdoutLog().toFile()));
         builder.redirectError(Redirect.appendTo(this.home.stderrLog().toFile()));
         builder.environment().put("AROXY_HOME", this.home.base().toString());

@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
@@ -49,9 +50,20 @@ class DaemonOutputTest {
         assertTrue(text.contains("daemon-err.log"), text);
     }
 
+    // The staleness note is the whole point of the flag: a daemon that is up but on the previous build
+    // has to say so, and one that is current must not add noise.
+    @Test
+    void warnsOnlyWhenTheRunningDaemonPredatesTheInstalledJar(@TempDir Path directory) {
+        Home home = new Home(directory);
+        String current = render(output -> output.alreadyRunning(home, false));
+        String stale = render(output -> output.alreadyRunning(home, true));
+        assertFalse(current.contains("Build"), current);
+        assertTrue(stale.contains("older than the installed jar"), stale);
+    }
+
     private static void readyAndRunning(DaemonOutput output, Home home) {
         output.ready(home, "started");
-        output.alreadyRunning(home);
+        output.alreadyRunning(home, false);
     }
 
     private static String render(Consumer<DaemonOutput> action) {

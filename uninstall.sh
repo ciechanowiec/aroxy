@@ -35,12 +35,22 @@ await_exit() {
   done
 }
 
+recorded_pid() {
+  local pid=""
+  if [[ -f "$PID_FILE" ]]; then
+    IFS=$' \t' read -r pid _ < "$PID_FILE" || true
+  fi
+  if [[ "$pid" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$pid"
+  fi
+}
+
 # Stops a running daemon and does not return until its process is actually gone, so the state
 # directory is never removed from under a live daemon. The pid is read BEFORE `aroxy stop` (which
 # clears the pid file), so the escalation fallback still works if graceful shutdown does not exit.
 stop_service() {
   local pid running="false"
-  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  pid="$(recorded_pid)"
   if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
     running="true"
   fi
