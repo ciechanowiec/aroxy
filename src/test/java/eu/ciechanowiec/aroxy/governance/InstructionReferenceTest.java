@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  */
 class InstructionReferenceTest {
 
-    private static final Path INSTRUCTIONS = Path.of("CLAUDE.md");
+    private static final Path INSTRUCTIONS = Path.of("AGENTS.md");
     private static final Path ANALYSIS = Path.of("src/main/resources/static_code_analysis");
     private static final Path QODANA = Path.of("qodana/profile.xml");
     private static final Path SOURCES = Path.of("src");
@@ -31,7 +31,7 @@ class InstructionReferenceTest {
         );
         assertTrue(
             unresolved.isEmpty(),
-            () -> "Broken repository references in CLAUDE.md:\n" + String.join("\n", unresolved)
+            () -> "Broken repository references in " + INSTRUCTIONS + ":\n" + String.join("\n", unresolved)
         );
     }
 
@@ -53,7 +53,8 @@ class InstructionReferenceTest {
         );
         assertTrue(
             unresolved.isEmpty(),
-            () -> "CLAUDE.md names types that this repository does not have:\n" + String.join("\n", unresolved)
+            () -> INSTRUCTIONS + " names types that this repository does not have:\n"
+                + String.join("\n", unresolved)
         );
     }
 

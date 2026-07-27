@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Verifies that {@link ConfigFile} rejects files that are not in the stanza grammar - a Markdown or
- * prose document such as {@code CLAUDE.md} - instead of silently ingesting them as an empty
+ * prose document such as {@code AGENTS.md} - instead of silently ingesting them as an empty
  * configuration, while still accepting a file that is empty or only comments (an emptied
  * {@code default.conf} is a legitimate no-op).
  */
 class ConfigValidationTest {
 
     private static final String MARKDOWN = """
-        # CLAUDE.md - aroxy
+        # AGENTS.md - aroxy
 
         aroxy is a local proxy between a coding agent and the API it talks to.
         It obfuscates secrets before they leave the machine.
@@ -25,9 +25,9 @@ class ConfigValidationTest {
     void rejectsMarkdownDocumentReportingWholeFile() {
         InvalidConfigException rejected = assertThrows(
             InvalidConfigException.class,
-            () -> ConfigFile.parse("CLAUDE.md", MARKDOWN)
+            () -> ConfigFile.parse("AGENTS.md", MARKDOWN)
         );
-        assertTrue(rejected.getMessage().contains("CLAUDE.md"), rejected.getMessage());
+        assertTrue(rejected.getMessage().contains("AGENTS.md"), rejected.getMessage());
         assertTrue(rejected.getMessage().contains("not valid configuration"), rejected.getMessage());
         assertTrue(rejected.getMessage().contains("2 of 2"), rejected.getMessage());
     }
