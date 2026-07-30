@@ -47,6 +47,15 @@ leaves the machine. It does not hide that an agent is used or change the destina
   every pull request, over the full history. Run `dev-setup.sh` once to enable the local git hooks in
   `.githooks/` (commit-message validation, a fast pre-commit, and `-Pfull` on pre-push).
 - Run the CLI: `java -jar target/aroxy.jar --help`.
+- **Starting the daemon needs no OS-level job submission.** `aroxy start` already spawns a detached JVM
+  (`daemon/Launcher`), which outlives the shell that invoked it and appends its output under
+  `~/.aroxy/logs/`. An agent whose command harness reaps descendant processes sees the foreground
+  `start` return and may reach for `launchctl submit`, a systemd unit, or `nohup` to keep the daemon
+  alive. That diagnosis is wrong: the daemon the launcher spawned was never a descendant of the
+  harness's command in the first place, so nothing needs working around, and handing the start over to
+  an OS job scheduler replaces a start path the tool owns and tests with one it knows nothing about.
+  Invoke `aroxy start` and read `~/.aroxy/logs/` to confirm it came up. No gate can see this, so it
+  binds by inspection.
 - Requires JDK 25 (Temurin), Maven 3.9+, and (for `-Pfull`) Docker.
 
 ## Conventions (match these, and the build enforces most of them)
@@ -70,8 +79,8 @@ leaves the machine. It does not hide that an agent is used or change the destina
   spell their words out (`directory`, not `dir`, and `logsDirectory` as surely as `directory`); braces on
   every control statement; no `final` on a parameter or a local (effective finality is enough);
   no magic numbers; a literal repeated > 6 times must be a constant; method ≤ 50
-  lines; file ≤ 500 lines; line ≤ 120 (Java only); no useless `@SuppressWarnings`; `System.getenv` only in
-  `daemon/Home`; no call into a deprecated API. The PMD `reportLevel` for the two complexity metrics reads
+  lines; file ≤ 500 lines; line ≤ 120 (Java only); no useless `@SuppressWarnings`;
+  no call into a deprecated API. The PMD `reportLevel` for the two complexity metrics reads
   one higher than the cap, because PMD reports a method that reaches the level, not one that passes it.
 - **Dependency versions** are pinned via properties. The enforcer requires Java 25 and upper-bound
   dependency convergence, bans Mockito and logback, and `versions-maven-plugin` reports available
@@ -180,9 +189,9 @@ injection and servlet rules are there for the AEM projects, not for this one.
 
 What a new project changes:
 - **Coordinates** - `groupId`, `artifactId`, `main.class`, `finalName`, and the package the analysis
-  configs name (`System.getenv` is confined to `daemon/Home` here, which is an aroxy rule). The
-  fully-qualified-name rule in `checkstyle.xml` names the group root alongside `java`/`javax`/`jakarta`,
-  so a copied harness that leaves it pointing at another project's group enforces less than it says.
+  configs name. The fully-qualified-name rule in `checkstyle.xml` names the group root alongside
+  `java`/`javax`/`jakarta`, so a copied harness that leaves it pointing at another project's group
+  enforces less than it says.
 - **PIT targets** - `targetClasses`/`targetTests` name aroxy's package root, `excludedClasses` names
   its process-boundary roles, and every line of `mutation-baseline.tsv` describes aroxy's code. All
   three are re-derived per project. A copied baseline is meaningless, and a copied one that is never

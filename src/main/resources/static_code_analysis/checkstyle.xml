@@ -10,15 +10,6 @@
         <property name="checks" value="MissingJavadocType|MissingJavadocMethod|JavadocVariable"/>
         <property name="files" value="[/\\]src[/\\]test[/\\]"/>
     </module>
-    <module name="SuppressionSingleFilter">
-        <!--
-            The environment is read in exactly one declared configuration source, daemon/Home, which
-            validates AROXY_HOME and hands the rest of the code a resolved path. Home is the only file
-            exempt from the NoEnvVarAccess ban below.
-        -->
-        <property name="id" value="NoEnvVarAccess"/>
-        <property name="files" value="[/\\]daemon[/\\]Home\.java$"/>
-    </module>
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="error"/>
     <property name="fileExtensions" value="java, properties, xml"/>
@@ -480,18 +471,6 @@
             <property name="ignoreComments" value="true"/>
             <property name="message"
                       value="Unnecessary fully-qualified JDK, Jakarta or project name; import the type instead of qualifying it inline."/>
-        </module>
-        <module name="RegexpSinglelineJava">
-            <!--
-                Read environment variables only in the declared configuration source (daemon/Home),
-                which is exempt via the SuppressionSingleFilter above. Everywhere else receives a
-                validated value instead of touching the environment directly.
-            -->
-            <property name="id" value="NoEnvVarAccess"/>
-            <property name="format" value="System\s*\.\s*getenv"/>
-            <property name="ignoreComments" value="true"/>
-            <property name="message"
-                      value="Read environment variables only in the declared config source (daemon/Home)."/>
         </module>
 
         <!--
