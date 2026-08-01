@@ -161,8 +161,10 @@ name = "aroxy"
 base_url = "http://127.0.0.1:8789"
 wire_api = "responses"
 requires_openai_auth = true
-supports_websockets = false
+supports_websockets = true
 ----
++
+Keep `supports_websockets` enabled. Codex uses that provider capability during startup, while _aroxy_ refuses the attempted upgrade with HTTP 426 so Codex immediately falls back to Server-Sent Events whose bodies _aroxy_ can transform. Disabling the capability can leave Codex reporting that Model Context Protocol startup was interrupted even after the servers initialized, which is reported as https://github.com/openai/codex/issues/36190[openai/codex issue 36190^].
 +
 Then point one Codex session at _aroxy_ by selecting the profile:
 +
