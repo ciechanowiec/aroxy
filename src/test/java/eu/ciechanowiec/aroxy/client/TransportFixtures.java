@@ -8,10 +8,11 @@ import lombok.experimental.UtilityClass;
  * <p>{@link ClientProfile} deliberately exposes only the sealed type, so there is no accessor that
  * compiles for every client and fails at runtime for Cursor. A test wanting the buffered shape narrows
  * it, and the narrowing lives here rather than once per test class: two copies of one switch are two
- * places to teach when a third transport arrives.
+ * places to teach when a third transport arrives. That is also why this is public rather than scoped
+ * to its own package, since a test outside it would otherwise write the second copy.
  */
 @UtilityClass
-final class TransportFixtures {
+public final class TransportFixtures {
 
     /**
      * The buffered transport of a profile that has one.
@@ -19,7 +20,7 @@ final class TransportFixtures {
      * @param profile the profile to narrow
      * @return that profile's buffered transport
      */
-    static BufferedTransport buffered(ClientProfile profile) {
+    public static BufferedTransport buffered(ClientProfile profile) {
         return switch (profile.transport()) {
             case BufferedTransport transport -> transport;
             case CursorTransport _ -> throw new AssertionError(profile.displayName() + " is not buffered");

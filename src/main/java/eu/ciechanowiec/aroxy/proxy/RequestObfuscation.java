@@ -16,6 +16,9 @@ import org.json.JSONTokener;
  */
 final class RequestObfuscation {
 
+    // The body itself sits under no key, so nothing qualified can match at the root.
+    private static final String ROOT = "";
+
     private final RequestBodyPolicy policy;
     private final Obfuscator obfuscator;
     private final List<ObfuscationMatch> matches;
@@ -30,7 +33,7 @@ final class RequestObfuscation {
         if (!this.policy.json()) {
             return this.obfuscator.obfuscate(body);
         }
-        Object transformed = this.transform(parse(body));
+        Object transformed = this.transform(parse(body), ROOT);
         return new ObfuscationResult(JSONObject.valueToString(transformed), this.matches);
     }
 
@@ -43,14 +46,14 @@ final class RequestObfuscation {
         return value;
     }
 
-    private Object transform(Object value) {
+    private Object transform(Object value, String parent) {
         return switch (value) {
             case JSONObject object -> {
-                this.transformObject(object);
+                this.transformObject(object, parent);
                 yield object;
             }
             case JSONArray array -> {
-                this.transformArray(array);
+                this.transformArray(array, parent);
                 yield array;
             }
             case String text -> this.transformText(text);
@@ -58,17 +61,24 @@ final class RequestObfuscation {
         };
     }
 
-    private void transformObject(JSONObject object) {
+    private void transformObject(JSONObject object, String parent) {
         for (String key : object.keySet()) {
-            if (!this.policy.opaqueFields().contains(key)) {
-                object.put(key, this.transform(object.get(key)));
-            }
+            object.put(key, this.transformMember(parent, key, object.get(key)));
         }
     }
 
-    private void transformArray(JSONArray array) {
+    private Object transformMember(String parent, String key, Object value) {
+        if (this.policy.opaque(parent, key)) {
+            return value;
+        }
+        return this.transform(value, key);
+    }
+
+    // An array carries the key of the object that holds it, so a block reached through
+    // "content": [...] is qualified by "content" rather than by the array step in between.
+    private void transformArray(JSONArray array, String parent) {
         for (int index = 0; index < array.length(); index++) {
-            array.put(index, this.transform(array.get(index)));
+            array.put(index, this.transform(array.get(index), parent));
         }
     }
 

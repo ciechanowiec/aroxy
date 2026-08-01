@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,15 +27,29 @@ class RequestBodyPolicyTest {
     }
 
     @Test
-    void onlyCodexDeclaresAnOpaqueProtocolField() {
-        assertTrue(
-            TransportFixtures.buffered(ClaudeCode.profile()).requestBody().opaqueFields().isEmpty(),
-            "Claude has no opaque field"
+    void eachAgentDeclaresTheProtocolFieldsItEncodes() {
+        assertEquals(
+            Set.of("source.data", "content.signature", "content.data"),
+            TransportFixtures.buffered(ClaudeCode.profile()).requestBody().opaqueFields(),
+            "Claude attachment bytes and thinking signatures remain outside transformation"
         );
         assertEquals(
-            Set.of("encrypted_content"), TransportFixtures.buffered(CodexCli.profile()).requestBody().opaqueFields(),
-            "Codex ciphertext remains outside transformation"
+            Set.of("encrypted_content", "content.image_url"),
+            TransportFixtures.buffered(CodexCli.profile()).requestBody().opaqueFields(),
+            "Codex ciphertext and attached images remain outside transformation"
         );
+    }
+
+    // A bare name is opaque wherever it is reached, while a qualified one is opaque only under its
+    // parent. The distinction is what lets an attachment stay untouched while a tool parameter that
+    // happens to share the name "data" is still scanned.
+    @Test
+    void aQualifiedNameIsOpaqueOnlyUnderItsParent() {
+        RequestBodyPolicy policy = RequestBodyPolicy.jsonExcept(Set.of("source.data", "encrypted_content"));
+        assertTrue(policy.opaque("source", "data"), "attachment bytes are opaque");
+        assertFalse(policy.opaque("properties", "data"), "a tool parameter of the same name is scanned");
+        assertFalse(policy.opaque("", "data"), "the root carries no qualifier");
+        assertTrue(policy.opaque("anywhere", "encrypted_content"), "a bare name needs no parent");
     }
 
     // Cursor carries its own transport rather than a buffered one. The distinction is made by the

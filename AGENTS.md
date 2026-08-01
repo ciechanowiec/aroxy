@@ -318,6 +318,18 @@ jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
 
 - Structured request safety: JSON agent requests are parsed before matching, rules see decoded string
   values, and protocol fields declared opaque by the client profile are never transformed.
+- **An encoded field is opaque, and opaque under its own parent.** An attached image or document is
+  base64 under `source.data` for Claude Code and a base64 data URL under `content.image_url` for
+  Codex, a thinking block's signature is under `content.signature`, redacted thinking is under
+  `content.data`, and Codex reasoning ciphertext is under `encrypted_content`. None is text anyone
+  wrote, so no rule can find a secret in one, while a substitution inside one destroys a value the
+  vendor decodes, validates, or dereferences before it reads anything else. This is not a rare case
+  but what every screenshot costs: a base64 run is long enough that a short configured value occurs
+  in it by chance, and the giveaway in the audit log is a match in a mixed case no author would
+  type. The names are parent-qualified where the bare one is shared with content the rules must
+  still reach, a tool parameter named `data` being the case that occurs in practice, and left bare
+  where the protocol owns the name outright. `RequestObfuscationTest` pins both directions for both
+  agents.
 - Overlap resolution: all rules inspect the original semantic text. Matches resolve leftmost-longest,
   with configuration order breaking an exact tie, so a shorter literal cannot shadow a longer one.
 - Canonical keying: a literal rule's spelling variants share ONE token and restore to the configured value.

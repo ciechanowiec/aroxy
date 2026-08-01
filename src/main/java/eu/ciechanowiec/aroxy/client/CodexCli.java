@@ -23,6 +23,13 @@ import lombok.experimental.UtilityClass;
  *
  * <p>{@code response.completed}, {@code response.failed}, and {@code response.incomplete} end a stream.
  * There is no separate sentinel event.
+ *
+ * <p>Two request fields are declared opaque. {@code encrypted_content} carries the reasoning
+ * ciphertext this profile echoes back, and {@code content.image_url} carries an attached image, which
+ * Codex sends as a base64 data URL. Neither is text anyone wrote, so no rule can find a secret in one.
+ * A substitution in the image is what the API reports as an invalid base64-encoded value, naming the
+ * path rather than the cause, and a substitution in the remote form of the same field would leave a
+ * URL the vendor then cannot dereference. Whichever form arrives, the field has to leave as it came.
  */
 @UtilityClass
 public final class CodexCli {
@@ -36,6 +43,7 @@ public final class CodexCli {
     private static final String UPSTREAM = "https://chatgpt.com/backend-api/codex";
     private static final String RESPONSES = "/responses";
     private static final String DELTA_KEY = "\"delta\":\"";
+    private static final Set<String> ENCODED = Set.of("encrypted_content", "content.image_url");
 
     /**
      * The profile registered under {@link #ID}.
@@ -48,7 +56,7 @@ public final class CodexCli {
             "Codex CLI",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(RESPONSES), RESPONSES),
-            new BufferedTransport(RequestBodyPolicy.jsonExcept(Set.of("encrypted_content")), dialect())
+            new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect())
         );
     }
 

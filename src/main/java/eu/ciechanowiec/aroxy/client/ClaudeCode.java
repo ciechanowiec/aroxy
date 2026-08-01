@@ -17,6 +17,14 @@ import lombok.experimental.UtilityClass;
  * carries {@code stop_reason} and {@code usage} and arrives after the block has already closed, so
  * flushing a held partial there would replay a fragment under an index whose
  * {@code content_block_stop} has already passed.
+ *
+ * <p>Three request fields are declared opaque, all of them encoded rather than written. An image or
+ * a document arrives as base64 under {@code source.data}, a thinking block carries the signature that
+ * authenticates it under {@code content.signature}, and a redacted thinking block carries its
+ * ciphertext under {@code content.data}. None can hold a secret a rule could find, since none is
+ * text the user wrote, and a substitution inside any of them destroys a value the API validates
+ * before it reads anything else. Each is qualified by its parent because the bare names are shared
+ * with content that must still be scanned, a tool parameter named {@code data} being the common case.
  */
 @UtilityClass
 public final class ClaudeCode {
@@ -30,6 +38,7 @@ public final class ClaudeCode {
     private static final String UPSTREAM = "https://api.anthropic.com";
     private static final String MESSAGES = "/v1/messages";
     private static final String BLOCK_DELTA = "\"content_block_delta\"";
+    private static final Set<String> ENCODED = Set.of("source.data", "content.signature", "content.data");
 
     /**
      * The profile registered under {@link #ID}.
@@ -42,7 +51,7 @@ public final class ClaudeCode {
             "Claude Code",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(MESSAGES), MESSAGES),
-            new BufferedTransport(RequestBodyPolicy.jsonExcept(Set.of()), dialect())
+            new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect())
         );
     }
 

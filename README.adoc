@@ -53,7 +53,7 @@ image::.docs/img/architecture.drawio.png[alt="Claude Code, Codex, and the Cursor
 
 == Default Coverage
 
-_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. Rules scan prompts and tool input while leaving protocol-opaque fields, such as Codex `encrypted_content`, unchanged.
+_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. Rules scan prompts and tool input while leaving protocol-opaque fields unchanged: an image or a document you attach, the signature that authenticates a Claude Code thinking block, and Codex `encrypted_content`. Those are encoded rather than written, so no rule could find a secret in one, and a substitution inside one would leave the API unable to read a value it checks before anything else.
 
 . *Secrets and credentials*
 +
