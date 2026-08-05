@@ -1,10 +1,11 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.util.Optional;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 
 /**
  * The labelling half of a {@link Rule}: the placeholder that names the token, whether the value is
@@ -16,6 +17,9 @@ import lombok.ToString;
  * absent (a regex rule) the vault is keyed by the exact matched text.
  */
 @Getter
+@Accessors(
+    fluent = true
+)
 @ToString
 @EqualsAndHashCode
 @Justification(

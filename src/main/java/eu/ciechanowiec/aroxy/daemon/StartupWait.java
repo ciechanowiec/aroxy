@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.nio.file.Path;
 import lombok.experimental.UtilityClass;
 

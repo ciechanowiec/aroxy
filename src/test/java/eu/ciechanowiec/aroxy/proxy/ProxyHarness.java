@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.Gateway;
@@ -8,7 +9,6 @@ import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -18,7 +18,7 @@ import java.util.Optional;
 /**
  * Wires a {@link ProxyServer} bound to port 0 in front of a {@link FakeUpstream}, using a real
  * {@link Obfuscator} compiled from a small rule set: a sensitive AWS-key regex and a non-sensitive
- * literal keyword. Exposes the client-facing base URI and the {@link AuditLog} so tests can drive the
+ * literal keyword. Exposes the client-facing base {@link URI} and the {@link AuditLog} so tests can drive the
  * proxy over real sockets and inspect the proof artifacts.
  *
  * <p>The listener serves whichever {@link ClientProfile} it is given, defaulting to

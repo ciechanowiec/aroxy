@@ -106,7 +106,7 @@ final class FakeUpstream {
     }
 
     /**
-     * The {@code Content-Encoding} the last request carried, matched without regard to case, so a test
+     * The encoding header the last request carried, matched without regard to case, so a test
      * can assert that a body the proxy inflated no longer claims to be compressed.
      *
      * @return the encoding, or empty when the request declared none

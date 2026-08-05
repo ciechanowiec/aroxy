@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;

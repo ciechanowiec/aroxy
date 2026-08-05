@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.RuleKind;
 import eu.ciechanowiec.aroxy.obfuscation.RuleSpec;
-import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;

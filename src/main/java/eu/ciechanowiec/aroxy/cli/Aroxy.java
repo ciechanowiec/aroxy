@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.cli;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.util.Optional;
 import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;

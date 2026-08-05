@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;

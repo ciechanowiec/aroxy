@@ -1,10 +1,10 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.config.InvalidConfigException;
 import eu.ciechanowiec.aroxy.config.Settings;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;

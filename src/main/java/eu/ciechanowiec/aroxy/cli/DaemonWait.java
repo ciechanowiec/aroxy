@@ -1,7 +1,7 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
-import eu.ciechanowiec.governance.Justification;
 import lombok.experimental.UtilityClass;
 
 /**

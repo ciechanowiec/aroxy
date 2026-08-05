@@ -34,7 +34,7 @@ class RequestBodyPolicyTest {
             "Claude attachment bytes and thinking signatures remain outside transformation"
         );
         assertEquals(
-            Set.of("encrypted_content", "content.image_url"),
+            Set.of("encrypted_content", "content.image_url", "output.image_url"),
             TransportFixtures.buffered(CodexCli.profile()).requestBody().opaqueFields(),
             "Codex ciphertext and attached images remain outside transformation"
         );

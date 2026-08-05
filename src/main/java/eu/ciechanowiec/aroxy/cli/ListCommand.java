@@ -1,12 +1,12 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.daemon.AttachmentKind;
 import eu.ciechanowiec.aroxy.daemon.AttachmentListing;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.OfflineConfig;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
 import eu.ciechanowiec.aroxy.daemon.RuntimeSnapshot;
-import eu.ciechanowiec.governance.Justification;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;

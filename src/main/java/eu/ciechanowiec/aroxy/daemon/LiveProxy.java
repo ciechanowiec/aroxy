@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
@@ -12,7 +13,6 @@ import eu.ciechanowiec.aroxy.proxy.AuditLog;
 import eu.ciechanowiec.aroxy.proxy.ProxyParts;
 import eu.ciechanowiec.aroxy.proxy.ProxyServer;
 import eu.ciechanowiec.aroxy.proxy.Upstream;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;

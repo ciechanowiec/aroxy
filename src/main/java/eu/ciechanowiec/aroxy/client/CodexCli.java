@@ -24,12 +24,13 @@ import lombok.experimental.UtilityClass;
  * <p>{@code response.completed}, {@code response.failed}, and {@code response.incomplete} end a stream.
  * There is no separate sentinel event.
  *
- * <p>Two request fields are declared opaque. {@code encrypted_content} carries the reasoning
- * ciphertext this profile echoes back, and {@code content.image_url} carries an attached image, which
- * Codex sends as a base64 data URL. Neither is text anyone wrote, so no rule can find a secret in one.
- * A substitution in the image is what the API reports as an invalid base64-encoded value, naming the
- * path rather than the cause, and a substitution in the remote form of the same field would leave a
- * URL the vendor then cannot dereference. Whichever form arrives, the field has to leave as it came.
+ * <p>The request fields declared opaque are encoded rather than written. {@code encrypted_content}
+ * carries the reasoning ciphertext this profile echoes back. An attached image travels under
+ * {@code content.image_url}, while an image returned by a tool is replayed under
+ * {@code output.image_url}. Codex sends both image forms as a base64 data URL. A substitution in one is
+ * what the API reports as an invalid base64-encoded value, naming the path rather than the cause. A
+ * substitution in a remote URL would likewise leave a resource the vendor cannot dereference.
+ * Whichever form arrives, the field has to leave as it came.
  */
 @UtilityClass
 public final class CodexCli {
@@ -43,7 +44,9 @@ public final class CodexCli {
     private static final String UPSTREAM = "https://chatgpt.com/backend-api/codex";
     private static final String RESPONSES = "/responses";
     private static final String DELTA_KEY = "\"delta\":\"";
-    private static final Set<String> ENCODED = Set.of("encrypted_content", "content.image_url");
+    private static final Set<String> ENCODED = Set.of(
+        "encrypted_content", "content.image_url", "output.image_url"
+    );
 
     /**
      * The profile registered under {@link #ID}.

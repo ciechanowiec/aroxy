@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;

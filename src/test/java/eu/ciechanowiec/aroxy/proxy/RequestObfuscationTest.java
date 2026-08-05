@@ -116,6 +116,22 @@ class RequestObfuscationTest {
         );
     }
 
+    // Codex persists images returned by tools under output rather than content and replays them on
+    // later turns. The distinction matters because an opaque field is deliberately parent-qualified.
+    @Test
+    void aReplayedCodexToolImageSurvivesARuleThatMatchesItsDataUrl() {
+        String body = """
+            {"input":[{"type":"computer_tool_call_output","output":[
+              {"type":"computer_screenshot","image_url":"data:image/png;base64,%s"}
+            ]}]}""".formatted(IMAGE_BYTES);
+        JSONObject sent = new JSONObject(AgentRequest.of(CodexCli.profile()).apply(body).text());
+        JSONArray output = sent.getJSONArray("input").getJSONObject(0).getJSONArray("output");
+        assertEquals(
+            "data:image/png;base64," + IMAGE_BYTES, output.getJSONObject(0).getString("image_url"),
+            "the replayed tool image leaves exactly as it arrived"
+        );
+    }
+
     private static RequestObfuscation request(RequestBodyPolicy policy) {
         return new RequestObfuscation(policy, new Obfuscator(List.of(), new Vault(Optional.empty())));
     }

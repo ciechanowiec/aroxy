@@ -1,12 +1,12 @@
 package eu.ciechanowiec.aroxy.cli;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.InvalidConfigException;
 import eu.ciechanowiec.aroxy.daemon.ControlFiles;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
-import eu.ciechanowiec.governance.Justification;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;

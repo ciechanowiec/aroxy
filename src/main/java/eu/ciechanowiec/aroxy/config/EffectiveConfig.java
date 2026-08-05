@@ -1,11 +1,11 @@
 package eu.ciechanowiec.aroxy.config;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.RuleCompiler;
-import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedHashMap;

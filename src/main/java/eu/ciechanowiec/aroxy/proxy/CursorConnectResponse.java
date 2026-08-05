@@ -1,9 +1,9 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.proxy.CursorHttp.WireFormat;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

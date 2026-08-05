@@ -1,12 +1,12 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.BufferedTransport;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Reversal;
 import eu.ciechanowiec.aroxy.obfuscation.StreamDeobfuscator;
-import eu.ciechanowiec.governance.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

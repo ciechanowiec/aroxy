@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 
 /**
  * A flat, declarative description of one obfuscation rule as read from a configuration file, before

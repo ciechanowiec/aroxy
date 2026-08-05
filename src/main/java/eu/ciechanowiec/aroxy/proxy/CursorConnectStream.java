@@ -1,8 +1,8 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.proxy.CursorHttp.WireFormat;
-import eu.ciechanowiec.governance.Justification;
 import java.io.IOException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;

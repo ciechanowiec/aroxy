@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

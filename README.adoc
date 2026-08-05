@@ -75,7 +75,7 @@ _aroxy_ has three prerequisites, listed below.
 ----
 java --version
 ----
-. Maven 3.9 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
+. Maven 3.9.11 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
 . At least one supported agent, installed and already logged in:
 +
 --
@@ -99,7 +99,17 @@ _aroxy_ forwards the authentication header unchanged, so every one of those logi
 ----
 curl -fsSL https://raw.githubusercontent.com/ciechanowiec/aroxy/main/install.sh | bash
 ----
-. [[install-from-source]]Or install from source, which builds the jar locally:
+. [[install-from-source]]Or install from source, which builds the jar locally. While _aroxy_ inherits
+  the unpublished `1.0.0-SNAPSHOT` of _Airness_, first install that project from its checkout into the
+  local Maven repository:
++
+[source,bash]
+----
+cd /path/to/airness
+mvn clean install
+----
++
+Then build and install _aroxy_:
 +
 [source,bash]
 ----
@@ -381,19 +391,19 @@ The agent's reply in the terminal refers to `Acme Corporation`, even though the 
 
 == Building and Releasing
 
-. Build with the fast gates, namely compilation, tests, Error Prone, Checkstyle, PMD, SpotBugs, JaCoCo coverage, the dependency and licence checks, and the executable jar. This is what the installer above runs, and it needs nothing beyond the JDK and Maven:
+. Build with the fast gates, namely compilation, tests, Error Prone, Checkstyle, PMD, SpotBugs, JaCoCo coverage, the dependency and licence checks, inherited repository governance, and the executable jar. This is what the installer above runs after the shared harness SNAPSHOT has been installed locally:
 +
 [source,bash]
 ----
 mvn clean package
 ----
-. Build with every gate. This adds the slow and history-wide ones: the documentation lint, the gitleaks secret scan over the whole history, the whole-history commit-message and typography checks, the dependency-freshness check, mutation testing, and the Qodana inspection scan. The first, second and last of those run in Docker, so Docker must be running:
+. Build with every gate. This adds the slow and history-wide ones: the documentation lint, the gitleaks secret scan over the whole history, the whole-history commit-message and typography checks, the dependency-freshness check, mutation testing, and the Qodana inspection scan. gitleaks and Qodana run in Docker, so Docker must be running. The documentation lint uses the local tools listed below:
 +
 [source,bash]
 ----
 mvn clean package -Pfull
 ----
-. Release _aroxy_ (maintainers only) by triggering the GitHub Actions workflow `link:.github/workflows/release.yaml[]` from the repository's Actions tab. It builds the jar and publishes it as a GitHub release in `https://github.com/ciechanowiec/aroxy`, tagged for the project version. The `curl | bash` install in the section xref:#install[] then pulls `aroxy.jar` from that release. _aroxy_ isn't published to Maven Central.
+. Release _aroxy_ (maintainers only) by triggering the GitHub Actions workflow `link:.github/workflows/release.yaml[]` from the repository's Actions tab. It builds the jar and publishes it as a GitHub release in `https://github.com/ciechanowiec/aroxy`, tagged for the project version. The workflow can't run on a clean runner until the inherited _Airness_ SNAPSHOT is published or otherwise made available there. The `curl | bash` install in the section xref:#install[] pulls `aroxy.jar` from an existing release. _aroxy_ isn't published to Maven Central.
 
 == About the Document
 

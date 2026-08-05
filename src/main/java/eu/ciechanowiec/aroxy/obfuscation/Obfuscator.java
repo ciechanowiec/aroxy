@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

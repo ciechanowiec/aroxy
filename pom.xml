@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                      xmlns="http://maven.apache.org/POM/4.0.0"
-                      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>eu.ciechanowiec</groupId>
+    <parent>
+        <groupId>eu.ciechanowiec</groupId>
+        <artifactId>airness-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
     <artifactId>aroxy</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>aroxy</name>
-
     <description>Agent Proxy: a local PII/secret-redacting gateway for coding agents</description>
     <url>https://ciechanowiec.eu/</url>
     <inceptionYear>2026</inceptionYear>
@@ -36,172 +41,34 @@
     </scm>
 
     <properties>
-        <!-- Building properties -->
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>25</maven.compiler.release>
-        <!--
-            Seconds, where Maven's default stops at minutes. The value is the per-build token that
-            scripts/tree-snapshot.sh uses to tell a forked lifecycle's second validate apart from the next
-            build's first one, and a token that only changed once a minute would make two builds started in
-            the same minute share it. Nothing else reads this timestamp.
-        -->
-        <maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
-        <fail-build-on-static-code-analysis-errors>true</fail-build-on-static-code-analysis-errors>
-        <enforce-tests-coverage>true</enforce-tests-coverage>
-        <!--
-            The phase the tree-mutation comparisons bind to. The format profile overrides it to none,
-            since writing to the tree is that profile's whole point. It is a property rather than a
-            per-execution override because profiles merge in the order they are declared in this file: an
-            execution rebound to none in one profile is bound back to package by a later one that declares
-            the same id, which would silently return -Pformat -Pfull to the failure it is meant to avoid.
-            A property is overridden the same way whichever profiles are active.
-        -->
-        <tree.verify.phase>package</tree.verify.phase>
+        <!-- The package Airness analyzes as project-owned code. -->
+        <airness.package.root>eu.ciechanowiec.aroxy</airness.package.root>
+        <!-- Vendored tools and themes contain the typography they detect or belong to another tool. -->
+        <airness.typography.excludes>.vale/,.idea/,.docs/themes/</airness.typography.excludes>
+        <!-- Process-boundary classes are exercised outside the JVM observed by JaCoCo and PIT. -->
+        <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.Aroxy,eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.cli.DaemonEntry,eu.ciechanowiec.aroxy.cli.Version,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.daemon.LaunchCommand,eu.ciechanowiec.aroxy.daemon.DaemonProcess,eu.ciechanowiec.aroxy.daemon.Daemon,eu.ciechanowiec.aroxy.daemon.Home,eu.ciechanowiec.aroxy.fs.RestrictedDir</airness.coverage.excluded.classes>
+        <airness.mutation.excluded.classes>eu.ciechanowiec.aroxy.cli.Aroxy,eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.cli.DaemonEntry,eu.ciechanowiec.aroxy.cli.Version,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.daemon.LaunchCommand,eu.ciechanowiec.aroxy.daemon.DaemonProcess,eu.ciechanowiec.aroxy.daemon.Daemon,eu.ciechanowiec.aroxy.daemon.Home,eu.ciechanowiec.aroxy.fs.RestrictedDir</airness.mutation.excluded.classes>
+
         <main.class>eu.ciechanowiec.aroxy.cli.Aroxy</main.class>
-        <!-- Dependencies -->
+
+        <!-- Application dependencies. Harness dependency versions come from Airness. -->
         <picocli.version>4.7.7</picocli.version>
-        <lombok.version>1.18.46</lombok.version>
-        <spotbugs-annotations.version>4.10.3</spotbugs-annotations.version>
         <slf4j-api.version>2.0.18</slf4j-api.version>
         <tinylog.version>2.7.0</tinylog.version>
-        <junit.version>6.1.2</junit.version>
         <org-json.version>20260719</org-json.version>
         <aircompressor.version>2.0.3</aircompressor.version>
         <jetty.version>12.1.11</jetty.version>
-        <!-- Locking down Maven default plugins -->
-        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
-        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
-        <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
-        <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
-        <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
-        <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
-        <!-- Plugins -->
-        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
-        <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
-        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
-        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
-        <formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
-        <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
-        <rewrite-maven-plugin.version>6.44.0</rewrite-maven-plugin.version>
-        <rewrite-static-analysis.version>2.39.0</rewrite-static-analysis.version>
-        <rewrite-migrate-java.version>3.40.0</rewrite-migrate-java.version>
-        <rewrite-testing-frameworks.version>3.42.1</rewrite-testing-frameworks.version>
-        <rewrite-logging-frameworks.version>3.30.0</rewrite-logging-frameworks.version>
-        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
-        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-        <min.maven.version>3.9</min.maven.version>
-        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
-        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-        <checkstyle.version>13.8.0</checkstyle.version>
-        <qulice-maven-plugin.version>0.27.6</qulice-maven-plugin.version>
-        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
-        <spotbugs-maven-plugin.version>4.10.3.0</spotbugs-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <jacoco-maven-plugin.coverage.minimum>0.8</jacoco-maven-plugin.coverage.minimum>
-        <error-prone.version>2.50.0</error-prone.version>
-        <nullaway.version>0.13.7</nullaway.version>
-        <jspecify.version>1.0.0</jspecify.version>
-        <!--
-            NullAway (an Error Prone plugin) enforces null-safety: every non-null reference field must
-            be initialized during construction, and null must not be dereferenced/returned/passed where
-            a non-null reference is expected. Fields set by reflection (picocli, JUnit @TempDir) are
-            excluded so they are not treated as uninitialized. Genuinely nullable spots are marked with
-            JSpecify's @Nullable. NullAway is gated by the same switch as the rest of Error Prone
-            (error-prone.checks.toggle, applied last, wins over the :ERROR below when checks are off).
-        -->
-        <error-prone.nullaway>-Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=eu.ciechanowiec.aroxy -XepOpt:NullAway:ExcludedFieldAnnotations=picocli.CommandLine.Option,picocli.CommandLine.Parameters,org.junit.jupiter.api.io.TempDir</error-prone.nullaway>
-        <!--
-            Error Prone: project-wide ("global") rule suppression scaffolding.
-            Every Error Prone check runs at ERROR level (the compiler is invoked with -Werror,
-            which turns each finding into a build-breaking error). To silence a specific rule for
-            the WHOLE project, add a space-separated `-Xep:<CheckName>:OFF` entry below, e.g.:
-                <error-prone.globally.disabled.checks>-Xep:UnusedVariable:OFF -Xep:MissingSummary:OFF</error-prone.globally.disabled.checks>
-            Because of -Werror, demoting a check to `:WARN` still fails the build; use `:OFF` to
-            actually suppress it globally. For a single occurrence prefer a local
-            `@SuppressWarnings("<CheckName>")` at the call site instead of disabling it here.
-            Leave empty to keep every check enabled.
-        -->
-        <error-prone.globally.disabled.checks></error-prone.globally.disabled.checks>
-        <!--
-            Error Prone enforcement is gated on the same fail-build-on-static-code-analysis-errors
-            switch as Checkstyle/PMD/SpotBugs. Error Prone is a javac plugin (not a Maven plugin), so
-            it cannot read that property directly; instead the two profiles that turn the switch off
-            (skipTests, or -Dfail-build-on-static-code-analysis-errors=false) override the two
-            properties below to neutralize it:
-              - error-prone.checks.toggle -> -XepDisableAllChecks (Error Prone loads but reports nothing)
-              - error-prone.werror        -> -Xlint:none (a harmless no-op that drops -Werror)
-            Defaults below keep enforcement on.
-        -->
-        <error-prone.checks.toggle></error-prone.checks.toggle>
-        <error-prone.werror>-Werror</error-prone.werror>
-        <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
-        <!-- Governance gates -->
-        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
-        <editorconfig-maven-plugin.version>0.2.0</editorconfig-maven-plugin.version>
-        <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
-        <pitest-maven.version>1.25.8</pitest-maven.version>
-        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
-        <!--
-            Mutation analysis is embarrassingly parallel: every mutant is an independent run of the
-            covering tests. Left unset PIT uses a single thread, which on any modern machine turns a
-            few minutes into the better part of an hour and makes the pre-push hook painful enough to
-            be skipped. Maven cannot read the processor count, so this is a fixed default chosen to be
-            safe on a small CI runner; a developer with more cores raises it for the run with
-            -Dpitest.threads=N.
-        -->
-        <pitest.threads>4</pitest.threads>
-        <!--
-            PIT treats a mutant as timed out after the covering test's normal runtime multiplied by
-            this factor, plus the constant allowance. A large constant makes every genuine hang take
-            seconds even when its test normally finishes at once. The smaller constant keeps those
-            mutants cheap, while the runtime factor and constant still leave slow integration tests
-            room for scheduler and CI variance. Both remain overridable for a constrained runner.
-        -->
-        <pitest.timeout.constant>2000</pitest.timeout.constant>
-        <pitest.timeout.factor>1.25</pitest.timeout.factor>
-        <!--
-            The Docker-backed gates run pinned images, for the same reason the Maven plugins are pinned:
-            an upstream release must not be able to fail a build that nothing in the repository changed.
-            The Qodana image is passed to its script, which is otherwise self-contained.
-        -->
-        <gitleaks.image>zricethezav/gitleaks:v8.29.0</gitleaks.image>
-        <qodana.image>jetbrains/qodana-jvm-community:2026.1</qodana.image>
-        <!--
-            The whole-history governance tests (commit history, commit-message typography) carry the
-            'full' tag and run only under -Pfull, which clears this exclusion. The default build runs the
-            fast subset. The dependency-freshness check is not a test and so is not tagged; -Pfull adds it
-            as an exec of its own.
-        -->
-        <surefire.excluded.groups>full</surefire.excluded.groups>
-        <!--
-            Deprecated-API ban. -Xlint:deprecation makes javac warn on any use of a @Deprecated API and,
-            paired with -Werror above, turns that warning into a build error. Gated on the same switch as
-            the other analyzers: the two profiles that disarm static analysis set this to -Xlint:none.
-        -->
-        <error-prone.deprecation>-Xlint:deprecation</error-prone.deprecation>
+
     </properties>
 
     <dependencies>
-        <dependency>
-            <!-- @SuppressFBWarnings annotation for SpotBugs -->
-            <groupId>com.github.spotbugs</groupId>
-            <artifactId>spotbugs-annotations</artifactId>
-            <version>${spotbugs-annotations.version}</version>
-            <optional>true</optional>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>${picocli.version}</version>
         </dependency>
         <dependency>
-            <!--
-                zstd decompression for request bodies. Codex CLI compresses its requests with zstd by
-                default under ChatGPT auth, and a compressed body cannot be obfuscated, so it is
-                inflated before the rules run. Pure Java avoids JNI and native-platform packaging;
-                its Apache-2.0 license is also on this build's permissive-license allowlist.
-            -->
+            <!-- Codex requests compressed with zstd must be inflated before obfuscation. -->
             <groupId>io.airlift</groupId>
             <artifactId>aircompressor</artifactId>
             <version>${aircompressor.version}</version>
@@ -252,21 +119,6 @@
             <version>${org-json.version}</version>
         </dependency>
         <dependency>
-            <!-- @Nullable annotation for NullAway -->
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-            <version>${jspecify.version}</version>
-            <optional>true</optional>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <!-- Logging -->
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j-api.version}</version>
@@ -283,30 +135,12 @@
             <version>${tinylog.version}</version>
             <scope>runtime</scope>
         </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <finalName>${project.artifactId}</finalName>
         <resources>
-            <!-- version.txt is filtered so ${project.version} becomes the single source of the version -->
+            <!-- version.txt is filtered so ${project.version} remains the version source of truth. -->
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
@@ -318,228 +152,16 @@
                 <directory>src/main/resources</directory>
                 <filtering>false</filtering>
                 <excludes>
-                    <exclude>static_code_analysis/**</exclude>
                     <exclude>version.txt</exclude>
                 </excludes>
             </resource>
         </resources>
 
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-clean-plugin</artifactId>
-                    <version>${maven-clean-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                    <version>${maven-deploy-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-install-plugin</artifactId>
-                    <version>${maven-install-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>${maven-jar-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-resources-plugin</artifactId>
-                    <version>${maven-resources-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-site-plugin</artifactId>
-                    <version>${maven-site-plugin.version}</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-
         <plugins>
-            <!--
-                OpenRewrite: semantic modernization and cleanup over the curated recipe set in rewrite.yml.
-                Declared first of the three source-shaping tools so that under -Pformat, where all three
-                apply rather than verify, its edits land before the formatter and impsort re-normalize
-                layout and imports; the formatter therefore stays the single source of truth for style.
-                Parsing the whole project into a lossless semantic tree makes this the slowest step of the
-                build.
-            -->
-            <plugin>
-                <groupId>org.openrewrite.maven</groupId>
-                <artifactId>rewrite-maven-plugin</artifactId>
-                <version>${rewrite-maven-plugin.version}</version>
-                <configuration>
-                    <activeRecipes>
-                        <recipe>eu.ciechanowiec.aroxy.Modernization</recipe>
-                    </activeRecipes>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.openrewrite.recipe</groupId>
-                        <artifactId>rewrite-logging-frameworks</artifactId>
-                        <version>${rewrite-logging-frameworks.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.openrewrite.recipe</groupId>
-                        <artifactId>rewrite-migrate-java</artifactId>
-                        <version>${rewrite-migrate-java.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.openrewrite.recipe</groupId>
-                        <artifactId>rewrite-static-analysis</artifactId>
-                        <version>${rewrite-static-analysis.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.openrewrite.recipe</groupId>
-                        <artifactId>rewrite-testing-frameworks</artifactId>
-                        <version>${rewrite-testing-frameworks.version}</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <!--
-                        dryRun, not run: the verifying build must never write to the working tree, so a
-                        recipe that would change a source file fails the build instead of silently editing
-                        it. The patch it would have applied is written to target/rewrite/rewrite.patch.
-                        The format profile swaps this goal for run to apply the recipes on demand.
-                    -->
-                    <execution>
-                        <id>verify-no-pending-rewrites</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>dryRun</goal>
-                        </goals>
-                        <configuration>
-                            <failOnDryRunResults>true</failOnDryRunResults>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                Checks the Java sources against the exported Eclipse profile (EclipseCodeStyle.xml,
-                generated from the IntelliJ code style). Bound to process-resources so it runs ahead of
-                compile and the static-analysis gates at package; the gates remain the source of truth, so
-                any formatting the profile cannot reproduce is still caught there. validate, not format:
-                the verifying build reports unformatted sources instead of rewriting them, and the format
-                profile applies the formatting on demand.
-            -->
-            <plugin>
-                <groupId>net.revelc.code.formatter</groupId>
-                <artifactId>formatter-maven-plugin</artifactId>
-                <version>${formatter-maven-plugin.version}</version>
-                <configuration>
-                    <configFile>${project.basedir}/EclipseCodeStyle.xml</configFile>
-                    <lineEnding>LF</lineEnding>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>verify-formatting</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>validate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                Sorts imports deterministically (the formatter above does not touch import order). One
-                alphabetical block for all non-static imports (no package sub-groups), static imports in
-                their own block placed first; this order is also enforced by the checkstyle ImportOrder
-                check. removeUnused strips genuinely-dead imports; it is Javadoc-aware, so an import
-                referenced only from a {@link} is retained. Bound to process-resources alongside the
-                formatter. check, not sort: the verifying build reports unsorted imports instead of
-                rewriting them, and the format profile applies the sorting on demand.
-            -->
-            <plugin>
-                <groupId>net.revelc.code</groupId>
-                <artifactId>impsort-maven-plugin</artifactId>
-                <version>${impsort-maven-plugin.version}</version>
-                <configuration>
-                    <groups>*</groups>
-                    <staticGroups>*</staticGroups>
-                    <staticAfter>false</staticAfter>
-                    <removeUnused>true</removeUnused>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>verify-import-order</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <!--
-                    Error Prone is a javac plugin, not a standalone Maven plugin: it hooks the
-                    compiler's typed AST during compilation. On JDK 16+ the compiler is strongly
-                    encapsulated (JEP 396), so Error Prone needs the internal javac packages exported
-                    and opened to it. That requires a forked javac (<fork>true</fork>) carrying the
-                    add-exports / add-opens flags below. See https://errorprone.info/docs/installation
-                -->
-                <configuration>
-                    <fork>true</fork>
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <!--
-                            Globally suppressed/tuned checks come from the property; see its docs in
-                            <properties>. -Werror promotes every Error Prone finding to a build error,
-                            so all rules effectively run at ERROR level.
-                        -->
-                        <arg>-Xplugin:ErrorProne ${error-prone.nullaway} ${error-prone.globally.disabled.checks} ${error-prone.checks.toggle}</arg>
-                        <arg>${error-prone.werror}</arg>
-                        <arg>${error-prone.deprecation}</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${error-prone.version}</version>
-                        </path>
-                        <path>
-                            <groupId>com.uber.nullaway</groupId>
-                            <artifactId>nullaway</artifactId>
-                            <version>${nullaway.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <!--
-                Creates a flat executable uber-jar: every runtime dependency is unpacked alongside our
-                own classes at the jar root, loaded by the system class loader. This is deliberate, not
-                incidental: the daemon re-launches itself with `java -jar <thisJar> __daemon`, and
-                LaunchCommand resolves <thisJar> from its own CodeSource location. That location is only
-                a usable filesystem path when classes load from a plain `file:` jar. A nested layout
-                (e.g. Spring Boot's BOOT-INF/classes behind a `jar:nested:` URL) collapses to "/" and the
-                relaunch fails with "Invalid or corrupt jarfile /". A flat shaded jar keeps that path real.
-            -->
+            <!-- The flat uber-jar gives the daemon a real CodeSource path for self-relaunch. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven-shade-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -548,37 +170,13 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!--
-                                Drop the JPMS module descriptors the dependencies ship as multi-release
-                                entries. This uber-jar runs from the classpath, never the module path, so
-                                they are dead weight; removing them also clears the "overlapping resource"
-                                warnings shade emits when several jars contribute the same module-info.
-                            -->
                             <filters>
-                                <!--
-                                    The @Justification annotation is a build-time governance construct with
-                                    SOURCE retention: nothing reads it at runtime, so it has no place in the
-                                    executable artifact.
-                                -->
-                                <filter>
-                                    <artifact>${project.groupId}:${project.artifactId}</artifact>
-                                    <excludes>
-                                        <exclude>eu/ciechanowiec/governance/**</exclude>
-                                    </excludes>
-                                </filter>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>module-info.class</exclude>
                                         <exclude>META-INF/versions/*/module-info.class</exclude>
-                                        <!-- Each input jar has its own manifest; the transformer below writes a fresh one -->
                                         <exclude>META-INF/MANIFEST.MF</exclude>
-                                        <!--
-                                            Dependencies (e.g. SLF4J/QOS.ch) ship their own license under
-                                            META-INF/. Flattened into our uber-jar it sits next to our manifest
-                                            and reads like aroxy's own license. Drop it; our LICENSE.txt is the
-                                            project's. (Notices stay reproduced in NOTICE/THIRD-PARTY as needed.)
-                                        -->
                                         <exclude>META-INF/LICENSE</exclude>
                                         <exclude>META-INF/LICENSE.txt</exclude>
                                         <exclude>META-INF/LICENSE.md</exclude>
@@ -592,7 +190,6 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${main.class}</mainClass>
                                 </transformer>
-                                <!-- Merge SLF4J/tinylog service providers so logging keeps working in the uber-jar -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                         </configuration>
@@ -600,10 +197,8 @@
                 </executions>
             </plugin>
             <plugin>
-                <!-- Attaches a ${project.artifactId}-sources.jar alongside the main jar -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>${maven-source-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>put-sources-in-jar-archive</id>
@@ -615,21 +210,10 @@
                 </executions>
             </plugin>
             <plugin>
-                <!-- Attaches a ${project.artifactId}-javadoc.jar; any Javadoc warning fails the build -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven-javadoc-plugin.version}</version>
                 <configuration>
-                    <failOnWarnings>${fail-build-on-static-code-analysis-errors}</failOnWarnings>
-                    <!--
-                        Fail on real Javadoc defects (broken @link, malformed HTML, bad @param names,
-                        dangling references) but not on missing comments. The "missing" group is dropped
-                        deliberately: the project's Checkstyle rules mandate Lombok @UtilityClass for
-                        utility classes so their constructor is @Generated (and coverage-excluded), and
-                        @UtilityClass forbids an explicit constructor - so doclint's "default constructor
-                        needs a comment" warning is unavoidable there. -missing reconciles the strict
-                        gate with that enforced convention.
-                    -->
+                    <failOnWarnings>${airness.enforce}</failOnWarnings>
                     <doclint>all,-missing</doclint>
                 </configuration>
                 <executions>
@@ -642,435 +226,26 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven-surefire-plugin.version}</version>
-                <configuration>
-                    <failIfNoTests>${enforce-tests-coverage}</failIfNoTests>
-                    <excludedGroups>${surefire.excluded.groups}</excludedGroups>
-                </configuration>
-            </plugin>
+            <!-- Mockito and logback are aroxy-specific bans, not family-wide Airness policy. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>${maven-enforcer-plugin.version}</version>
                 <executions>
                     <execution>
-                        <id>enforce-maven</id>
+                        <id>enforce-aroxy-dependencies</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
                         <configuration>
                             <rules>
-                                <requireMavenVersion>
-                                    <version>[${min.maven.version},)</version>
-                                </requireMavenVersion>
-                                <requireJavaVersion>
-                                    <version>${maven.compiler.release}</version>
-                                    <message>The project requires JDK ${maven.compiler.release}</message>
-                                </requireJavaVersion>
-                                <requireUpperBoundDeps>
-                                    <message>A transitive dependency is down-versioned by another path; pin it explicitly</message>
-                                </requireUpperBoundDeps>
-                                <!--
-                                    The two library choices the project states: tests use real objects, never
-                                    mocks, and logging goes through tinylog. Both are conventions a reader
-                                    could only break by adding a dependency, so the enforcer is where they
-                                    become checks rather than prose.
-                                -->
                                 <bannedDependencies>
                                     <excludes>
                                         <exclude>org.mockito:*</exclude>
                                         <exclude>ch.qos.logback:*</exclude>
                                     </excludes>
-                                    <message>
-                                        Tests use real objects, not mocks, and logging is tinylog via SLF4J
-                                    </message>
+                                    <message>Tests use real objects, and logging is tinylog via SLF4J</message>
                                 </bannedDependencies>
                             </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!-- Reports newer releases of dependencies, plugins, and the parent (does not fail the build) -->
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>versions-maven-plugin</artifactId>
-                <version>${versions-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>display-parent-updates</goal>
-                            <goal>display-dependency-updates</goal>
-                            <goal>display-plugin-updates</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <ruleSet>
-                        <ignoreVersions>
-                            <ignoreVersion>
-                                <!-- Ignoring milestone versions, like 3.0.4-M5 and 1.0.0-m23 -->
-                                <type>regex</type>
-                                <version>(?i)[0-9].+-m[0-9]+</version>
-                            </ignoreVersion>
-                            <ignoreVersion>
-                                <!-- Ignoring alpha versions, like 5.0.0.Alpha2 -->
-                                <type>regex</type>
-                                <version>(?i).*ALPHA.*</version>
-                            </ignoreVersion>
-                            <ignoreVersion>
-                                <!-- Ignoring beta versions, like 5.0.0.Beta2 -->
-                                <type>regex</type>
-                                <version>(?i).*BETA.*</version>
-                            </ignoreVersion>
-                            <ignoreVersion>
-                                <!-- Ignoring preview versions, like 12.1.0.jre11-preview -->
-                                <type>regex</type>
-                                <version>(?i).*PREVIEW.*</version>
-                            </ignoreVersion>
-                            <ignoreVersion>
-                                <!-- Ignoring candidate release versions, like 6.2.0.CR2 -->
-                                <type>regex</type>
-                                <version>(?i)[0-9].+\.CR[0-9]+</version>
-                            </ignoreVersion>
-                            <ignoreVersion>
-                                <!-- Ignoring release candidate versions, like 2.16.1-rc1 and 1.8.20-RC -->
-                                <type>regex</type>
-                                <version>(?i)[0-9].+-rc-?[0-9]*</version>
-                            </ignoreVersion>
-                        </ignoreVersions>
-                    </ruleSet>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin.version}</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.puppycrawl.tools</groupId>
-                        <artifactId>checkstyle</artifactId>
-                        <version>${checkstyle.version}</version>
-                    </dependency>
-                    <!--
-                    Supplies the custom com.qulice.checkstyle.* AST checks (paired-brackets notation and
-                    the other rules referenced in checkstyle.xml). The qulice plugin jar is a library of
-                    check classes on this plugin's isolated classpath, not a plugin this build runs: its
-                    goal is never invoked. Its bundled checkstyle is excluded so the plugin runs solely on
-                    the pinned ${checkstyle.version} declared above. The standalone qulice-checkstyle
-                    artifact is frozen at 0.25.2; the checks now ship inside qulice-maven-plugin.
-                    -->
-                    <dependency>
-                        <groupId>com.qulice</groupId>
-                        <artifactId>qulice-maven-plugin</artifactId>
-                        <version>${qulice-maven-plugin.version}</version>
-                        <exclusions>
-                            <exclusion>
-                                <groupId>com.puppycrawl.tools</groupId>
-                                <artifactId>checkstyle</artifactId>
-                            </exclusion>
-                        </exclusions>
-                    </dependency>
-                </dependencies>
-                <configuration>
-                    <configLocation>${project.basedir}/src/main/resources/static_code_analysis/checkstyle.xml</configLocation>
-                    <consoleOutput>true</consoleOutput>
-                    <!--
-                        failsOnError covers a Checkstyle processing error; failOnViolation covers a rule
-                        violation. Both read the switch, or turning it off would leave violations failing
-                        the build and the switch would be a half-truth.
-                    -->
-                    <failsOnError>${fail-build-on-static-code-analysis-errors}</failsOnError>
-                    <failOnViolation>${fail-build-on-static-code-analysis-errors}</failOnViolation>
-                    <violationSeverity>info</violationSeverity>
-                    <linkXRef>false</linkXRef>
-                    <includeResources>false</includeResources>
-                    <includeTestResources>false</includeTestResources>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <version>${maven-pmd-plugin.version}</version>
-                <configuration>
-                    <rulesets>
-                        <ruleset>${project.basedir}/src/main/resources/static_code_analysis/pmd.xml</ruleset>
-                    </rulesets>
-                    <failOnViolation>${fail-build-on-static-code-analysis-errors}</failOnViolation>
-                    <printFailingErrors>true</printFailingErrors>
-                    <includeTests>true</includeTests>
-                    <linkXRef>false</linkXRef>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>${spotbugs-maven-plugin.version}</version>
-                <configuration>
-                    <excludeFilterFile>${project.basedir}/src/main/resources/static_code_analysis/spotbugs-exclude.xml</excludeFilterFile>
-                    <failOnError>${fail-build-on-static-code-analysis-errors}</failOnError>
-                    <includeTests>true</includeTests>
-                    <effort>Max</effort>
-                    <threshold>Low</threshold>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>check</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <haltOnFailure>${enforce-tests-coverage}</haltOnFailure>
-                            <rules>
-                                <!--
-                                    Per-file (per-class) coverage: each measured class must hit the floor on
-                                    its own, so a well-covered class cannot mask an untested one. Classes are
-                                    excluded only by role. Lombok @Generated members (for example @UtilityClass
-                                    constructors) are ignored by JaCoCo automatically and need no entry here.
-                                    The excluded roles:
-                                      - the picocli CLI entry and its subcommand glue, and the daemon process
-                                        bootstrap and self-relaunch, exercised end-to-end, not through a unit
-                                        seam (their coverage runs in a spawned child JVM the agent does not see);
-                                      - daemon.Home: the environment-resolution boundary (the one place allowed
-                                        to read AROXY_HOME); JDK 25 forbids mutating the environment in-JVM, so
-                                        the env-present branch cannot be driven by a test;
-                                      - fs.RestrictedDir: the non-POSIX filesystem fallback, dead on every real
-                                        POSIX test platform (macOS/Linux);
-                                      - cli.Version: the picocli version provider, whose only uncovered lines are
-                                        the missing/unreadable-resource guards around a resource that is always
-                                        present, with no seam to force the failure without banned reflection;
-                                      - governance.Justification: an annotation type, which declares no
-                                        executable code at all and so can never be covered by anything.
-                                -->
-                                <rule>
-                                    <element>CLASS</element>
-                                    <excludes>
-                                        <exclude>eu.ciechanowiec.aroxy.cli.Aroxy</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.cli.*Command</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.cli.DaemonEntry</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.cli.Version</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.Launcher*</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.LaunchCommand</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.DaemonProcess</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.Daemon</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.daemon.Home</exclude>
-                                        <exclude>eu.ciechanowiec.aroxy.fs.RestrictedDir</exclude>
-                                        <exclude>eu.ciechanowiec.governance.Justification</exclude>
-                                    </excludes>
-                                    <limits>
-                                        <limit>
-                                            <counter>INSTRUCTION</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>${jacoco-maven-plugin.coverage.minimum}</minimum>
-                                        </limit>
-                                        <limit>
-                                            <counter>BRANCH</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>${jacoco-maven-plugin.coverage.minimum}</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
-                    Fails the build on an unused declared dependency or a used-but-undeclared one, so the
-                    declared set stays exactly what the code needs. Non-compile scopes (the provided
-                    annotation jars and the runtime logging binding, none of which are imported) are
-                    ignored, since analyze-only cannot see their reflective or annotation-only use.
-                -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>${maven-dependency-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>analyze-dependencies</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>analyze-only</goal>
-                        </goals>
-                        <configuration>
-                            <failOnWarning>true</failOnWarning>
-                            <ignoreNonCompile>true</ignoreNonCompile>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!-- Verifies every tracked file against the committed .editorconfig; binaries and the
-                     vendored Vale style library and IDE config are exempt by role. -->
-                <groupId>org.ec4j.maven</groupId>
-                <artifactId>editorconfig-maven-plugin</artifactId>
-                <version>${editorconfig-maven-plugin.version}</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/target/**</exclude>
-                        <exclude>.git/**</exclude>
-                        <exclude>.vale/**</exclude>
-                        <exclude>.idea/**</exclude>
-                        <exclude>.docs/themes/**</exclude>
-                        <exclude>.docs/img/**</exclude>
-                        <exclude>**/*.png</exclude>
-                        <exclude>**/*.ttf</exclude>
-                        <exclude>**/*.docx</exclude>
-                        <!-- Tab-separated data: tabs are the format, not an indentation choice. -->
-                        <exclude>**/*.tsv</exclude>
-                        <!-- Exported Eclipse formatter profile: a generated tool config with its own layout. -->
-                        <exclude>EclipseCodeStyle.xml</exclude>
-                        <!-- Exported IntelliJ inspection profile for Qodana: a generated tool config. -->
-                        <exclude>qodana/profile.xml</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>editorconfig-check</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
-                    License allowlist over the resolved dependency set. add-third-party resolves each
-                    dependency's license, the merges below normalize the free-text names to SPDX-style
-                    identifiers, and failOnBlacklist/failOnMissing fail the build on any license outside
-                    the allowlist or on a dependency whose license cannot be resolved.
-                -->
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>${license-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>check-dependency-licenses</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>add-third-party</goal>
-                        </goals>
-                        <configuration>
-                            <includedScopes>compile,runtime,provided,test</includedScopes>
-                            <failOnBlacklist>true</failOnBlacklist>
-                            <failOnMissing>true</failOnMissing>
-                            <includedLicenses>
-                                <includedLicense>Apache-2.0</includedLicense>
-                                <includedLicense>MIT</includedLicense>
-                                <includedLicense>MIT-0</includedLicense>
-                                <includedLicense>BSD-2-Clause</includedLicense>
-                                <includedLicense>BSD-3-Clause</includedLicense>
-                                <includedLicense>EPL-2.0</includedLicense>
-                                <includedLicense>LGPL-2.1</includedLicense>
-                                <includedLicense>JSON</includedLicense>
-                                <includedLicense>Public Domain</includedLicense>
-                            </includedLicenses>
-                            <licenseMerges>
-                                <licenseMerge>Apache-2.0|The Apache Software License, Version 2.0|The Apache Software License, version 2.0|The Apache License, Version 2.0|Apache License, Version 2.0|Apache License 2.0|Apache 2.0</licenseMerge>
-                                <licenseMerge>MIT|The MIT License|MIT License|The MIT License (MIT)</licenseMerge>
-                                <licenseMerge>BSD-2-Clause|BSD 2-Clause|BSD-2-Clause License|The 2-Clause BSD License|The BSD 2-Clause License</licenseMerge>
-                                <licenseMerge>EPL-2.0|Eclipse Public License v2.0|Eclipse Public License - v 2.0|Eclipse Public License, Version 2.0</licenseMerge>
-                                <licenseMerge>LGPL-2.1|GNU Lesser General Public License, Version 2.1|GNU Lesser Public License|GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1</licenseMerge>
-                                <licenseMerge>JSON|The JSON License</licenseMerge>
-                            </licenseMerges>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                The tool-agnostic half of the no-self-editing-build rule: snapshot fingerprints the tree at
-                validate, verify compares at package, and only a difference the build itself made fails.
-                Declared last so that verify runs after the package-phase gates of the default build; the
-                full profile adds a second comparison after its Docker-backed gates, which run later still.
-                The script explains what it covers that the three check-only goals do not.
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>${exec-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>snapshot-tree</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>sh</executable>
-                            <workingDirectory>${project.basedir}</workingDirectory>
-                            <arguments>
-                                <argument>scripts/tree-snapshot.sh</argument>
-                                <argument>snapshot</argument>
-                                <!--
-                                    Constant within one Maven invocation, so the validate that OpenRewrite's
-                                    forked lifecycle re-runs leaves the first fingerprint of the build alone
-                                    instead of retaking it after the tree may already have been written to.
-                                -->
-                                <argument>${maven.build.timestamp}</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>verify-tree-unmodified</id>
-                        <phase>${tree.verify.phase}</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>sh</executable>
-                            <workingDirectory>${project.basedir}</workingDirectory>
-                            <arguments>
-                                <argument>scripts/tree-snapshot.sh</argument>
-                                <argument>verify</argument>
-                            </arguments>
                         </configuration>
                     </execution>
                 </executions>
@@ -1079,248 +254,18 @@
     </build>
 
     <profiles>
-        <!--
-            The apply side of the three source-shaping tools. This profile swaps each verifying goal for its
-            applying counterpart, so `mvn process-resources -Pformat` (or -Pformat on any longer build)
-            applies the changes.
-
-            Each verifying execution is switched off by rebinding its id to the phase none, which matches no
-            lifecycle phase, and the applying goal is added as a separate execution, because Maven merges an
-            execution's goals by appending rather than replacing. That rebinding is safe here only because
-            no other profile declares these three ids; the tree-mutation comparisons, which the full profile
-            does redeclare, are switched off through the tree.verify.phase property instead.
-
-            Writing to the tree is the point of this profile, so both comparisons that forbid it stand down.
-            The snapshot at validate stays: it costs nothing and keeps the fingerprint available.
-        -->
         <profile>
-            <id>format</id>
-            <properties>
-                <tree.verify.phase>none</tree.verify.phase>
-            </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.openrewrite.maven</groupId>
-                        <artifactId>rewrite-maven-plugin</artifactId>
-                        <version>${rewrite-maven-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>verify-no-pending-rewrites</id>
-                                <phase>none</phase>
-                            </execution>
-                            <execution>
-                                <id>apply-rewrites</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>net.revelc.code.formatter</groupId>
-                        <artifactId>formatter-maven-plugin</artifactId>
-                        <version>${formatter-maven-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>verify-formatting</id>
-                                <phase>none</phase>
-                            </execution>
-                            <execution>
-                                <id>apply-formatting</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>format</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>net.revelc.code</groupId>
-                        <artifactId>impsort-maven-plugin</artifactId>
-                        <version>${impsort-maven-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>verify-import-order</id>
-                                <phase>none</phase>
-                            </execution>
-                            <execution>
-                                <id>apply-import-order</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>sort</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>fail-build-on-static-code-analysis-errors-when-no-tests</id>
-            <activation>
-                <property>
-                    <name>skipTests</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <properties>
-                <fail-build-on-static-code-analysis-errors>false</fail-build-on-static-code-analysis-errors>
-                <!-- Keep Error Prone in step with the other analyzers when tests are skipped -->
-                <error-prone.checks.toggle>-XepDisableAllChecks</error-prone.checks.toggle>
-                <error-prone.werror>-Xlint:none</error-prone.werror>
-                <error-prone.deprecation>-Xlint:none</error-prone.deprecation>
-            </properties>
-        </profile>
-        <profile>
-            <!--
-                Parity with Checkstyle/PMD/SpotBugs for the manual switch: those read
-                ${fail-build-on-static-code-analysis-errors} directly, so passing
-                -Dfail-build-on-static-code-analysis-errors=false disarms them. Error Prone cannot
-                read that property, so this profile activates on the same value and neutralizes it too.
-            -->
-            <id>disable-error-prone-when-analysis-not-enforced</id>
-            <activation>
-                <property>
-                    <name>fail-build-on-static-code-analysis-errors</name>
-                    <value>false</value>
-                </property>
-            </activation>
-            <properties>
-                <error-prone.checks.toggle>-XepDisableAllChecks</error-prone.checks.toggle>
-                <error-prone.werror>-Xlint:none</error-prone.werror>
-                <error-prone.deprecation>-Xlint:none</error-prone.deprecation>
-            </properties>
-        </profile>
-        <profile>
-            <id>enforce-tests-coverage-when-no-tests</id>
-            <activation>
-                <property>
-                    <name>skipTests</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <properties>
-                <enforce-tests-coverage>false</enforce-tests-coverage>
-            </properties>
-        </profile>
-        <profile>
-            <!--
-                The full verification profile. `mvn clean package -Pfull` is the verification command: it
-                keeps every default-build gate and adds the slow and history-wide ones that the fast
-                partial (`mvn clean package`) skips. It clears the surefire group exclusion so the
-                whole-history tests run, and adds the documentation lint, the gitleaks history scan, the
-                dependency-freshness check, the Qodana inspection scan, and PIT mutation testing. Three of
-                those need Docker, so a precheck runs first and fails with a clear message when it is
-                absent. Everything still binds at package.
-            -->
+            <!-- Documentation remains project-owned and joins Airness's slow profile. -->
             <id>full</id>
-            <properties>
-                <surefire.excluded.groups/>
-            </properties>
             <build>
                 <plugins>
-                    <plugin>
-                        <!--
-                            Mutation testing. PIT targets every production class under aroxy: a mutant that
-                            survives is a behaviour no test pins, and which package it lives in does not
-                            change that. What does change is whether killing it is worth doing, and that
-                            judgement is recorded per mutant rather than by excluding a class wholesale.
-
-                            The explicit exclusions below mirror the process-boundary roles excluded from
-                            per-class coverage. Their behaviour is driven end to end through a spawned child
-                            JVM the agent cannot see, through an environment JDK 25 forbids mutating
-                            in-process, or through a filesystem fallback that is dead on every platform the
-                            tests run on. The rest of cli, daemon and fs remains in scope because package
-                            placement alone is not a reason to omit otherwise testable logic.
-
-                            The accepted survivors live in mutation-baseline.tsv, which the
-                            mutation-baseline exec checks the report this plugin has just written against.
-                            Why that file is a list rather than a surviving-mutant count, and what a line
-                            in it has to say, is argued in its header and only there.
-
-                            This plugin is declared ahead of exec-maven-plugin on purpose. Both bind to
-                            package, and Maven runs same-phase executions in plugin declaration order, so
-                            the analysis has to be declared first for its report to exist when the
-                            mutation-baseline exec reads it.
-                        -->
-                        <groupId>org.pitest</groupId>
-                        <artifactId>pitest-maven</artifactId>
-                        <version>${pitest-maven.version}</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.pitest</groupId>
-                                <artifactId>pitest-junit5-plugin</artifactId>
-                                <version>${pitest-junit5-plugin.version}</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <targetClasses>
-                                <param>eu.ciechanowiec.aroxy.*</param>
-                            </targetClasses>
-                            <excludedClasses>
-                                <param>eu.ciechanowiec.aroxy.cli.Aroxy</param>
-                                <param>eu.ciechanowiec.aroxy.cli.*Command</param>
-                                <param>eu.ciechanowiec.aroxy.cli.DaemonEntry</param>
-                                <param>eu.ciechanowiec.aroxy.cli.Version</param>
-                                <param>eu.ciechanowiec.aroxy.daemon.Launcher*</param>
-                                <param>eu.ciechanowiec.aroxy.daemon.LaunchCommand</param>
-                                <param>eu.ciechanowiec.aroxy.daemon.DaemonProcess</param>
-                                <param>eu.ciechanowiec.aroxy.daemon.Daemon</param>
-                                <param>eu.ciechanowiec.aroxy.daemon.Home</param>
-                                <param>eu.ciechanowiec.aroxy.fs.RestrictedDir</param>
-                            </excludedClasses>
-                            <targetTests>
-                                <param>eu.ciechanowiec.aroxy.*</param>
-                            </targetTests>
-                            <threads>${pitest.threads}</threads>
-                            <timeoutConstant>${pitest.timeout.constant}</timeoutConstant>
-                            <timeoutFactor>${pitest.timeout.factor}</timeoutFactor>
-                            <timestampedReports>false</timestampedReports>
-                            <outputFormats>
-                                <param>HTML</param>
-                                <param>XML</param>
-                            </outputFormats>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>mutation-coverage</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>mutationCoverage</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>${exec-maven-plugin.version}</version>
                         <executions>
                             <execution>
-                                <id>require-docker</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>sh</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <arguments>
-                                        <argument>scripts/require-docker.sh</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <!--
-                                    The documentation lint. scripts/lint-docs.sh runs the three-engine
-                                    linter README.adoc documents (.docs/lib/adoc_lint.py: Vale for prose
-                                    and typography, a structural linter, and an Asciidoctor render pass)
-                                    with the documented local tools. Any reported problem fails the build.
-                                -->
                                 <id>lint-docs</id>
-                                <phase>package</phase>
+                                <phase>prepare-package</phase>
                                 <goals>
                                     <goal>exec</goal>
                                 </goals>
@@ -1330,113 +275,6 @@
                                     <arguments>
                                         <argument>scripts/lint-docs.sh</argument>
                                         <argument>README.adoc</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>gitleaks-history</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>docker</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <arguments>
-                                        <argument>run</argument>
-                                        <argument>--rm</argument>
-                                        <argument>-v</argument>
-                                        <argument>${project.basedir}:/repo:ro</argument>
-                                        <argument>${gitleaks.image}</argument>
-                                        <argument>git</argument>
-                                        <argument>/repo</argument>
-                                        <argument>--no-banner</argument>
-                                        <argument>--redact</argument>
-                                        <argument>--config</argument>
-                                        <argument>/repo/.gitleaks.toml</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <!--
-                                    Reads the mutation report produced moments earlier in this same
-                                    phase, so it is an entry rather than a test: surefire has long
-                                    finished by the time the report exists.
-                                -->
-                                <id>mutation-baseline</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>java</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <classpathScope>test</classpathScope>
-                                    <arguments>
-                                        <argument>-cp</argument>
-                                        <classpath/>
-                                        <argument>eu.ciechanowiec.aroxy.governance.MutationBaselineEntry</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>dependency-freshness</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>java</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <classpathScope>test</classpathScope>
-                                    <arguments>
-                                        <argument>-cp</argument>
-                                        <classpath/>
-                                        <argument>eu.ciechanowiec.aroxy.governance.DependencyFreshnessEntry</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <!--
-                                    Qodana (the IntelliJ inspection engine) over the committed profile.
-                                    scripts/qodana.sh runs it in Docker (guarded by the require-docker
-                                    precheck above) and fails when Qodana reports any problem, because
-                                    qodana.yaml sets failThreshold to 0.
-                                -->
-                                <id>qodana</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>sh</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <arguments>
-                                        <argument>scripts/qodana.sh</argument>
-                                        <argument>${qodana.image}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <!--
-                                The same comparison the default build runs at package, repeated once more
-                                after the gates above. Those gates are declared in this profile, so they run
-                                after every execution of the default build, including its comparison; the
-                                Docker-backed ones bind the working tree into a container (the documentation
-                                lint has to mount it writable, since the linter writes a temporary file next
-                                to the document), so this is the run that would catch a stranded file.
-                            -->
-                            <execution>
-                                <id>verify-tree-unmodified-after-docker-gates</id>
-                                <phase>${tree.verify.phase}</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>sh</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <arguments>
-                                        <argument>scripts/tree-snapshot.sh</argument>
-                                        <argument>verify</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

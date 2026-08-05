@@ -1,10 +1,10 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.io.Serial;
 
 /**
- * A stand-in carrying the exact simple name {@code EofException} that some server containers raise
+ * A stand-in carrying the exact simple name {@link EofException} that some server containers raise
  * when the client vanishes mid-write, so the benign-disconnect classifier's by-type branch can be
  * exercised without depending on a container-specific class.
  */

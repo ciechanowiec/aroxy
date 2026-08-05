@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.client.CodexCli;
-import eu.ciechanowiec.governance.Justification;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;

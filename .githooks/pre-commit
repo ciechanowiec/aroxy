@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
-# Fast local guard before a commit is recorded: compile and run the fast test subset, which includes
-# the always-on governance checks (typography of tracked files, instruction-file references). The full
-# verification (static analysis, per-class coverage, secret scan, whole-history checks) runs on
+# Fast local guard before a commit is recorded: compile and run the application tests. The inherited
+# Airness checks that bind after test run with the default package build and with full verification on
 # pre-push and in CI.
 set -eu
 cd "$(git rev-parse --show-toplevel)"

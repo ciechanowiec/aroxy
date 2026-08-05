@@ -1,7 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationMatch;
-import eu.ciechanowiec.governance.Justification;
 import java.util.Collection;
 import java.util.List;
 

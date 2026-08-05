@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

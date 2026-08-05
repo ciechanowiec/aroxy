@@ -22,11 +22,11 @@ jobs:
           # The commit-message, typography, and gitleaks checks read the entire history.
           fetch-depth: 0
 
-      - name: 'Set up JDK 25'
+      - name: 'Set up JDK from .java-version'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version-file: '.java-version'
           cache: 'maven'
 
       - name: 'Install documentation lint tools'

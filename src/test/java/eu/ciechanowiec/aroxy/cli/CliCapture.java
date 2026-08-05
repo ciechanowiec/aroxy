@@ -1,13 +1,13 @@
 package eu.ciechanowiec.aroxy.cli;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import lombok.experimental.UtilityClass;
 
 /**
- * Captures everything {@code Aroxy.execute} prints to {@code System.out} during one CLI invocation so
+ * Captures everything {@code Aroxy.execute} prints to {@link System#out} during one CLI invocation so
  * a test can assert on the rendered output, restoring the original stream afterwards.
  */
 @UtilityClass

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 # Full verification before code leaves the machine, mirroring the CI gate exactly: every default-build
 # gate plus the whole-history commit and typography checks, the documentation lint, the gitleaks secret
-# scan, the dependency-freshness check, mutation testing, and the Qodana inspection scan. Three of those
-# need Docker. This is the verification command.
+# scan, the dependency-freshness check, mutation testing, and the Qodana inspection scan. Gitleaks and
+# Qodana need Docker. This is the verification command.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 mvn clean package -Pfull

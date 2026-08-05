@@ -1,7 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
-import eu.ciechanowiec.governance.Justification;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;

@@ -1,6 +1,6 @@
 package eu.ciechanowiec.aroxy.config;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;

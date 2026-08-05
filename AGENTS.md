@@ -19,190 +19,82 @@ leaves the machine. It does not hide that an agent is used or change the destina
 
 ## Build & test
 
-- **Verification command (the full harness): `mvn clean package -Pfull`.** One command runs every
-  check: compile, Error Prone + NullAway, Checkstyle + PMD + SpotBugs, per-class JaCoCo (>= 80%
-  instruction *and* branch, each class on its own), unused-dependency analysis, the EditorConfig check,
-  the dependency-license allowlist, the executable uber-jar, plus the slow and history-wide gates: the
-  README documentation lint (the three-engine `.docs/lib/adoc_lint.py` in Docker), the gitleaks secret
-  scan over the whole history (needs Docker), the
-  whole-history commit-message and typography checks, the dependency-freshness check, PIT mutation
-  testing, and the Qodana inspection scan (IntelliJ inspections in Docker). This MUST stay green. The
-  head of `main` passes it.
-- **Fast partial: `mvn clean package`** runs every default-build gate but skips the slow/history ones
-  (the `full`-tagged tests, gitleaks, freshness). No Docker needed. This is what `install.sh` and
-  `release.yaml` build.
-- **Fastest inner loop: `mvn -q clean test`** (compile + the fast test subset, with static analysis and
-  coverage running at `package`).
-- **No build that verifies writes to your sources.** The three source-shaping tools run as their
-  check-only goals, so a pending rewrite, an unformatted file, or an unsorted import fails the build
-  rather than being applied behind your back. **`mvn process-resources -Pformat` applies all three**.
-  Add `-Pformat` to any longer build to apply and carry on. The pom explains why the split is
-  opt-in-to-write.
-- **Every gate binds at or below `package`, and nothing binds to `verify`.** The `-Pfull` profile only adds
-  more executions at the `package` phase, so `package` is still the top of the build.
-- `-Pfull` needs Docker on `PATH` for the documentation lint, gitleaks, and Qodana. A precheck
-  (`scripts/require-docker.sh`) fails early when Docker is absent. Nothing needs a local Vale,
-  Asciidoctor, or Python install.
-- CI (`.github/workflows/verify.yml`) reruns `mvn clean package -Pfull` on every push to `main` and
-  every pull request, over the full history. Run `dev-setup.sh` once to enable the local git hooks in
-  `.githooks/` (commit-message validation, a fast pre-commit, and `-Pfull` on pre-push).
-- Run the CLI: `java -jar target/aroxy.jar --help`.
+- The project inherits the shared Java harness from
+  `eu.ciechanowiec:airness-parent:1.0.0-SNAPSHOT`. Airness owns analyzer versions, rule sets,
+  source shaping, coverage, repository governance, and the files its asset manifest marks pinned.
+  Do not recreate a local copy of an inherited rule or plugin configuration.
+- Until the SNAPSHOT is published, first run `mvn clean install` in the Airness checkout. A clean
+  machine, including the current GitHub runners, cannot resolve this parent from a remote repository.
+- **Full verification: `mvn clean package -Pfull`.** It runs every default gate plus commit-history and
+  typography checks, dependency freshness, mutation testing, gitleaks, Qodana, and the project-owned
+  README lint. Gitleaks and Qodana require Docker. The README lint requires the local documentation
+  toolchain described by `README.adoc`.
+- **Default verification: `mvn clean package`.** It compiles, tests, runs Error Prone and NullAway,
+  Checkstyle, PMD, SpotBugs, per-class JaCoCo, dependency and license checks, repository governance,
+  and builds the executable jar without the slow profile.
+- **Inner loop: `mvn -q clean test`.** Analyzer and coverage gates that bind later still require a
+  package build before a change is complete.
+- Verification is check-only. `mvn process-resources -Pformat` applies the Airness OpenRewrite,
+  formatting, and import-order changes and then checks their result.
+- `-Dairness.enforce=false` reports findings without failing on them. `-DskipTests` bypasses tests and
+  the Airness verdict when an artifact alone is required.
+- Run `dev-setup.sh` once to enable the fast pre-commit and full pre-push hooks. Run the CLI with
+  `java -jar target/aroxy.jar --help`.
 - **Starting the daemon needs no OS-level job submission.** `aroxy start` already spawns a detached JVM
-  (`daemon/Launcher`), which outlives the shell that invoked it and appends its output under
-  `~/.aroxy/logs/`. An agent whose command harness reaps descendant processes sees the foreground
-  `start` return and may reach for `launchctl submit`, a systemd unit, or `nohup` to keep the daemon
-  alive. That diagnosis is wrong: the daemon the launcher spawned was never a descendant of the
-  harness's command in the first place, so nothing needs working around, and handing the start over to
-  an OS job scheduler replaces a start path the tool owns and tests with one it knows nothing about.
-  Invoke `aroxy start` and read `~/.aroxy/logs/` to confirm it came up. No gate can see this, so it
-  binds by inspection.
-- Requires JDK 25 (Temurin), Maven 3.9+, and (for `-Pfull`) Docker.
+  (`daemon/Launcher`) and writes under `~/.aroxy/logs/`. Do not wrap it in `launchctl`, systemd,
+  `nohup`, or another scheduler. Invoke it normally and inspect the logs to confirm startup.
+- Requires JDK 25, Maven 3.9.11 or later, the locally installed Airness SNAPSHOT, and Docker plus the
+  documentation tools for full verification.
 
-## Conventions (match these, and the build enforces most of them)
+## Conventions
 
 - **Java 25**, `groupId eu.ciechanowiec`, `artifactId aroxy`, package `eu.ciechanowiec.aroxy`.
-- **Logging: tinylog** via SLF4J (`@Slf4j`). Not logback. Config in `src/main/resources/tinylog.properties`.
-- **Lombok** for boilerplate. `@Builder` and `@PostConstruct` are **banned** by Checkstyle.
-- **Tests: JUnit 5, NO mocks** (no Mockito). Use real objects, real in-JVM servers
-  (`com.sun.net.httpserver.HttpServer`), real temp files. JSON validity is asserted with real
-  `org.json` (test scope). A `*Test` class declares no `throws`: use Lombok `@SneakyThrows` on the
-  method instead (enforced by the custom PMD rule `NoThrowsInTestClass`).
-- **Javadoc names a type by linking it.** `{@link X}` wherever the name resolves from the file, on every
-  mention. `{@code X}` only for what a link cannot reach.
-- **Static analysis is strict and fails the build.** The configs under
-  `src/main/resources/static_code_analysis/` are the enumeration and the source of truth. Listed here are
-  only the rules that shape how code is written rather than merely tidy it, so do not grow this list
-  rule by rule: no `== null` / `!= null` / `return null` (use `Optional`); `this.`-qualify members;
-  cognitive complexity ≤ 4; cyclomatic ≤ 7; ≤ 4 params per method/ctor; ≤ 7 fields per class; no nested
-  if/for/try; ≤ 2 returns (≤ 1 in a void method); no
-  `catch (Exception)`, and a caught exception is named `_` when unused or `exception` when used; names
-  spell their words out (`directory`, not `dir`, and `logsDirectory` as surely as `directory`); braces on
-  every control statement; no `final` on a parameter or a local (effective finality is enough);
-  no magic numbers; a literal repeated > 6 times must be a constant; method ≤ 50
-  lines; file ≤ 500 lines; line ≤ 120 (Java only); no useless `@SuppressWarnings`;
-  no call into a deprecated API. The PMD `reportLevel` for the two complexity metrics reads
-  one higher than the cap, because PMD reports a method that reaches the level, not one that passes it.
-- **Dependency versions** are pinned via properties. The enforcer requires Java 25 and upper-bound
-  dependency convergence, bans Mockito and logback, and `versions-maven-plugin` reports available
-  updates at `package`.
+- **Logging:** tinylog via SLF4J (`@Slf4j`), never logback. Configuration is in
+  `src/main/resources/tinylog.properties`.
+- **Lombok:** use it for boilerplate. `@Builder` and `@PostConstruct` are banned. A type that needs
+  non-default accessors declares `@Accessors` locally rather than changing the shared `lombok.config`.
+- **Tests:** JUnit 5 with no mocks. Use real objects, in-JVM servers, and temporary files. A `*Test`
+  class declares no `throws`; use `@SneakyThrows` on the method where necessary.
+- **Javadoc:** link every resolvable type name with `{@link X}`. Use `{@code X}` only when no type link
+  can resolve.
+- **Static analysis is strict.** The active Airness artifact is the source of truth. Important shaping
+  rules include: no null comparisons or null returns; `this.`-qualified members; cognitive complexity
+  at most 4; cyclomatic complexity at most 7; at most 4 parameters and 7 fields; no nested control
+  flow; at most 2 returns; no `catch (Exception)`; descriptive unabbreviated names; braces everywhere;
+  no `final` locals or parameters; no magic numbers; methods at most 50 lines; files at most 500 lines;
+  Java lines at most 120 columns; no deprecated APIs; and no useless suppressions.
+- Dependency versions local to aroxy are pinned through properties. Airness owns shared dependency and
+  plugin versions plus Java and upper-bound convergence enforcement. Aroxy additionally bans Mockito
+  and logback.
 
-## Governance harness (confidence without reading)
+## Governance harness
 
-Nearly every quality expectation here is a machine-enforced check with two verdicts, all reachable from
-the one verification command above. Where a rule cannot be machine-checked it says so, rather than
-implying a gate that does not exist. Beyond static analysis and coverage, the harness adds:
-
-- **Custom governance checks** live as test-scope Java in
-  `src/test/java/eu/ciechanowiec/aroxy/governance/`: pure `*Rules` classes with unit tests, plus
-  drivers that read real `git` and filesystem state (no mocks). They cover commit messages, typography,
-  dependency freshness, instruction-file references, entry files, Javadoc links, comment prose, and the
-  mutation baseline, and are held to the same static analysis as production code.
-- **Entry files.** The root instruction file is `AGENTS.md`, a name no agent tool claims. A file an
-  agent tool reads under a name of its own is an entry file, and it holds nothing but a reference to
-  `AGENTS.md`. `EntryFileTest` declares the entry-file names this repository ships (`CLAUDE.md`) and
-  fails on one that omits the reference or states anything besides it. Splitting the rules across the
-  files two tools read is how they drift, and the tool that reads the stale copy is the one nobody
-  notices, so there is one copy and the rest point at it.
-- **What a file-scanning check reads** is every file a commit from the working tree would carry:
-  what git tracks, plus what is present and not ignored (`Repository.trackedFiles`). Scanning only
-  what git already tracks would pass over a whole feature's worth of new sources and report green on
-  a tree it had not read, then fail on the next run once those files were committed.
-- **Typography.** The em dash, en dash, single-character ellipsis, and curly quotation marks are banned
-  from every tracked file and every commit message. Use the plain ASCII hyphen, three periods, and
-  straight quotes. Vendored roles are exempt: `.vale/`, `.idea/`, `.docs/themes/`, and binaries.
-- **Comment prose.** No comment in a tracked Java source joins two clauses with a semicolon: a comment
-  is read under time pressure, so the sentence that survives is the short one, and there is always a
-  shorter reading (a full stop where both clauses stand alone, a comma where the second is
-  subordinate). A `@return` is the exception in both directions, being a fragment completing
-  "returns ...": it carries **no** full stop, and with none available a semicolon is what joins a
-  second clause to it. Every comment form counts (Javadoc, block, and line), in main and test sources
-  alike, and so does a `@Justification` value, which is a comment that happens to be written as an
-  annotation. Exempting it would let a suppression's reason say what a comment beside it may not. Every
-  other string literal is tokenized out, so a `"https://..."` is never read as a comment. Code
-  inside `<pre>`, an inline `{@code}`/`{@literal}`/`{@link}`, and HTML entities are skipped, because a
-  semicolon in them is syntax. The em and en dash are **not** this rule's concern. `TypographyRules`
-  owns them for every file, and one guideline gets one owner.
-- **Prose in the Markdown and AsciiDoc documents follows the same guideline, but binds by inspection.**
-  No gate reads them, because the two uses a gate would have to tell apart are not distinguishable by
-  pattern. A semicolon *joining two clauses* has a shorter reading and is what the guideline is about.
-  A semicolon *separating items in a series whose items already contain commas* has no shorter reading:
-  the static-analysis enumeration under Conventions above is one list of some twenty items, and commas
-  there would be ambiguous while twenty sentences would be unreadable. Those stay. So does a semicolon
-  inside a labelled counter-example, of which `README-guideline-writing.adoc` has one on purpose. Both
-  are the prose equivalent of the `<pre>` and `{@code}` regions the Java scan already skips, and a rule
-  that flagged them would be teaching the wrong lesson rather than enforcing this one.
-- **Secrets.** `gitleaks` scans the whole history for credentials under `-Pfull` (via Docker). Fake
-  test fixtures are allowlisted in `.gitleaks.toml`, and a real secret must never reach a commit.
-- **Dependency licenses.** Every resolved dependency must carry a license on the allowlist (Apache-2.0,
-  MIT, MIT-0, BSD-2-Clause, BSD-3-Clause, EPL-2.0, LGPL-2.1, JSON, Public Domain), enforced by
-  `license-maven-plugin`.
-- **Dependency freshness.** A declared dependency that trails its latest release by >= 2 major versions
-  fails the build (fail-closed when the registry is unreachable). Date-versioned releases (e.g.
-  `org.json`) have no comparable major and are outside this check.
-- **EditorConfig.** The committed `.editorconfig` is enforced on every tracked file (binaries and
-  vendored roles excluded). Its whitespace and encoding keys are gated. `max_line_length` is not, and
-  for Java the Checkstyle `LineLength` rule holds that limit instead.
-- **Unused dependencies.** An unused declared, or used but undeclared, dependency fails the build.
-- **No self-editing build.** OpenRewrite, the formatter, and the import sorter each run as their
-  check-only goal, so a green build is an honest statement about the committed tree rather than about a
-  tree the build reshaped on its way past. Behind them, `scripts/tree-snapshot.sh` fingerprints the tree
-  at `validate` and compares at `package` (and again after the Docker-backed gates under `-Pfull`),
-  catching any writer the three do not cover. Apply with `-Pformat`, which unbinds both comparisons.
-- **Mutation testing.** PIT mutates every production class under `eu.ciechanowiec.aroxy` except the
-  explicit process-boundary classes that the pom excludes by the same role-based argument as the
-  per-class coverage exclusions. A mutant that survives is a behaviour no test pins. The survivors
-  this repository accepts are listed one per line, each with its reason, in `mutation-baseline.tsv`,
-  and the `mutation-baseline` exec fails on either disagreement with the report: a survivor the file
-  does not list, which is a new gap, or a listed entry that no longer survives, which is a line to
-  delete. That file's header is the one place the arrangement is argued, down to what a reason must
-  say and what an `[intermittent]` entry suspends. It is not repeated here or in the pom, because
-  three copies of one argument are three things to keep in agreement.
-- **Qodana (IntelliJ inspections).** Under `-Pfull`, `scripts/qodana.sh` runs the Qodana engine over
-  `qodana/profile.xml` and fails on any finding (`qodana.yaml` sets `failThreshold: 0`). The profile is
-  a curated IntelliJ inspection profile, reusable across repositories. The only inspections disabled in
-  it are documented at its top (a few broadly-inapplicable ones and mutually-contradictory pairs, e.g.
-  `WeakerAccess` vs `ClassEscapesItsScope`). A finding that is a genuine project-specific false positive
-  is suppressed locally, not by weakening the profile.
-- **Suppressions.** A suppression is never useless: PMD's `UnnecessaryWarningSuppression` fails the
-  build on one that suppresses nothing. It is never unexplained either: every `@SuppressWarnings` is
-  paired with `@Justification("...")` saying why the rule does not apply there, enforced by the custom
-  PMD rule `SuppressionNeedsJustification`. The annotation lives in `eu.ciechanowiec.governance`, has
-  `SOURCE` retention, and is filtered out of the executable jar, so it costs the artifact nothing. It
-  sits outside the project's own package so the harness stays copyable. That a suppression never spans a
-  whole file still binds by inspection rather than by a gate. A static-analysis suppression names a rule
-  from the configs under `src/main/resources/static_code_analysis/`. A Qodana suppression names the
-  inspection and lives at the finding (`@SuppressWarnings("<inspection suppress id>")`, or a
-  `//noinspection <Id>` line where the annotation form does not apply - that form carries its reason as
-  an adjacent comment, since no annotation attaches to it). Prefer decomposition or a fix over a
-  suppression.
-
-## Reusing this harness
-
-The harness is written to be lifted into other Java projects, AEM and Sling among them, so most of it
-carries no trace of aroxy and is copied as it stands: the `scripts/`, the `.githooks/`, the
-`.github/workflows/`, `.docs/lib/adoc_lint.py` with `.vale/` and `.vale.ini`, `qodana/profile.xml` and
-`qodana.yaml`, `.editorconfig`, `.gitleaks.toml`, `rewrite.yml`, the configs under
-`src/main/resources/static_code_analysis/`, the `governance` test package, and the
-`eu.ciechanowiec.governance` annotation in main sources. Rules that no aroxy class
-can trip are kept on purpose, because a project that inherits the harness will trip them: the Sling
-injection and servlet rules are there for the AEM projects, not for this one.
-
-What a new project changes:
-- **Coordinates** - `groupId`, `artifactId`, `main.class`, `finalName`, and the package the analysis
-  configs name. The fully-qualified-name rule in `checkstyle.xml` names the group root alongside
-  `java`/`javax`/`jakarta`, so a copied harness that leaves it pointing at another project's group
-  enforces less than it says.
-- **PIT targets** - `targetClasses`/`targetTests` name aroxy's package root, `excludedClasses` names
-  its process-boundary roles, and every line of `mutation-baseline.tsv` describes aroxy's code. All
-  three are re-derived per project. A copied baseline is meaningless, and a copied one that is never
-  regenerated is worse than none.
-- **JaCoCo excludes** - the per-class exclusions name aroxy classes, by the role argued next to them.
-- **Banned dependencies** - the enforcer bans Mockito and logback because aroxy's conventions do. A
-  project that mocks or uses logback drops that rule. It is a choice, not part of the harness.
-- **The documented target** - `scripts/lint-docs.sh` is pointed at `README.adoc` by the pom, and
-  `InstructionReferenceTest` reads `AGENTS.md`. `EntryFileTest` names the entry files a project ships,
-  which is the set of agent tools it is opened to rather than anything about aroxy.
-- **Docker image pins** - `gitleaks.image` and `qodana.image` are properties. Keep them pinned.
+- Airness supplies the reusable governance code and Maven goals. Aroxy keeps no governance sources,
+  analyzer XML, rewrite recipe, Qodana profile, or harness scripts of its own.
+- `AGENTS.md` is the single instruction source and `CLAUDE.md` contains only `@AGENTS.md`.
+- The em dash, en dash, single-character ellipsis, and curly quotation marks are banned from
+  committable files and commit messages. `.vale/`, `.idea/`, and `.docs/themes/` are excluded by their
+  vendored roles.
+- No Java comment joins clauses with a semicolon. A `@return` fragment has no full stop and may use a
+  semicolon to join another fragment. This includes `@Justification` values. Prose documents follow the
+  same guideline by inspection where syntax and complex lists require judgment.
+- `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, and `qodana.yaml`
+  are pinned Airness assets. `.gitignore` and `.gitleaks.toml` were seeded and are project-owned.
+  `rewrite.yml` and `qodana/profile.xml` are forbidden because Airness supplies them from artifacts.
+- Gitleaks scans the complete history. Only fake fixtures may be allowlisted in `.gitleaks.toml`; a
+  real secret must never reach a commit.
+- Every resolved dependency needs an allowed license, declared dependencies must be used, used
+  dependencies must be declared, and a dependency lagging by at least two comparable major versions
+  fails full verification.
+- Verification snapshots every committable file after Airness synchronizes its assets and fails if a
+  later build step changes that tree. The `format` profile is the explicit source-writing path.
+- PIT targets `eu.ciechanowiec.aroxy` except the role-based process boundaries configured in `pom.xml`.
+  `mutation-baseline.tsv` is project-owned and records each accepted survivor with its reason.
+- Qodana runs the profile embedded in Airness against a read-only repository copy. A genuine
+  project-specific false positive is suppressed locally, never by weakening the shared profile.
+- Every `@SuppressWarnings` has a sibling `@Justification("...")` imported from
+  `eu.ciechanowiec.airness`. Prefer decomposition or a fix over suppression. A Qodana-only suppression
+  names the inspection at the finding and explains a `//noinspection` form in an adjacent comment.
 
 ## Commit messages and history
 
@@ -319,8 +211,9 @@ jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
 - Structured request safety: JSON agent requests are parsed before matching, rules see decoded string
   values, and protocol fields declared opaque by the client profile are never transformed.
 - **An encoded field is opaque, and opaque under its own parent.** An attached image or document is
-  base64 under `source.data` for Claude Code and a base64 data URL under `content.image_url` for
-  Codex, a thinking block's signature is under `content.signature`, redacted thinking is under
+  base64 under `source.data` for Claude Code. For Codex, an attached image is a base64 data URL under
+  `content.image_url`, while a replayed tool image uses `output.image_url`. A thinking block's
+  signature is under `content.signature`, redacted thinking is under
   `content.data`, and Codex reasoning ciphertext is under `encrypted_content`. None is text anyone
   wrote, so no rule can find a secret in one, while a substitution inside one destroys a value the
   vendor decodes, validates, or dereferences before it reads anything else. This is not a rare case

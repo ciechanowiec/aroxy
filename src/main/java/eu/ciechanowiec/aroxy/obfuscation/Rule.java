@@ -1,10 +1,11 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.governance.Justification;
+import eu.ciechanowiec.airness.Justification;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 
 /**
  * One obfuscation rule: an identifier, an enabled flag, and the two composed value objects that
@@ -12,6 +13,9 @@ import lombok.ToString;
  * Configuration order breaks ties between matches with the same start and length.
  */
 @Getter
+@Accessors(
+    fluent = true
+)
 @ToString
 @EqualsAndHashCode
 @RequiredArgsConstructor

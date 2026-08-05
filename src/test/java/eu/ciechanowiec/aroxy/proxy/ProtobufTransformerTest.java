@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
-import eu.ciechanowiec.governance.Justification;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;

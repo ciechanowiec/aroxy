@@ -1,5 +1,10 @@
+# Configuration for the inspection engine.
+#
+# It deliberately names no profile. The profile the harness ships is mounted into the container and
+# named on the command line instead, because a path written here would have to be relative to the
+# repository root, and where the build directory sits relative to that root differs between a
+# single-module project, a multi-module one, and a project nested inside another repository.
 version: "1.0"
-profile:
-  path: qodana/profile.xml
-# Any inspection finding fails the run: more than zero problems trips the quality gate.
+# Any finding fails the run. A threshold above zero is a number nobody revisits, and the findings under
+# it accumulate into a backlog the gate then reports as acceptable.
 failThreshold: 0
