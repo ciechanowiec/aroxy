@@ -57,7 +57,7 @@
         <tinylog.version>2.7.0</tinylog.version>
         <org-json.version>20260719</org-json.version>
         <aircompressor.version>2.0.3</aircompressor.version>
-        <jetty.version>12.1.11</jetty.version>
+        <jetty.version>12.1.12</jetty.version>
 
     </properties>
 
