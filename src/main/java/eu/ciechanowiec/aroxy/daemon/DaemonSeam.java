@@ -72,7 +72,7 @@ public record DaemonSeam(Map<ClientId, URI> upstreams, boolean ephemeralPort) {
 
     private static Map<ClientId, URI> everyClientAt(URI upstream) {
         return ClientRegistry.profiles().stream()
-            .collect(Collectors.toUnmodifiableMap(ClientProfile::id, profile -> upstream));
+            .collect(Collectors.toUnmodifiableMap(ClientProfile::id, _ -> upstream));
     }
 
     EffectiveConfig applyTo(EffectiveConfig config) {

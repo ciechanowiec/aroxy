@@ -36,6 +36,13 @@ class LiteralRuleTest {
         );
     }
 
+    @Test
+    void leetFactoryEnablesLeetMatching() {
+        LiteralSpec spec = LiteralSpec.leet(NETSCAPE);
+        assertEquals(NETSCAPE, spec.value(), "the canonical spelling is retained");
+        assertTrue(spec.leet(), "the factory enables digit look-alike matching");
+    }
+
     private static Set<String> distinctTokens(CharSequence text) {
         Set<String> tokens = new LinkedHashSet<>();
         Matcher matcher = PiiToken.TOKEN.matcher(text);

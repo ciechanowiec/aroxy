@@ -92,7 +92,7 @@ public final class Vault {
         this.lock.lock();
         try {
             Optional<String> existing = Optional.ofNullable(this.originalToToken.get(original));
-            existing.ifPresent(ignored -> this.upgradeIfSensitive(original, sensitive));
+            existing.ifPresent(_ -> this.upgradeIfSensitive(original, sensitive));
             return existing.orElseGet(() -> this.mint(original, placeholder, sensitive));
         } finally {
             this.lock.unlock();
@@ -113,7 +113,7 @@ public final class Vault {
      * on responses is not evicted as if it were idle, then returns it unchanged.
      */
     private String keepRecent(String original) {
-        this.originalToToken.computeIfPresent(original, (key, token) -> token);
+        this.originalToToken.computeIfPresent(original, (_, token) -> token);
         return original;
     }
 

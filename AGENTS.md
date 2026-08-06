@@ -38,8 +38,7 @@ leaves the machine. It does not hide that an agent is used or change the destina
   formatting, and import-order changes and then checks their result.
 - `-Dairness.enforce=false` reports findings without failing on them. `-DskipTests` bypasses tests and
   the Airness verdict when an artifact alone is required.
-- Run `dev-setup.sh` once to enable the fast pre-commit and full pre-push hooks. Run the CLI with
-  `java -jar target/aroxy.jar --help`.
+- Run the CLI with `java -jar target/aroxy.jar --help`.
 - **Starting the daemon needs no OS-level job submission.** `aroxy start` already spawns a detached JVM
   (`daemon/Launcher`) and writes under `~/.aroxy/logs/`. Do not wrap it in `launchctl`, systemd,
   `nohup`, or another scheduler. Invoke it normally and inspect the logs to confirm startup.
@@ -86,8 +85,9 @@ leaves the machine. It does not hide that an agent is used or change the destina
 - Every resolved dependency needs an allowed license, declared dependencies must be used, used
   dependencies must be declared, and a dependency lagging by at least two comparable major versions
   fails full verification.
-- Verification snapshots every committable file after Airness synchronizes its assets and fails if a
-  later build step changes that tree. The `format` profile is the explicit source-writing path.
+- Verification snapshots every committable file, fails without rewriting a changed pinned asset, and
+  fails if a later build step changes that tree. `airness:assets-sync` is the explicit asset repair
+  command, while the `format` profile is the explicit Java source-writing path.
 - PIT targets `eu.ciechanowiec.aroxy` except the role-based process boundaries configured in `pom.xml`.
   `mutation-baseline.tsv` is project-owned and records each accepted survivor with its reason.
 - Qodana runs the profile embedded in Airness against a read-only repository copy. A genuine
