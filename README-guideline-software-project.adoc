@@ -50,6 +50,7 @@ This guideline is written for the AI systems that perform any work in software p
 == Governing Principles
 
 . The rules apply to every programming language and platform, so they name no concrete tools and no concrete programming languages.
+. The publication tools named in xref:#about-the-document[About the Document] apply only to this document and impose no requirement on a governed repository.
 . A rule is absolute: it binds in every case unless the rule itself states its exception.
 . A rule that a machine can check reliably is wired into a xref:#check[check], and the repository binds that check to a concrete tool of its technology stack.
 . A rule that no machine can check reliably binds with the same force: an xref:#instruction-file[instruction file] states it, and an inspection of the repository against the rule's wording decides compliance.
@@ -64,23 +65,25 @@ This section defines the terms the guideline uses and states the qualities that 
 
 . [[check]]A _check_ is an automated verification with exactly two verdicts: pass and fail. Any outcome other than a pass, including the failure of the check itself to run, is a fail. A warning severity doesn't exist in a compliant repository.
 . [[harness]]A _harness_ is the complete set of checks of a repository.
-. [[verification-command,the verification command]]A _verification command_ is a command of the repository that runs every check in a fixed order and fails when any check fails. The verdict of the verification command is the verdict of the whole harness.
+. [[verification,a verification]]A _verification_ is a repository command that runs a declared set of checks in a fixed order and fails when any check in that set fails.
+. [[default-verification,Default verification]]_Default verification_ runs the checks intended for routine development.
+. [[extended-verification,Extended verification]]_Extended verification_ includes Default verification and every remaining check. Its verdict is the verdict of the harness.
 
 [[check-qualities]]
 === Check Qualities
 
 . The checks run at the strictest settings their tools offer, relaxed only where a rule of this guideline declares a cap, a floor, an allowlist, or a xref:#suppressions[suppression].
-. A check is deterministic: on the same state of the repository it reaches the same verdict on every run and on every machine. The one exception is the xref:#dependency-freshness[freshness check], which reads a package registry by design and states its own bound.
-. The toolchain the checks run - every analyzer, every build plugin, and every container image - is pinned to an exact version, so an upstream release can't change a verdict while the repository doesn't change.
+. A check is deterministic: on the same state of the repository it reaches the same verdict on every run and on every machine. The one exception is the xref:#dependency-freshness[freshness check], which reads a dependency registry by design and states its own bound.
+. Every third-party tool and reusable automation component is pinned to an exact version, so an upstream release can't change a verdict while the repository doesn't change. An execution environment may instead use an explicit compatibility range when the repository's instruction file states that range.
 
-[[the-verification-command]]
-== The Verification Command
+[[verification-commands]]
+== Verification Commands
 
-. The repository defines a xref:#verification-command[verification command] and may define partial commands that run declared subsets of the checks - for example, a fast command for everyday work.
-. The verification command runs to a verdict on a fresh clone of the repository. The only preparation a fresh clone needs is installing the toolchain.
-. A run of the verification command doesn't write to the tracked tree of the repository. A tool that reshapes a source file, such as a formatter or an import sorter, runs as a check that fails when it would change a file and applies the change only through a separate command the repository declares. A check compares the tree after a run against the tree before it and fails on any difference, so a pass describes the committed tree and not a tree the run reshaped.
-. The verification command itself starts every external service the tests use.
-. The head commit of the main branch passes the verification command.
+. The repository defines commands for xref:#default-verification[Default verification] and xref:#extended-verification[Extended verification].
+. Extended verification runs to a verdict on a fresh working copy of the repository. The only preparation a fresh working copy needs is installing the declared execution environment.
+. A verification doesn't write to the version-controlled working copy. A tool that reshapes a source file, such as a formatter or an import organizer, runs as a check that fails when it would change a file and applies the change only through a separate command the repository declares. A check compares the working copy after a run against its state before the run and fails on any difference, so a pass describes the submitted state and not one the run reshaped.
+. Extended verification starts every external service the tests use.
+. The latest revision of the primary branch passes Extended verification.
 . A check the repository implements itself, rather than one it binds to a third-party tool, is source code of the repository. It meets every rule of the sections xref:#code-rules[] and xref:#testing[], and the harness checks it as it checks any other source code.
 
 [[repository-organization]]
@@ -91,31 +94,31 @@ This section describes the layout of a compliant repository, from the xref:#inst
 [[agent-instructions]]
 === Agent Instructions
 
-. [[instruction-file,an instruction file]]An _instruction file_ is a committed file that holds rules of the repository for agents. [[root-instruction-file,the root instruction file]]The _root instruction file_ sits at the top of the repository and states the xref:#verification-command[verification command], the repository layout, the conventions that the checks enforce, and every rule that binds without a machine check.
-. A directory may hold a scoped instruction file with the rules specific to its part of the repository. A rule appears in exactly one instruction file.
-. The xref:#root-instruction-file[root instruction file] carries a name that no agent tool owns, so the rules sit in one place whichever agent tool reads them. [[entry-file,an entry file]]An _entry file_ is a file that an agent tool reads for instructions under a fixed name of its own. An entry file holds nothing but a reference to an instruction file and states no rule. Where its format supports an import, the reference is that import. Where its format supports none, the reference is the location of the instruction file in plain text.
-. The repository declares the names of its xref:#entry-file[entry files]. A check reads each declared name present in the repository and fails on a file that holds anything besides the reference.
+. [[instruction-file,an instruction file]]An _instruction file_ is a version-controlled file that holds rules of the repository for agents. [[root-instruction-file,the root instruction file]]The _root instruction file_ sits at the top of the repository under a name the repository declares. It states the xref:#verification-commands[verification commands], the repository layout, the conventions that the checks enforce, and every rule that binds without a machine check.
+. A directory may hold a scoped instruction file with the rules specific to its part of the repository. A rule appears in one canonical instruction file. Another instruction file may link to that rule but doesn't restate it.
+. [[entry-file,an entry file]]An _entry file_ is a file that another agent tool reads under a fixed name of its own. An entry file holds only a reference to the xref:#root-instruction-file[root instruction file]. Where its format supports an import, the reference is that import. Where its format supports none, the reference is the location of the root instruction file in plain text.
+. The repository declares the names of its xref:#entry-file[entry files]. A check reads each declared entry file and fails when its content contains anything besides the reference.
 . Every command and every path that an instruction file references resolves to an existing target. A check verifies each reference and fails on a dangling one.
 
-[[production-imports]]
-=== Production Imports
+[[production-boundaries]]
+=== Production Boundaries
 
-Production code imports neither test code nor development-only dependencies. A check walks every import of production code and fails on either kind.
+Production code depends on neither test code nor development-only dependencies. A check analyzes the dependency relationships of production code and fails on either kind.
 
 [[generated-files]]
 === Generated Files
 
-. No generated file carries a direct hand edit: a generated file changes only as the output of its declared generator. The repository denies agents write access to generated files where the agent runtime supports the denial.
-. A check reruns the declared generator and fails when the committed copy differs from the output. For a generator that resolves against state outside the repository, the check instead verifies that the committed artifact matches its declared inputs.
+. No generated file carries a direct hand edit: a generated file changes only as the output of its declared generator. The repository denies agents write access to generated files where the agent environment supports the denial.
+. A check reruns the declared generator and fails when the version-controlled copy differs from the output. For a generator that resolves against state outside the repository, the check instead verifies that the stored artifact matches its declared inputs.
 . The repository exempts generated files, named by role, from the checks of the section xref:#code-rules[]. The regeneration check binds them instead.
 
 [[repository-wide-configuration]]
 === Repository-Wide Configuration
 
-. Line endings, character encoding, indentation, and whitespace handling are fixed by configuration files committed to the repository. A check verifies every tracked file that the repository doesn't exempt by role, such as binary assets, against that configuration and fails on the first deviation.
-. Where the ecosystem of the programming language has a code formatter, the formatter is one of the checks, run under a committed configuration. The check formats every source file not exempt by role and fails when the output differs from the committed copy.
-. No secret sits in any commit. A check scans the tracked content and the whole history for credentials, keys, and tokens.
-. A fake credential committed as a test fixture is listed in a declared allowlist. The secret check fails on any hit outside that allowlist.
+. Line endings, character encoding, indentation, and whitespace handling are fixed by configuration files stored in the repository. A check verifies every version-controlled file that the repository doesn't exempt by role, such as binary assets, against that configuration and fails on the first deviation.
+. Where the ecosystem of the programming language has a code formatter, the formatter is one of the checks, run under a stored configuration. The check formats every source file not exempt by role and fails when the output differs from the version-controlled copy.
+. No secret sits in any revision. A check scans the version-controlled content and the whole history for credentials, keys, and tokens.
+. A fake credential stored as a test fixture is listed in a declared allowlist. The secret check fails on any hit outside that allowlist.
 
 [[code-rules]]
 == Code Rules
@@ -180,7 +183,7 @@ This section describes the state of the source code: its size, its types, its na
 [[suppressions]]
 === Suppressions
 
-. A _suppression_ is a source-level annotation that turns one named rule off at one specific place in the code. Every suppression carries a one-line justification.
+. A _suppression_ is source-level metadata that turns one named rule off at one specific place in the code. Every suppression carries a one-line justification.
 . The repository declares the closed list of rules that a suppression may name.
 . A check fails on a suppression without a justification, on a suppression that names a rule outside the declared list, on a suppression that spans a whole file, and on a suppression that no longer suppresses anything.
 
@@ -188,49 +191,49 @@ This section describes the state of the source code: its size, its types, its na
 === Typography
 
 . The following characters are banned: the em dash, the en dash, typographic quotation marks, and the single-character ellipsis. The plain equivalents - the hyphen, the straight quotation mark, and three periods - stand in their place.
-. The banned characters are absent from every commit message and from every tracked file the repository doesn't exempt by role. A check scans those files by code point and fails on the first hit.
+. The banned characters are absent from every revision message and from every version-controlled file the repository doesn't exempt by role. A check scans those files by code point and fails on the first hit.
 
 [[dependencies]]
 == Dependencies
 
-This section describes the state of the third-party packages the repository depends on: the licenses they carry and how far they trail their upstream releases.
+This section describes the state of third-party components: the licenses they carry and how far they trail their upstream releases.
 
-[[declared-dependency,a declared dependency]]A _declared dependency_ is a package that a manifest of the repository names directly. [[resolved-set,the resolved set]]The _resolved set_ is the declared packages together with every package they pull in.
+[[declared-dependency,a declared dependency]]A _declared dependency_ is a third-party component that a repository definition names directly. [[resolved-set,the resolved set]]The _resolved set_ is the declared dependencies together with every transitive dependency they pull in.
 
 [[dependency-licenses]]
 === Licenses
 
-. Every package in the xref:#resolved-set[resolved set] carries a license that appears on an allowlist the repository declares. A check reads the license of each such package and fails on a license outside the allowlist.
-. The allowlist names license identifiers, not individual packages. A package whose license the check can't resolve fails the check, like any package whose license lies outside the allowlist.
+. Every component in the xref:#resolved-set[resolved set] carries a license that appears on an allowlist the repository declares. A check reads the license of each component and fails on a license outside the allowlist.
+. The allowlist names license identifiers, not individual components. A component whose license the check can't resolve fails the check, like any component whose license lies outside the allowlist.
 
 [[dependency-freshness]]
 === Freshness
 
 Trailing an upstream release by several major versions is a property of the version the repository declares, so it binds as a check. A newer version merely existing isn't a property of the declared version, so it's reported but never fails the build on its own.
 
-. Every build reports each stable update available for a package the repository declares, in a manifest of its own or in a manifest that one inherits from. The report names the manifest that owns the declaration, so a manifest that inherits a declaration reports the update without becoming its version owner.
+. Every build reports each stable update available for a declared dependency. The report names the repository definition that owns the declaration, so an inherited declaration is reported without changing its version owner.
 . A xref:#declared-dependency[declared dependency] trails its latest published release by fewer major versions than a bound the repository declares - for example, two major versions. The check compares every declaration the update report covers against its latest release and fails when the gap reaches the bound. It counts declared dependencies, not the rest of the xref:#resolved-set[resolved set].
 . A conventional version uses its numeric major for that comparison. A version beginning with a four-digit year in the range `20**` uses the year as its major-equivalent, so an available release two or more years ahead fails under a bound of two. A version scheme with neither a numeric major nor a leading year has no comparable level and is excluded from this check.
-. This check reads the package registry, so its verdict can change while the repository doesn't. It's the check that the section xref:#check-qualities[] exempts from its determinism rule. The exemption is bounded. A gap below the bound passes. The check fails only when the gap reaches the declared major-version bound. When the registry is unreachable, the check fails.
+. This check reads a dependency registry, so its verdict can change while the repository doesn't. It's the check that the section xref:#check-qualities[] exempts from its determinism rule. The exemption is bounded. A gap below the bound passes. The check fails only when the gap reaches the declared major-version bound. When the registry is unreachable, the check fails.
 
 [[testing]]
 == Testing
 
 This section describes the state of the test suite and what it proves.
 
-[[real-objects-only]]
-=== Real Objects Only
+[[test-components]]
+=== Test Components
 
-. A test uses no mocks, no stubs, and no spies. A test runs against real components: a real database, a real server on a local port, a real temporary file.
-. A service that exists only outside the machine is exercised through a local implementation of its protocol. Such an implementation counts as a real component, not as a substitute.
+. The xref:#root-instruction-file[root instruction file] states whether the repository permits mocks, stubs, and spies. A test double is never used for the system under test itself.
+. A service that exists only outside the machine is exercised through a local implementation of its protocol, so the test reaches no external network.
 . Test code passes the same static analysis as production code.
 
 [[coverage]]
 === Coverage
 
-. Line coverage and branch coverage are at least 80% in every measured file. A file with no branches satisfies the branch floor.
+. Executable-code coverage and decision coverage are at least 80% in every unit the repository declares as measured. The xref:#root-instruction-file[root instruction file] states the concrete metrics and measurement unit supported by the chosen technology stack. A unit with no decisions satisfies the decision-coverage floor.
 . A file is excluded from coverage only by role - for example, generated code - and a machine can recognize the role from the file itself. An exclusion never names an individual file.
-. Where the ecosystem of the programming language has a mutation-testing tool, mutation testing is one of the checks, and the repository declares the directories it covers. A surviving mutant fails the check unless it carries a suppression that names it as equivalent, per the section xref:#suppressions[].
+. Where the ecosystem of the programming language has a mutation-testing tool, mutation testing is one of the checks. The repository declares the code it covers and enforces a mutation score of at least 80%. A mutation run that produces no mutations fails. A repository may strengthen this floor by recording every accepted survivor and failing on any survivor outside that baseline.
 
 [[determinism]]
 === Determinism
@@ -241,19 +244,19 @@ This section describes the state of the test suite and what it proves.
 [[test-integrity]]
 === Test Integrity
 
-. A check fails on a focused test and on a commented-out test. A test is skipped only by a declared rule that names a platform condition, never by an annotation in the test itself.
+. A check fails on a focused test and on a commented-out test. A test is skipped only by a declared rule that names a platform condition, never by source-level skip metadata alone.
 . A test verifies one behavior and states that behavior in its name.
 
 [[version-control]]
 == Version Control
 
-This section describes the state of the commit history and of the automation that guards the main branch.
+This section describes the state of the revision history and of the automation that guards the primary branch.
 
 [[commit-messages]]
-=== Commit Messages
+=== Revision Messages
 
-. Every commit message passes a machine check of one format: a typed header of the form `type(scope): subject`, with the type drawn from a closed list that the repository declares.
-. Merge commits and revert commits follow the fixed header forms that the repository declares, and the repository declares whether the scope may be omitted.
+. Every revision message passes a machine check of one format: a typed header of the form `type(scope): subject`, with the type drawn from a closed list that the repository declares.
+. Integration revisions and reversals follow the fixed header forms that the repository declares, and the repository declares whether the scope may be omitted.
 . The subject holds 15 to 72 characters, ends without a period, and contains no whole word from the closed junk-word list that the repository declares - for example, `wip`, `tmp`, or `misc`.
 . A change that crosses the triviality threshold the repository declares - for example, more than 2 files or more than 50 changed lines - carries a body that states why the change was made.
 +
@@ -263,16 +266,16 @@ feat(obfuscation): mask bearer tokens in request headers
 Provider tokens leaked into the proxy logs through the header dump.
 Masking them in the header parser closes the leak for every consumer.
 ----
-. No commit message attributes the change to an AI agent or to an agent session. No co-authorship trailer, sign-off address, session identifier, or generated-by signature that names an automated agent or the session that produced the change appears in any commit message. A check scans each commit message for the known attribution markers and fails on a hit. Because no pattern can enumerate every agent, an xref:#instruction-file[instruction file] states the rule in prose as well, and an inspection against its wording decides a marker the check doesn't yet know.
-. The commit checks above are deterministic per commit, so the xref:#verification-command[verification command] applies them not only to new commits but to every commit reachable from the head of the main branch, back to and including the first commit, and fails when any commit violates one. Every commit satisfied the checks when it was recorded, so the whole history stays compliant by construction, and a failure signals a commit that reached the branch through a bypassed hook.
+. No revision message attributes the change to an AI agent or to an agent session. No co-authorship trailer, sign-off address, session identifier, or generated-by signature that names an automated agent or the session that produced the change appears in any revision message. A check scans each revision message for the known attribution markers and fails on a hit. Because no pattern can enumerate every agent, an xref:#instruction-file[instruction file] states the rule in prose as well, and an inspection against its wording decides a marker the check doesn't yet know.
+. The revision checks above are deterministic per revision, so xref:#extended-verification[Extended verification] applies them not only to new revisions but to the complete history of the primary branch. A failure identifies a revision that reached the branch without satisfying the policy.
 
-[[hooks-and-continuous-integration]]
-=== Hooks and Continuous Integration
+[[continuous-integration]]
+=== Continuous Integration
 
-. The repository configures hooks of the version control system that run declared subsets of the checks before a commit is recorded and before a push leaves the machine.
-. The repository configures a shared automation service that reruns the xref:#verification-command[verification command] on every push and every merge request. The service blocks a merge whose rerun fails.
-. The history of the main branch is append-only: a published commit is corrected by a new commit, never by rewriting.
+. The repository configures a shared automation service that reruns xref:#extended-verification[Extended verification] whenever a revision is published or proposed for integration. The service blocks integration when the rerun fails.
+. The history of the primary branch is append-only: a published revision is corrected by a new revision, never by rewriting.
 
+[[about-the-document]]
 == About the Document
 
 The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.

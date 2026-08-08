@@ -1,5 +1,5 @@
 [.text-justify]
-= _aroxy_ -  Agent Proxy
+= _aroxy_ - Agent Proxy
 :reproducible:
 :doctype: article
 :author: Herman Ciechanowiec
@@ -11,7 +11,6 @@
 :toc: left
 :toclevels: 5
 :icons: font
-:docinfo: shared,private
 :linkcss:
 :sourcedir: {docdir}
 :pdf-theme: {sourcedir}/.docs/themes/basic.yml
@@ -22,9 +21,29 @@
 :!figure-caption:
 :!example-caption:
 
+ifdef::backend-html5[]
+++++
+<link href="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo.css" rel="stylesheet">
+<!-- Inlined so the IntelliJ AsciiDoc preview honors these rules: its webview blocks external CSS even in
+     UNSAFE mode, so the remote stylesheet above is dropped in the IDE preview. Mirrors rules already in
+     adoc-css-style.css for the published HTML; enforces [cols="..."] column widths and wraps long content. -->
+<style>
+    table.tableblock {
+        table-layout: fixed;
+    }
+
+    table.tableblock td,
+    table.tableblock th {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+</style>
+++++
+endif::[]
+
 == _aroxy_ in Brief
 
-. _aroxy_ ("Agent Proxy") is a local HTTP proxy that stands between your coding agent and the API it talks to. The agent sends its API traffic to _aroxy_ instead of directly to the vendor. _aroxy_ replaces sensitive values in the request body with tokens, forwards the request to the real API, and restores the original values in the response before returning it to the agent.
+. _aroxy_, short for _Agent Proxy_, is a local HTTP proxy that stands between your coding agent and the API it talks to. The agent sends its API traffic to _aroxy_ instead of directly to the vendor. _aroxy_ replaces sensitive values in the request body with tokens, forwards the request to the real API, and restores the original values in the response before returning it to the agent.
 +
 Three agents are supported, each on its own local port, and one _aroxy_ serves them at once:
 +
@@ -36,7 +55,7 @@ Three agents are supported, each on its own local port, and one _aroxy_ serves t
 | `127.0.0.1:8788`
 | `api.anthropic.com`
 
-| https://developers.openai.com/codex/cli[Codex^] (signed in with ChatGPT)
+| https://developers.openai.com/codex/cli[Codex^], signed in with ChatGPT
 | `127.0.0.1:8789`
 | `chatgpt.com/backend-api/codex`
 
@@ -45,29 +64,30 @@ Three agents are supported, each on its own local port, and one _aroxy_ serves t
 | `api2.cursor.sh`
 |===
 +
-A port per agent means a request is never routed by guessing which vendor a path belongs to. All listeners share one vault, one rule set, and one xref:#audit-log[audit log], so a secret carries the same token whichever agent sends it.
+All listeners share one vault, one rule set, and one xref:#audit-log[audit log], so a value carries the same token whichever agent sends it.
 +
+.Supported agent listeners and upstream APIs
 image::.docs/img/architecture.drawio.png[alt="Claude Code, Codex, and the Cursor command-line tool connect to separate listeners inside one aroxy on ports 8788, 8789, and 8790. The listeners forward to api.anthropic.com, chatgpt.com/backend-api/codex, and api2.cursor.sh. All listeners share one vault, one rule set, and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
-. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` is a per-value counter. The counter is shared across all rules and advances by one for each new distinct value, so the numbers form a single sequence across placeholders rather than restarting per placeholder. For example, the first AWS key in a request becomes `+<<PII:AWS_KEY:1>>+`. The substitution happens before the request leaves the machine, so the API receives the token, never the original value. The agent receives the original value back, so its own view of the conversation is unchanged.
-. This is data minimization, not concealment. _aroxy_ removes sensitive content from the bytes that leave the machine. It doesn't hide that an agent is in use, and it doesn't change the destination: an observer still sees a TLS connection to the vendor's API. Confirm that your agent and its API host are permitted on the network before relying on this setup.
+. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` identifies the value. For example, the first AWS key becomes `+<<PII:AWS_KEY:1>>+`. The API receives the token, while the agent receives the restored value.
+. This is data minimization, not concealment. _aroxy_ neither hides that an agent is in use nor changes the API destination. An observer still sees a TLS connection to the vendor's API. Confirm that your agent and its API host are permitted on the network before relying on this setup.
 
 == Default Coverage
 
-_aroxy_ ships with a set of bundled rules, but by default only the rules for secrets and credentials are on. Every other rule is off, ready for you to enable. Rules scan prompts and tool input while leaving protocol-opaque fields unchanged: an image or a document you attach, the signature that authenticates a Claude Code thinking block, and Codex `encrypted_content`. Those are encoded rather than written, so no rule could find a secret in one, and a substitution inside one would leave the API unable to read a value it checks before anything else.
+_aroxy_ enables only its bundled secret and credential rules by default. Every other bundled rule is ready for you to enable. Rules scan prompts and tool input but skip encoded protocol fields, including attachments, Claude Code thinking signatures, and Codex `encrypted_content`. Skipping those fields prevents encoded payloads from being corrupted.
 
 . *Secrets and credentials*
 +
 Privacy-Enhanced Mail (PEM) private keys, AWS access keys, GitHub tokens, Slack tokens, `sk-` API keys, JSON Web Tokens, connection strings that embed a password, and `password=`/`secret=`/`api_key=`/`token=` assignments are obfuscated by default. They match by structure, so they require no rules of your own. A secret's value is masked in the xref:#audit-log[audit log].
-. *Corporate identifiers (you define these)*
+. *User-defined corporate identifiers*
 +
 _aroxy_ can't know the company names, internal domains, or project codenames in use, so it obfuscates none of these by default. The xref:#default-configuration-file[default configuration file] ships two example rules for each of company names, internal domains, and project codenames, all turned off. To use one, fill in a value and set `enabled = true`. You aren't limited to the examples shown: add as many rules as you need, each with a unique `id`, following the section xref:#the-rule-format[]. Identifier values are shown in full in the xref:#audit-log[audit log].
 . *Off by default*
 +
-Classic personally identifiable information (email, phone) and internal network details (private IP ranges, internal URLs) ship off by default. Turn a rule on by setting `enabled = true`. The full list is in the xref:#default-configuration-file[default configuration file `default.conf`].
+Classic personally identifiable information includes email addresses and phone numbers. Internal network details include private IP ranges and internal URLs. Rules for both categories ship off by default. Turn a rule on by setting `enabled = true`. The full list is in the xref:#default-configuration-file[default configuration file `default.conf`].
 
 == Prerequisites
 
-_aroxy_ has three prerequisites, listed below.
+_aroxy_ has the following three prerequisites.
 
 . A Java Development Kit (JDK), exactly version 25. You can verify it the following way:
 +
@@ -75,7 +95,14 @@ _aroxy_ has three prerequisites, listed below.
 ----
 java --version
 ----
-. Maven 3.9.16 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
+. One installation tool:
++
+--
+* `curl` for xref:#install-with-curl[installing without building],
++
+or
+* Maven 3.9.16 or later for xref:#install-from-source[installing from source]. You can verify it with `mvn --version`.
+--
 . At least one supported agent, installed and already logged in:
 +
 --
@@ -90,26 +117,16 @@ or
 +
 _aroxy_ forwards the authentication header unchanged, so every one of those logins works. Nothing about your credentials is read, stored, or rewritten.
 
-[#install]
+[[install]]
 == Install
 
-. [[install-from-release]]Install from a GitHub release, without building. This downloads the latest release jar from `https://github.com/ciechanowiec/aroxy` and runs the installer:
+. [[install-with-curl]]Install _aroxy_ without building:
 +
 [source,bash]
 ----
 curl -fsSL https://raw.githubusercontent.com/ciechanowiec/aroxy/main/install.sh | bash
 ----
-. [[install-from-source]]Or install from source, which builds the jar locally. While _aroxy_ inherits
-  the unpublished `1.0.0-SNAPSHOT` of _Airness_, first install that project from its checkout into the
-  local Maven repository:
-+
-[source,bash]
-----
-cd /path/to/airness
-mvn clean install
-----
-+
-Then build and install _aroxy_:
+. [[install-from-source]]Alternatively, build and install _aroxy_ from source:
 +
 [source,bash]
 ----
@@ -118,7 +135,8 @@ cd aroxy
 mvn -q clean package
 ./install.sh
 ----
-. Either way, `install.sh` puts the jar at `~/.aroxy/aroxy.jar`, writes a launcher to `~/.local/bin/aroxy`, generates a completion script at `~/.aroxy/aroxy_completion`, and adds a small managed block to your shell startup file (`~/.zshrc` or `~/.bashrc`) for `PATH` and completion. When _aroxy_ is already installed, it reports the current and the new version, stops the service if it's running, and reinstalls from scratch. It first removes the previous state directory `~/.aroxy/` - including the xref:#default-configuration-file[default configuration file], the xref:#registry[registry] of xref:#persistent-configuration-file[persistent configuration files], the xref:#vault[vault], and the xref:#logs[logs] - and then installs fresh. The result is the same end state as running `uninstall.sh` and then `install.sh`. It replaces the managed block instead of duplicating it. Because a reinstall is a clean wipe, reattach any xref:#persistent-configuration-file[persistent configuration files] you want to keep, then start _aroxy_ again with `aroxy start`.
+. `install.sh` writes the jar to `~/.aroxy/aroxy.jar`, creates the `~/.local/bin/aroxy` launcher, and configures `PATH` and completion in `~/.zshrc` or `~/.bashrc`.
+. A reinstall stops the service and deletes the entire `~/.aroxy/` state directory before installing a clean copy. Back up any configuration or logs you need. Reattach xref:#persistent-configuration-file[persistent configuration files] before starting _aroxy_ again.
 . Once the installer finishes, restart your shell, or source the startup file, so the new `PATH` and completion take effect. You can then confirm the install with `aroxy --version`.
 . _aroxy_ keeps its state under `~/.aroxy/`: the xref:#default-configuration-file[default configuration file `default.conf`], the xref:#registry[registry] of xref:#persistent-configuration-file[persistent configuration files], the token xref:#vault[vault `vault.tsv`], the process id and a small runtime status file while running, and `logs/` with the xref:#audit-log[audit log], the xref:#diagnostic-log[diagnostic log], and the xref:#wire-dumps[wire dumps].
 
@@ -130,7 +148,7 @@ mvn -q clean package
 ----
 ./uninstall.sh
 ----
-. `uninstall.sh` stops the service if it runs, removes the launcher `~/.local/bin/aroxy`, deletes the managed block from your shell startup file, and removes the whole state directory `~/.aroxy/`, including the xref:#default-configuration-file[default configuration file], the attached configuration files, the xref:#vault[vault], and the xref:#logs[logs]. It removes everything, so an install, uninstall, and reinstall cycle starts clean.
+. `uninstall.sh` stops the service and removes the launcher, managed shell block, and entire `~/.aroxy/` state directory. This deletes all configuration files, vault data, and logs.
 
 == Running aroxy
 
@@ -142,7 +160,9 @@ aroxy start
 ----
 +
 On first run _aroxy_ writes the xref:#default-configuration-file[default configuration file `~/.aroxy/default.conf`] from the bundled defaults. `aroxy start` reports success only after every configured listener is bound and the daemon publishes its runtime state. A configuration or bind failure exits with a nonzero status, confirms that no proxy is running, and points to `~/.aroxy/logs/daemon-err.log`. The command is idempotent: when the service is already running, it reports that and does nothing. If a xref:#persistent-configuration-file[persistent configuration file] recorded in the xref:#registry[registry] can't be read, `aroxy start` prints a prominent red warning and starts without those rules, so you can fix the path or detach it.
-. Point Claude Code at _aroxy_ by setting `ANTHROPIC_BASE_URL` in the shell where Claude Code runs:
+. *Claude Code*
++
+Point Claude Code at _aroxy_ by setting `ANTHROPIC_BASE_URL` in the shell where Claude Code runs:
 +
 [source,bash]
 ----
@@ -160,14 +180,14 @@ To apply the setting to every session, add it to the `env` block of `~/.claude/s
   }
 }
 ----
-. [[point-codex]]Set up an _aroxy_ profile for Codex once by saving this as `~/.codex/aroxy.config.toml`:
+. *Codex*
++
+[[point-codex]]Set up an _aroxy_ profile for Codex once by saving this as `~/.codex/aroxy.config.toml`:
 +
 [source,toml]
 ----
 openai_base_url = "http://127.0.0.1:8789"
 ----
-+
-`openai_base_url` redirects the built-in OpenAI provider instead of selecting a custom provider. That distinction preserves Codex app capabilities such as the built-in browser, whose local runtime isn't provisioned for every custom-provider session. The built-in provider also keeps WebSocket support enabled. _aroxy_ refuses its attempted upgrade with HTTP 426, so Codex immediately falls back to Server-Sent Events whose bodies _aroxy_ can transform. Disabling that provider capability can leave Codex reporting that Model Context Protocol startup was interrupted even after the servers initialized, as reported in https://github.com/openai/codex/issues/36190[Codex issue 36190^].
 +
 Then point one Codex session at _aroxy_ by selecting the profile:
 +
@@ -178,7 +198,9 @@ codex --profile aroxy
 +
 To apply the setting to every session, save the same configuration as `~/.codex/config.toml` instead and run `codex` normally.
 +
-. Point the Cursor command-line tool at _aroxy_ for one session with its endpoint option:
+. *Cursor*
++
+Point the Cursor command-line tool at _aroxy_ for one session with its endpoint option:
 +
 [source,bash]
 ----
@@ -195,11 +217,11 @@ agent
 +
 Use the `localhost` spelling exactly: the Cursor command-line tool recognizes it as the local agent endpoint, and _aroxy_ still binds only to `127.0.0.1`.
 +
-. _aroxy_ must be running whenever an agent runs with settings described above. When _aroxy_ is stopped, the agent can't reach its API. You can run several sessions of any supported agent at once: each one shares the same running _aroxy_, as described in the section xref:#vault-and-sessions[].
+. _aroxy_ must be running whenever an agent uses one of these local endpoints. When _aroxy_ is stopped, the agent can't reach its API. You can run several sessions of any supported agent at once: each one shares the same running _aroxy_, as described in the section xref:#vault-and-sessions[].
 
 == Commands
 
-In the commands below, `<f>` is the path to a configuration file, written in the xref:#stanza-format[stanza format]. The path may be absolute or relative to your current directory. _aroxy_ records it as an absolute path, so a xref:#persistent-configuration-file[persistent configuration file] resolves to the same location wherever the service later starts.
+The following command table uses `<f>` for the path to a configuration file written in the xref:#stanza-format[stanza format]. The path may be absolute or relative to your current directory. _aroxy_ records it as an absolute path, so a xref:#persistent-configuration-file[persistent configuration file] resolves to the same location wherever the service later starts.
 
 [cols="2,3",options="header"]
 |===
@@ -216,21 +238,21 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 | `aroxy config list` | List the configuration files attached, each labelled persistent or temporary. While the service runs it also shows each configuration file's load time. While stopped it lists the xref:#persistent-configuration-file[persistent configuration files] from the xref:#registry[registry].
 |===
 
-[#configuration]
+[[configuration]]
 == Configuration
 
 . _aroxy_ builds its effective configuration by merging _configuration files_ in three layers, applied in order.
 .. The [[default-configuration-file]]_default configuration file_, `~/.aroxy/default.conf`, is materialized from the bundled defaults on first run and is loaded on every start. You may edit it, or empty it to start from nothing.
-.. [[persistent-configuration-file]]_Persistent configuration files_ are attached with `aroxy config attach <f> --persistent`. _aroxy_ records each one in the [[registry]]_registry_ (`~/.aroxy/attachments`) and loads it on every start, so it survives restarts until you remove it with `aroxy config detach <f>`. Use them for machine-wide or company-wide rules.
+.. [[persistent-configuration-file]]_Persistent configuration files_ are attached with `aroxy config attach <f> --persistent`. _aroxy_ records each one in the [[registry]]_registry_ at `~/.aroxy/attachments` and loads it on every start, so it survives restarts until you remove it with `aroxy config detach <f>`. Use them for machine-wide or company-wide rules.
 .. [[temporary-configuration-file]]_Temporary configuration files_ are attached with `aroxy config attach <f> --temporary`, which needs a running service. _aroxy_ loads the file at once but never records it, so it applies only until the service next stops or restarts, and `aroxy start` doesn't bring it back. Use one for a one-off change you don't want to keep.
 . Every loaded configuration file contributes its rules. When two configuration files define a rule with the same `id`, the configuration file loaded later wins, which lets a persistent or temporary configuration file override a rule from the default configuration file. A `[gateway]` key takes the value from the last configuration file that sets it. Rule order breaks a tie between matches with the same start and length, so emptying the default configuration file gives the remaining configuration files full control of that tie-breaker.
 . Attaching a configuration file is allowed while the service runs, and a persistent configuration file also updates the xref:#registry[registry] and triggers a xref:#reload-command[reload]. Detaching a persistent configuration file is allowed only while the service is stopped.
 . While the service runs, `aroxy config` reads the daemon's published state rather than recomputing from the current files. Editing a loaded file therefore doesn't change the displayed rules or masking state until `aroxy reload` succeeds. While the service is stopped, the command reads the files and labels the result as the configuration for the next start.
 
-[#the-rule-format]
+[[gateway-keys]]
 == The Gateway Keys
 
-[[gateway-keys]]The `[gateway]` stanza takes four keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
+The `[gateway]` stanza takes four keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
 
 [cols="1,1,3",options="header"]
 |===
@@ -241,8 +263,9 @@ In the commands below, `<f>` is the path to a configuration file, written in the
 | `mask_secrets` | `true` | `true` masks the values of `sensitive` rules in the xref:#audit-log[audit log].
 |===
 
-Each listen key is the port only. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone, so it can't be moved onto a network interface. The upstream of each agent is fixed and no key reaches it. Giving two agents the same port breaks the configuration file, since only one of them could ever bind it. The listeners stay bound across `aroxy reload`, so a changed listen port takes effect after `aroxy restart`. A changed `mask_secrets` value takes effect on reload.
+Each listen key supplies only a port. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone. Each upstream is fixed. Giving two agents the same port breaks the configuration file. Port changes require `aroxy restart`, while `mask_secrets` changes take effect on reload.
 
+[[the-rule-format]]
 == The Rule Format
 
 . [[stanza-format]]A configuration file uses a stanza format: a line `[gateway]` or `[rule]` opens a stanza, `key = value` lines follow, and a line that begins with `#` is a comment. Patterns are written verbatim, with no backslash escaping. Only `id`, `placeholder`, and the rule's source are required. The source is `pattern` for a `regex` rule, or `value` for a `literal` rule. Every other key is optional and takes the default shown.
@@ -257,11 +280,11 @@ Each listen key is the port only. The proxy always binds `127.0.0.1`, and a `hos
 | `pattern` | Required for `regex` | For a `regex` rule, the regular expression, verbatim.
 | `value` | Required for `literal` | For a `literal` rule, the text to replace, matched as a substring anywhere, with no word boundary.
 | `sensitive` | `false` | `true` masks the value in the xref:#audit-log[audit log]. Use it for secrets.
-| `flags` | None | Any of `i` (ignore case), `s` (dot matches newline), `m` (multiline).
+| `flags` | None | Any of `i` for ignore case, `s` for dot matches newline, and `m` for multiline.
 | `loose` | `false` | For a `literal` rule, also match respellings with separators between letters.
 | `leet` | `false` | For a `literal` rule, also match digit look-alikes, such as `o` as `0`.
 |===
-. [[placeholders]]The `placeholder` must be one of a fixed, enumerated set of names. The set is deliberately closed because the name has to survive a round trip through the model. A free-form name such as `COMPANY_D` reads to the model as a code symbol, so in its reply it drops the `+<<PII:...>>+` wrapper and the counter and writes the bare name, and that reply can no longer be restored. The enumerated names are reproduced verbatim and restored reliably. A configuration file that names any other placeholder is treated as broken and isn't loaded. The allowed placeholders are:
+. [[placeholders]]The `placeholder` must be one of the names below. Any other name breaks the configuration file because a model may alter a free-form placeholder and prevent restoration. The allowed placeholders are:
 +
 `API_KEY`, `AWS_KEY`, `COMPANY`, `DSN`, `EMAIL`, `GH_TOKEN`, `INTDOMAIN`, `INTIP`, `INTURL`, `JWT`, `PHONE`, `PRIVKEY`, `PROJECT`, `SECRET`, `SLACK_TOKEN`.
 +
@@ -294,14 +317,14 @@ A `literal` rule with `flags = i` matches any case. With `loose = true`, `+Inite
 . Every spelling a `literal` rule matches collapses onto one _canonical value_: the `value` you configured. _aroxy_ keys the token on that canonical value, so all variants share a single token and the model reads them as one entity, not several. On the way back, _aroxy_ restores the canonical spelling through deobfuscation, not the spelling that appeared in the request. A rule with `value = Initech` therefore obfuscates `INITECH`, `Ini tech`, and `Initech` to the same `+<<PII:COMPANY:1>>+`, and the reply comes back as `Initech` in every case. A `regex` rule has no canonical value: each distinct text it matches gets its own token and is restored exactly as it appeared.
 . To turn a rule on, set its `enabled` to `true`. To turn a rule off, set `enabled = false`. To keep only the `regex` rules, set `enabled = false` on every `type = literal` rule. Changes take effect on the next `aroxy reload` or `aroxy restart`.
 
-[#logs]
+[[logs]]
 == Logs
 
 _aroxy_ writes proof of its work under `~/.aroxy/logs/`. It keeps three kinds of log, each selected by a flag of the `aroxy logs` command.
 
-. [[audit-log]]*Audit log (`~/.aroxy/logs/audit.log`, shown by `aroxy logs --audit`, the default)*
+. [[audit-log]]*Audit log*
 +
-A human-readable before-and-after of every obfuscation. For each request it lists the matched rule's placeholder, the original value, and the token that replaced it. A sensitive value is masked, and a non-sensitive value, such as a company name, is shown in full. Each `REQUEST` and `RESPONSE` line ends with a stamp in brackets that ties it to the xref:#wire-dumps[wire dumps]. The file rotates once it passes 4 MB, keeping three numbered backups, `audit.log.1` through `audit.log.3`.
+The audit log at `~/.aroxy/logs/audit.log` is shown by `aroxy logs --audit`, the default. It records each obfuscation with the matched rule, original value, and replacement token. Sensitive values are masked, while non-sensitive values are shown in full. Each line carries a stamp that ties it to the xref:#wire-dumps[wire dumps].
 +
 [source,text]
 ----
@@ -310,93 +333,33 @@ A human-readable before-and-after of every obfuscation. For each request it list
     COMPANY       Acme Corporation  ->  <<PII:COMPANY:2>>
 2026-06-16T09:14:09  RESPONSE /v1/messages  [20260616-091407-512-r0001]    deobfuscated 1 token (stream)
 ----
-. [[diagnostic-log]]*Diagnostic log (`~/.aroxy/logs/aroxy.log`, shown by `aroxy logs --app`)*
+. [[diagnostic-log]]*Diagnostic log*
 +
-The diagnostic log records the service's start and stop, configuration reloads, upstream errors, and benign events such as a `Broken pipe` when an agent cancels a request. It holds no request or response content. It rotates on each start, once a day, and once it passes 4 MB, keeping five numbered backups. The proxy always binds the local interface `127.0.0.1` and listens on the configured port of each agent (`8788`, `8789`, and `8790` by default). The bind host isn't configurable, so the proxy stays unreachable from the network.
+The diagnostic log at `~/.aroxy/logs/aroxy.log` is shown by `aroxy logs --app`. It records service lifecycle events, configuration reloads, and upstream errors. It holds no request or response content.
 +
 [source,text]
 ----
 [2026-06-16 09:14:07.880] [INFO] aroxy daemon listening on Claude Code on 127.0.0.1:8788, Codex CLI on 127.0.0.1:8789, Cursor CLI on 127.0.0.1:8790
 [2026-06-16 09:18:42.530] [INFO] aroxy daemon reloaded 2 rule(s)
 ----
-. [[wire-dumps]]*Wire dumps (`~/.aroxy/logs/wire/`, listed by `aroxy logs --wire`)*
+. [[wire-dumps]]*Wire dumps*
 +
-Each request produces two wire dumps, the actual bytes on the wire, named by the same stamp as the xref:#audit-log[audit log].
+Each request produces two wire dumps under `~/.aroxy/logs/wire/`. The dumps are listed by `aroxy logs --wire`. They contain the actual bytes on the wire and use the same stamp as the xref:#audit-log[audit log].
 +
 * `+<stamp>-redacted-request.json+` is the obfuscated request body _aroxy_ sent upstream. It's the proof that secrets and identifiers left the machine only as tokens.
 * `+<stamp>-raw-response.txt+` is the response received from the API, before _aroxy_ restored the original values.
 +
 Because these files hold whole request and response bodies, _aroxy_ prunes them automatically, deleting any dump older than seven days and keeping the directory under 500 files. `aroxy logs --wire` prints the paths of the files that remain. Open one with `less`, `cat`, or any text editor to read it.
 
-Without `-f`, `aroxy logs` prints the selected log once and returns. With `-f`, it stays open instead and prints each new line as _aroxy_ writes it, like `tail -f`, until you press Ctrl-C. It follows one log, the audit log by default, or the diagnostic log with `--app`. If that log rotates to a numbered backup while you watch, `-f` keeps following the live file, so the stream is unbroken. To read older entries, the ones already on disk or in a backup such as `audit.log.1`, open the file directly instead. `-f` follows a single log, so `--all` and `--wire` ignore it: `aroxy logs --all -f` prints both logs once and returns.
+Without `-f`, `aroxy logs` prints once and returns. With `-f`, it follows the audit log by default or the diagnostic log with `--app` until you press Ctrl-C. The `--all` and `--wire` options ignore `-f`.
 
-== Verification
 
-You can confirm that _aroxy_ obfuscates a real request end to end in two steps.
-
-. Send one request, with _aroxy_ running and your agent pointed at it, that contains a fake secret and a keyword:
-+
-[source,bash]
-----
-claude -p "Here is our AWS key AKIAIOSFODNN7EXAMPLE for Acme Corporation."
-----
-+
-Or, with Codex:
-+
-[source,bash]
-----
-codex exec "Here is our AWS key AKIAIOSFODNN7EXAMPLE for Acme Corporation."
-----
-+
-Or, with the Cursor command-line tool:
-+
-[source,bash]
-----
-agent --print --mode ask "Here is our AWS key AKIAIOSFODNN7EXAMPLE for Acme Corporation."
-----
-. Read the proof under `~/.aroxy/logs/`. Grep the wire dump for the request, and the audit log for the mapping.
-.. *The bytes that left the machine*
-+
-The redacted-request xref:#wire-dumps[wire dump] holds exactly what _aroxy_ sent upstream. The secret and the company name are absent, and the tokens are present:
-+
-[source,bash]
-----
-grep -Ei 'AKIAIOSFODNN7EXAMPLE|acme' ~/.aroxy/logs/wire/*-redacted-request.json   # no matches
-grep -o '<<PII:[^>]*>>' ~/.aroxy/logs/wire/*-redacted-request.json   # the tokens
-----
-.. *The mapping*
-+
-The xref:#audit-log[audit log] records each obfuscation, with the secret masked and the company name shown in full:
-+
-[source,bash]
-----
-grep -E 'AWS_KEY|COMPANY' ~/.aroxy/logs/audit.log  # one line each
-----
-.. *The restored response*
-+
-The agent's reply in the terminal refers to `Acme Corporation`, even though the upstream only ever received `+<<PII:COMPANY:2>>+`. The deobfuscation step put the value back.
-
-[#vault-and-sessions]
+[[vault-and-sessions]]
 == The Vault and Multiple Sessions
 
-. Each distinct original value maps to one token in the [[vault]]_vault_, so the same value obfuscates to the same token across the conversation. A value from a rule marked xref:#the-rule-format[`sensitive`], namely a secret, is kept in memory only and is never written to disk, so no secret is left at rest, and after a restart it takes a fresh token. Every other value is persisted to `~/.aroxy/vault.tsv`, so it generally keeps its token across a stop and a start. That file holds those non-sensitive originals only, Base64-encoded and not encrypted, and never leaves the machine. The split is automatic and can't be turned off.
-. One _aroxy_ serves every agent session on the machine: Claude Code sessions point `ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex sessions point the built-in provider's `openai_base_url` at `127.0.0.1:8789`, and Cursor command-line tool sessions point their API endpoint at `localhost:8790`. They share one proxy, one vault, and one xref:#audit-log[audit log]. The vault is shared across agents too, so a value obfuscated in one agent is the same token in another. The proxy handles requests concurrently, and the vault is synchronized, so simultaneous sessions can't corrupt it or mint the same token twice. The vault is shared, not per-session: the same value maps to the same token for every session and every agent, and each token reverses to exactly one value, so _aroxy_ doesn't need to tell the sessions apart. A response carries only the tokens that its own request introduced, and the authentication header is forwarded unchanged, so nothing crosses between sessions.
-
-== Building and Releasing
-
-. Build with the fast gates, namely compilation, tests, Error Prone, Checkstyle, PMD, SpotBugs, JaCoCo coverage, the dependency and licence checks, inherited repository governance, and the executable jar. This is what the installer above runs after the shared harness SNAPSHOT has been installed locally:
-+
-[source,bash]
-----
-mvn clean package
-----
-. Build with every gate. This adds the slow and history-wide ones: the documentation lint, the gitleaks secret scan over the whole history, the whole-history commit-message and typography checks, the dependency-freshness check, mutation testing, and the Qodana inspection scan. gitleaks and Qodana run in Docker, so Docker must be running. The documentation lint uses the local tools listed below:
-+
-[source,bash]
-----
-mvn clean package -Pextended
-----
-. Release _aroxy_ (maintainers only) by triggering the GitHub Actions workflow `link:.github/workflows/release.yaml[]` from the repository's Actions tab. It builds the jar and publishes it as a GitHub release in `https://github.com/ciechanowiec/aroxy`, tagged for the project version. The workflow can't run on a clean runner until the inherited _Airness_ SNAPSHOT is published or otherwise made available there. The `curl | bash` install in the section xref:#install[] pulls `aroxy.jar` from an existing release. _aroxy_ isn't published to Maven Central.
+. Each distinct original value maps to one token in the [[vault]]_vault_. Values from rules marked xref:#the-rule-format[`sensitive`] stay in memory and take a fresh token after restart. Other values are stored Base64-encoded, not encrypted, in `~/.aroxy/vault.tsv`, so their tokens survive restarts. This split is automatic.
+. One _aroxy_ serves every agent session on the machine. All agents share the vault and xref:#audit-log[audit log], so the same value receives the same token across agents. The synchronized vault supports concurrent sessions.
+. A response carries only the tokens introduced by its request, and authentication headers pass through unchanged. Content therefore doesn't cross between sessions.
 
 == About the Document
 
@@ -449,3 +412,10 @@ Lint the source text:
 ----
 python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}
 ----
+
+ifdef::backend-html5[]
+++++
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.min.js"></script>
+<script src="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo-footer.js"></script>
+++++
+endif::[]

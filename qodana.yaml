@@ -6,5 +6,5 @@
 # single-module project, a multi-module one, and a project nested inside another repository.
 version: "1.0"
 # Any finding fails the run. A threshold above zero is a number nobody revisits, and the findings under
-# it accumulate into a backlog the gate then reports as acceptable.
+# it accumulate into a backlog the check then reports as acceptable.
 failThreshold: 0
