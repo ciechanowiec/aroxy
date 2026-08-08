@@ -114,7 +114,6 @@ Production code imports neither test code nor development-only dependencies. A c
 
 . Line endings, character encoding, indentation, and whitespace handling are fixed by configuration files committed to the repository. A check verifies every tracked file that the repository doesn't exempt by role, such as binary assets, against that configuration and fails on the first deviation.
 . Where the ecosystem of the programming language has a code formatter, the formatter is one of the checks, run under a committed configuration. The check formats every source file not exempt by role and fails when the output differs from the committed copy.
-. Production code reads environment variables only in declared configuration source files. A configuration source file validates every variable it reads and reports all violations in one pass, and the rest of the production code receives validated values.
 . No secret sits in any commit. A check scans the tracked content and the whole history for credentials, keys, and tokens.
 . A fake credential committed as a test fixture is listed in a declared allowlist. The secret check fails on any hit outside that allowlist.
 
@@ -207,9 +206,10 @@ This section describes the state of the third-party packages the repository depe
 [[dependency-freshness]]
 === Freshness
 
-Trailing an upstream release by several major versions is a property of the version the repository declares, so it binds as a check. A newer version merely existing isn't a property of the declared version, so it never fails the build on its own.
+Trailing an upstream release by several major versions is a property of the version the repository declares, so it binds as a check. A newer version merely existing isn't a property of the declared version, so it's reported but never fails the build on its own.
 
-. A xref:#declared-dependency[declared dependency] trails its latest published release by fewer major versions than a bound the repository declares - for example, two major versions. The check compares each declared dependency against its latest release and fails when the gap reaches the bound. It counts declared dependencies, not the rest of the xref:#resolved-set[resolved set].
+. Every build reports each stable update available for a package the repository declares, in a manifest of its own or in a manifest that one inherits from. The report names the manifest that owns the declaration, so a manifest that inherits a declaration reports the update without becoming its version owner.
+. A xref:#declared-dependency[declared dependency] trails its latest published release by fewer major versions than a bound the repository declares - for example, two major versions. The check compares every declaration the update report covers against its latest release and fails when the gap reaches the bound. It counts declared dependencies, not the rest of the xref:#resolved-set[resolved set].
 . A conventional version uses its numeric major for that comparison. A version beginning with a four-digit year in the range `20**` uses the year as its major-equivalent, so an available release two or more years ahead fails under a bound of two. A version scheme with neither a numeric major nor a leading year has no comparable level and is excluded from this check.
 . This check reads the package registry, so its verdict can change while the repository doesn't. It's the check that the section xref:#check-qualities[] exempts from its determinism rule. The exemption is bounded. A gap below the bound passes. The check fails only when the gap reaches the declared major-version bound. When the registry is unreachable, the check fails.
 
@@ -275,59 +275,52 @@ Masking them in the header parser closes the leak for every consumer.
 
 == About the Document
 
-The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
+The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.
 
 === Guideline
 
-This document should follow the link:README-guideline-writing.adoc[Writing Guideline].
+The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
+
+[#export]
+=== Prerequisites
+
+To export and lint the source text, install the following tools:
+
+. https://asciidoctor.org/#installation[Asciidoctor^]
+. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
+. https://pandoc.org/installing.html[Pandoc^]
+. https://www.python.org/downloads/[Python 3^]
+. https://vale.sh/docs/install/[Vale^]
+. https://poppler.freedesktop.org[`pdftotext`^]
+. https://github.com/tesseract-ocr/tesseract[`tesseract`^]
 
 === Export
 
-. To export the document to the supported output formats, install the following tools:
-.. https://asciidoctor.org/#installation[Asciidoctor^]
-.. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
-.. https://pandoc.org/installing.html[Pandoc^]
-.. https://www.python.org/downloads/[Python 3^]
-
-. To export to HTML:
+. To export the source text to HTML:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
 ----
 
-. To export to PDF:
+. To export the source text to PDF:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
 ----
 
-. To export to DOCX - Asciidoctor converts the document to DocBook XML, which Pandoc then converts to DOCX:
+. To export the source text to DOCX:
 +
 [source,bash,subs="attributes+"]
 ----
-asciidoctor --backend docbook --attribute allow-uri-read --out-file - {docname}{docfilesuffix} | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx
+prepared="$(python3 {sourcedir}/.docs/lib/export_prepare.py --docx-compat {docname}{docfilesuffix})" && asciidoctor --backend docbook --attribute allow-uri-read --out-file - "$prepared" | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx && rm "$prepared"
 ----
 
 === Linting
 
-==== General Rules
+Lint the source text:
 
-. The document is linted by `link:.docs/lib/adoc_lint.py[]`, a single command that runs three engines and merges their findings into one report. The three engines are Vale, a structural linter, and an Asciidoctor render pass.
-. The first engine, https://vale.sh[Vale^], checks prose and typography. Vale is configured in `link:.vale.ini[]` and enforces the following style guides:
-.. native https://vale.sh/docs/styles#vale[Vale style^], with https://github.com/vale-cli/en_US-web/tree/master[English dictionary^] included,
-.. a curated `English` style, inspired by the https://developers.google.com/style[Google Developer Documentation Style Guide^], the https://vale.sh/hub/jdkato/write-good/[write-good^] linter, and https://github.com/amperser/proselint/[proselint^],
-.. language-neutral typography rules, applied to every language.
-. The second engine, the structural linter, checks the markup, document structure, and ASCII diagrams that Vale can't see, defined in `link:.docs/lib/adoc_lint.py[]`.
-. The third engine, https://asciidoctor.org[Asciidoctor^], renders the document to a discarded output file and reports every warning or error it logs, such as a missing include file.
-
-==== Usage
-
-. Install Vale as described in the https://vale.sh/docs/install/[official documentation^]. The linter requires Vale and exits with an error when Vale is missing. The structural checks need only Python 3, and the render pass needs only Asciidoctor - the exports above already require both.
-
-. Lint the document:
-+
 [source,bash,subs="attributes+"]
 ----
 python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}

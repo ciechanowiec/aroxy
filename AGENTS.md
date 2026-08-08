@@ -1,7 +1,23 @@
+<!-- BEGIN AIRNESS MANAGED INSTRUCTIONS -->
+## Airness harness
+
+Follow the repository contract from general to specific:
+
+1. Follow `README-guideline-software-project.adoc`.
+2. Follow the complete Airness contract in `.airness/agent-guide.md`.
+3. Follow the project-owned instructions below this managed block.
+
+Every layer is binding, and a later layer may strengthen but never weaken an earlier one. The inherited harness is
+the executable enforcement of this contract. Do not weaken, replace, duplicate, or version what Airness owns. Use
+only the write commands declared by the guide, review their edits, and complete its required verification before
+finishing.
+<!-- END AIRNESS MANAGED INSTRUCTIONS -->
+
 # AGENTS.md - aroxy
 
-This is the root instruction file, and it carries every rule. It is named for no particular agent
-tool, so each tool's own entry file (`CLAUDE.md`) holds nothing but a reference to this one.
+This is the root instruction file for Aroxy-owned rules. The Airness-managed block above imports the
+shared contract before these project rules. The file is named for no particular agent tool, so each
+tool's own entry file (`CLAUDE.md`) holds nothing but a reference to this one.
 
 `aroxy` ("Agent Proxy") is a local proxy between a coding agent and the API it talks to. It
 obfuscates secrets and configured keywords in each request before egress and deobfuscates the
@@ -25,7 +41,7 @@ leaves the machine. It does not hide that an agent is used or change the destina
   Do not recreate a local copy of an inherited rule or plugin configuration.
 - Until the SNAPSHOT is published, first run `mvn clean install` in the Airness checkout. A clean
   machine, including the current GitHub runners, cannot resolve this parent from a remote repository.
-- **Full verification: `mvn clean package -Pfull`.** It runs every default gate plus commit-history and
+- **Extended verification: `mvn clean package -Pextended`.** It runs every default gate plus commit-history and
   typography checks, dependency freshness, mutation testing, gitleaks, Qodana, and the project-owned
   README lint. Gitleaks and Qodana require Docker. The README lint requires the local documentation
   toolchain described by `README.adoc`.
@@ -42,8 +58,8 @@ leaves the machine. It does not hide that an agent is used or change the destina
 - **Starting the daemon needs no OS-level job submission.** `aroxy start` already spawns a detached JVM
   (`daemon/Launcher`) and writes under `~/.aroxy/logs/`. Do not wrap it in `launchctl`, systemd,
   `nohup`, or another scheduler. Invoke it normally and inspect the logs to confirm startup.
-- Requires JDK 25, Maven 3.9.11 or later, the locally installed Airness SNAPSHOT, and Docker plus the
-  documentation tools for full verification.
+- Requires JDK 25, Maven 3.9.16 or later, the locally installed Airness SNAPSHOT, and Docker plus the
+  documentation tools for extended verification.
 
 ## Conventions
 
@@ -70,21 +86,22 @@ leaves the machine. It does not hide that an agent is used or change the destina
 
 - Airness supplies the reusable governance code and Maven goals. Aroxy keeps no governance sources,
   analyzer XML, rewrite recipe, Qodana profile, or harness scripts of its own.
-- `AGENTS.md` is the single instruction source and `CLAUDE.md` contains only `@AGENTS.md`.
+- Aroxy-owned rules occur once in `AGENTS.md`, and `CLAUDE.md` contains only `@AGENTS.md`.
 - The em dash, en dash, single-character ellipsis, and curly quotation marks are banned from
   committable files and commit messages. `.vale/`, `.idea/`, and `.docs/themes/` are excluded by their
   vendored roles.
 - No Java comment joins clauses with a semicolon. A `@return` fragment has no full stop and may use a
   semicolon to join another fragment. This includes `@Justification` values. Prose documents follow the
   same guideline by inspection where syntax and complex lists require judgment.
-- `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`, and `qodana.yaml`
-  are pinned Airness assets. `.gitignore` and `.gitleaks.toml` were seeded and are project-owned.
-  `rewrite.yml` and `qodana/profile.xml` are forbidden because Airness supplies them from artifacts.
+- `.airness/agent-guide.md`, `.editorconfig`, `.gitattributes`, `.java-version`, `CLAUDE.md`, `lombok.config`,
+  `qodana.yaml`, and `README-guideline-software-project.adoc` are pinned Airness assets. `.gitignore` and
+  `.gitleaks.toml` were seeded and are project-owned. `rewrite.yml` and `qodana/profile.xml` are forbidden because
+  Airness supplies them from artifacts.
 - Gitleaks scans the complete history. Only fake fixtures may be allowlisted in `.gitleaks.toml`; a
   real secret must never reach a commit.
 - Every resolved dependency needs an allowed license, declared dependencies must be used, used
   dependencies must be declared, and a dependency lagging by at least two comparable major versions
-  fails full verification.
+  fails extended verification.
 - Verification snapshots every committable file, fails without rewriting a changed pinned asset, and
   fails if a later build step changes that tree. `airness:assets-sync` is the explicit asset repair
   command, while the `format` profile is the explicit Java source-writing path.
@@ -140,8 +157,8 @@ the terminal unreversed. The JSON dialect is still accepted and still reassemble
 Cursor does not take.
 
 One shared daemon serves every agent session on the machine: Claude Code points
-`ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex points a `~/.codex/config.toml` provider `base_url`
-(with `requires_openai_auth = true`, so ChatGPT sign-in is kept) at `127.0.0.1:8789`, and Cursor CLI
+`ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex points the built-in provider's `openai_base_url` in
+`~/.codex/config.toml` at `127.0.0.1:8789`, and Cursor CLI
 points `--endpoint` or `CURSOR_API_ENDPOINT` at `http://localhost:8790`. Cursor's listener accepts its
 native cleartext HTTP/2 stream and its HTTP/1.1 compatibility transport. They share one proxy, one
 vault, and one audit log, so a secret carries the same token whichever agent sends it.

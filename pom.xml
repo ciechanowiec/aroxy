@@ -256,7 +256,7 @@
     <profiles>
         <profile>
             <!-- Documentation remains project-owned and joins Airness's slow profile. -->
-            <id>full</id>
+            <id>extended</id>
             <build>
                 <plugins>
                     <plugin>

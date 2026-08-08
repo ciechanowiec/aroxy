@@ -69,13 +69,13 @@ Classic personally identifiable information (email, phone) and internal network 
 
 _aroxy_ has three prerequisites, listed below.
 
-. A Java Development Kit (JDK), version 25 or later. You can verify it the following way:
+. A Java Development Kit (JDK), exactly version 25. You can verify it the following way:
 +
 [source,bash]
 ----
 java --version
 ----
-. Maven 3.9.11 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
+. Maven 3.9.16 or later, needed only to xref:#install-from-source[install from source]. You can verify it with `mvn --version`. The xref:#install-from-release[`curl | bash` install] needs only the JDK and `curl`.
 . At least one supported agent, installed and already logged in:
 +
 --
@@ -164,17 +164,10 @@ To apply the setting to every session, add it to the `env` block of `~/.claude/s
 +
 [source,toml]
 ----
-model_provider = "aroxy"
-
-[model_providers.aroxy]
-name = "aroxy"
-base_url = "http://127.0.0.1:8789"
-wire_api = "responses"
-requires_openai_auth = true
-supports_websockets = true
+openai_base_url = "http://127.0.0.1:8789"
 ----
 +
-Keep `supports_websockets` enabled. Codex uses that provider capability during startup, while _aroxy_ refuses the attempted upgrade with HTTP 426 so Codex immediately falls back to Server-Sent Events whose bodies _aroxy_ can transform. Disabling the capability can leave Codex reporting that Model Context Protocol startup was interrupted even after the servers initialized, which is reported as https://github.com/openai/codex/issues/36190[openai/codex issue 36190^].
+`openai_base_url` redirects the built-in OpenAI provider instead of selecting a custom provider. That distinction preserves Codex app capabilities such as the built-in browser, whose local runtime isn't provisioned for every custom-provider session. The built-in provider also keeps WebSocket support enabled. _aroxy_ refuses its attempted upgrade with HTTP 426, so Codex immediately falls back to Server-Sent Events whose bodies _aroxy_ can transform. Disabling that provider capability can leave Codex reporting that Model Context Protocol startup was interrupted even after the servers initialized, as reported in https://github.com/openai/codex/issues/36190[Codex issue 36190^].
 +
 Then point one Codex session at _aroxy_ by selecting the profile:
 +
@@ -387,7 +380,7 @@ The agent's reply in the terminal refers to `Acme Corporation`, even though the 
 == The Vault and Multiple Sessions
 
 . Each distinct original value maps to one token in the [[vault]]_vault_, so the same value obfuscates to the same token across the conversation. A value from a rule marked xref:#the-rule-format[`sensitive`], namely a secret, is kept in memory only and is never written to disk, so no secret is left at rest, and after a restart it takes a fresh token. Every other value is persisted to `~/.aroxy/vault.tsv`, so it generally keeps its token across a stop and a start. That file holds those non-sensitive originals only, Base64-encoded and not encrypted, and never leaves the machine. The split is automatic and can't be turned off.
-. One _aroxy_ serves every agent session on the machine: Claude Code sessions point `ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex sessions point their provider `base_url` at `127.0.0.1:8789`, and Cursor command-line tool sessions point their API endpoint at `localhost:8790`. They share one proxy, one vault, and one xref:#audit-log[audit log]. The vault is shared across agents too, so a value obfuscated in one agent is the same token in another. The proxy handles requests concurrently, and the vault is synchronized, so simultaneous sessions can't corrupt it or mint the same token twice. The vault is shared, not per-session: the same value maps to the same token for every session and every agent, and each token reverses to exactly one value, so _aroxy_ doesn't need to tell the sessions apart. A response carries only the tokens that its own request introduced, and the authentication header is forwarded unchanged, so nothing crosses between sessions.
+. One _aroxy_ serves every agent session on the machine: Claude Code sessions point `ANTHROPIC_BASE_URL` at `127.0.0.1:8788`, Codex sessions point the built-in provider's `openai_base_url` at `127.0.0.1:8789`, and Cursor command-line tool sessions point their API endpoint at `localhost:8790`. They share one proxy, one vault, and one xref:#audit-log[audit log]. The vault is shared across agents too, so a value obfuscated in one agent is the same token in another. The proxy handles requests concurrently, and the vault is synchronized, so simultaneous sessions can't corrupt it or mint the same token twice. The vault is shared, not per-session: the same value maps to the same token for every session and every agent, and each token reverses to exactly one value, so _aroxy_ doesn't need to tell the sessions apart. A response carries only the tokens that its own request introduced, and the authentication header is forwarded unchanged, so nothing crosses between sessions.
 
 == Building and Releasing
 
@@ -401,7 +394,7 @@ mvn clean package
 +
 [source,bash]
 ----
-mvn clean package -Pfull
+mvn clean package -Pextended
 ----
 . Release _aroxy_ (maintainers only) by triggering the GitHub Actions workflow `link:.github/workflows/release.yaml[]` from the repository's Actions tab. It builds the jar and publishes it as a GitHub release in `https://github.com/ciechanowiec/aroxy`, tagged for the project version. The workflow can't run on a clean runner until the inherited _Airness_ SNAPSHOT is published or otherwise made available there. The `curl | bash` install in the section xref:#install[] pulls `aroxy.jar` from an existing release. _aroxy_ isn't published to Maven Central.
 
