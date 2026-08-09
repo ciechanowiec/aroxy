@@ -7,11 +7,13 @@
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
         <relativePath/>
     </parent>
 
     <artifactId>aroxy</artifactId>
+    <!-- Aroxy is versioned independently from Airness, so equal release numbers are coincidental. -->
+    <!--suppress MavenRedundantVersion -->
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
