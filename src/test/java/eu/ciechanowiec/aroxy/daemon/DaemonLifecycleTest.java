@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.locks.LockSupport;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +30,7 @@ class DaemonLifecycleTest {
 
     private static final int OK = 200;
     private static final int POLLS = 60;
-    private static final long PAUSE_MILLIS = 50L;
+    private static final Duration PAUSE = Duration.ofMillis(50);
     private static final String PRODUCTION_PORT = ":8788";
 
     @TempDir
@@ -137,7 +139,7 @@ class DaemonLifecycleTest {
     private boolean awaitGenerationAfter(long before) {
         int attempt = 0;
         while (attempt < POLLS && this.snapshot().generation() <= before) {
-            sleep();
+            LockSupport.parkNanos(PAUSE.toNanos());
             attempt++;
         }
         return this.snapshot().generation() > before;
@@ -160,14 +162,6 @@ class DaemonLifecycleTest {
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             assertEquals(OK, response.statusCode());
-        }
-    }
-
-    private static void sleep() {
-        try {
-            Thread.sleep(PAUSE_MILLIS);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
         }
     }
 }

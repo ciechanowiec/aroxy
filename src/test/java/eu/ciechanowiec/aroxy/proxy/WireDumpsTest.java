@@ -51,6 +51,17 @@ class WireDumpsTest {
 
     @Test
     @SneakyThrows
+    void ignoresAnEntryWhoseAttributesCannotBeRead(@TempDir Path directory) {
+        Path wire = directory.resolve("wire");
+        WireDumps dumps = new WireDumps(wire);
+        Path missing = wire.resolve("missing");
+        Path dangling = Files.createSymbolicLink(wire.resolve("dangling"), missing);
+        dumps.rawResponse("fresh", "data".getBytes(StandardCharsets.UTF_8), WireBody.TEXT);
+        assertTrue(Files.isSymbolicLink(dangling), "the unreadable entry is outside dump retention");
+    }
+
+    @Test
+    @SneakyThrows
     void capsTheDirectoryAtTheMaxFileCount(@TempDir Path directory) {
         Path wire = directory.resolve("wire");
         WireDumps dumps = new WireDumps(wire);

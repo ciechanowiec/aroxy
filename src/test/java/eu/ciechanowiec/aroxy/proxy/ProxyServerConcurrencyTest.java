@@ -20,6 +20,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,32 +39,37 @@ import org.junit.jupiter.api.io.TempDir;
 )
 class ProxyServerConcurrencyTest {
 
-    private static final long UPSTREAM_SLEEP_MILLIS = 3000L;
-    private static final long BUSY_WAIT_MILLIS = 400L;
+    private static final long STUCK_MILLIS = 3000L;
     private static final long NANOS_PER_MILLI = 1_000_000L;
 
     @Test
     @SneakyThrows
     void drainsAStuckWorkerViaForcedShutdown(@TempDir Path logs) {
-        HttpServer upstream = slowUpstream();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        HttpServer upstream = slowUpstream(entered, release);
         ProxyServer server = proxyFor(upstream.getAddress().getPort(), logs);
         server.start();
         try {
-            long elapsed = stopWhileAWorkerIsBusy(server);
-            assertTrue(elapsed < UPSTREAM_SLEEP_MILLIS, "stop forces a drain instead of waiting the stuck worker out");
+            long elapsed = stopWhileAWorkerIsBusy(server, entered);
+            assertTrue(elapsed < STUCK_MILLIS, "stop forces a drain instead of waiting the stuck worker out");
         } finally {
+            release.countDown();
             upstream.stop(0);
         }
     }
 
     @SneakyThrows
-    private static long stopWhileAWorkerIsBusy(ProxyServer server) {
+    private static long stopWhileAWorkerIsBusy(ProxyServer server, CountDownLatch entered) {
         Thread client = new Thread(() -> fireRequest(server.port()));
         client.start();
-        Thread.sleep(BUSY_WAIT_MILLIS);
+        assertTrue(
+            entered.await(STUCK_MILLIS, TimeUnit.MILLISECONDS),
+            "the request reaches the deliberately stuck upstream"
+        );
         long start = System.nanoTime();
         server.stop();
-        client.join(UPSTREAM_SLEEP_MILLIS);
+        client.join(STUCK_MILLIS);
         return (System.nanoTime() - start) / NANOS_PER_MILLI;
     }
 
@@ -77,29 +84,27 @@ class ProxyServerConcurrencyTest {
     }
 
     @SneakyThrows
-    private static HttpServer slowUpstream() {
+    private static HttpServer slowUpstream(CountDownLatch entered, CountDownLatch release) {
         HttpServer server = HttpServer.create(new InetSocketAddress(LocalHost.HOST, 0), 0);
-        server.createContext("/", ProxyServerConcurrencyTest::replySlowly);
+        server.createContext("/", exchange -> replyAfterRelease(exchange, entered, release));
         server.start();
         return server;
     }
 
     @SneakyThrows
-    private static void replySlowly(HttpExchange exchange) {
+    private static void replyAfterRelease(
+        HttpExchange exchange, CountDownLatch entered, CountDownLatch release
+    ) {
         exchange.getRequestBody().readAllBytes();
-        sleepQuietly();
+        entered.countDown();
+        assertTrue(
+            release.await(STUCK_MILLIS, TimeUnit.MILLISECONDS),
+            "the test releases the deliberately stuck upstream"
+        );
         byte[] payload = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(Http.OK, payload.length);
         try (OutputStream out = exchange.getResponseBody()) {
             out.write(payload);
-        }
-    }
-
-    private static void sleepQuietly() {
-        try {
-            Thread.sleep(UPSTREAM_SLEEP_MILLIS);
-        } catch (InterruptedException _) {
-            Thread.currentThread().interrupt();
         }
     }
 

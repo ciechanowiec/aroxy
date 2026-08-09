@@ -48,4 +48,9 @@ class DaemonJarTest {
         Path classes = this.base.resolve("classes");
         assertEquals(classes.toString(), new DaemonJar(new Home(this.base), classes.toString()).stage());
     }
+
+    @Test
+    void locatesTheInstalledArtifactFromTheRuntime() {
+        assertFalse(new DaemonJar(new Home(this.base)).isStale());
+    }
 }

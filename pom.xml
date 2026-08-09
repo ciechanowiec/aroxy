@@ -7,13 +7,11 @@
     <parent>
         <groupId>eu.ciechanowiec</groupId>
         <artifactId>airness-parent</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.2-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
     <artifactId>aroxy</artifactId>
-    <!-- Aroxy is versioned independently from Airness, so equal release numbers are coincidental. -->
-    <!--suppress MavenRedundantVersion -->
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
@@ -63,67 +61,89 @@
 
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Keep Jetty and tinylog on Aroxy's declared SLF4J API version. -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j-api.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>${picocli.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <!-- Codex requests compressed with zstd must be inflated before obfuscation. -->
             <groupId>io.airlift</groupId>
             <artifactId>aircompressor</artifactId>
             <version>${aircompressor.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.http2</groupId>
             <artifactId>jetty-http2-client</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.http2</groupId>
             <artifactId>jetty-http2-client-transport</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.http2</groupId>
             <artifactId>jetty-http2-server</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-client</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-http</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-io</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-util</artifactId>
             <version>${jetty.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>${org-json.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j-api.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.tinylog</groupId>

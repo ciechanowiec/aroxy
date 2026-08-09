@@ -10,6 +10,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +25,6 @@ import org.junit.jupiter.api.io.TempDir;
 class LogPrinterTest {
 
     private static final long JOIN_MILLIS = 1000L;
-    private static final long ENTER_LOOP_MILLIS = 100L;
 
     @TempDir
     private Path directory;
@@ -100,17 +101,28 @@ class LogPrinterTest {
     void followStopsWhenItsThreadIsInterrupted() {
         Path log = this.directory.resolve("app.log");
         Files.writeString(log, "x\n");
-        Thread worker = new Thread(() -> this.runFollow(log));
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch blocked = new CountDownLatch(1);
+        Thread worker = new Thread(() -> this.runFollow(log, entered, blocked));
         worker.start();
-        Thread.sleep(ENTER_LOOP_MILLIS);
+        assertTrue(entered.await(JOIN_MILLIS, TimeUnit.MILLISECONDS), "the follow loop reaches its pause");
         worker.interrupt();
         worker.join(JOIN_MILLIS);
         assertFalse(worker.isAlive(), "the follow loop stops once its thread is interrupted");
     }
 
-    private void runFollow(Path log) {
+    private void runFollow(Path log, CountDownLatch entered, CountDownLatch blocked) {
         try {
-            this.printer.follow(log);
+            this.printer.follow(
+                log,
+                () -> {
+                    entered.countDown();
+                    assertTrue(
+                        blocked.await(JOIN_MILLIS, TimeUnit.MILLISECONDS),
+                        "the worker remains paused until the test interrupts it"
+                    );
+                }
+            );
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }

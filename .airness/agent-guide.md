@@ -1,16 +1,11 @@
 # Airness Agent Guide
 
-Apply these layers in order. Each layer narrows the preceding layer without weakening it. The guide describes every
-rule at the abstraction level of its layer; exact analyzer rules remain in the executable harness.
+This guide maps the governing standard to the Airness harness. After it, continue through the lower `AGENTS.md`
+layers in the order the standard declares. Exact analyzer rules remain in the executable harness.
 
 ## Layer 1: Governing Standard
 
-- Before changing the repository, read and follow `README-guideline-software-project.adoc`. It governs the complete
-  repository: organization, code, tests, dependencies, verification, and history.
-- Follow the project-owned instructions in the root, cross-agent `AGENTS.md` as well. They may strengthen or
-  specialize the governing standard but may not weaken it.
-- Satisfy both written instructions and executable checks. A passing check does not cancel a written rule that the
-  harness cannot verify mechanically.
+- Read `README-guideline-software-project.adoc` before using this Airness-specific mapping.
 
 ## Layer 2: Harness Invariants
 
@@ -20,23 +15,25 @@ rule at the abstraction level of its layer; exact analyzer rules remain in the e
   `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
-- Verification must describe the existing repository state. Only the synchronization and formatting commands below
-  may edit the working tree, and their edits must be reviewed.
 
 ## Layer 3: Governed Domains
 
 Airness governs all of the following domains:
 
 - **Toolchain and Maven model:** runtime versions, project and parent coordinates, package ownership, inherited plugin
-  ownership, dependency convergence, and valid Airness parameters.
-- **Repository files and instructions:** managed, seeded, and forbidden files; agent entry files; editor and Git
+  ownership, raw-model anti-bypass checks, effective dependency convergence, and valid Airness parameters.
+- **Repository files and instructions:** managed, seeded, and forbidden files; agent instruction files; editor and Git
   configuration; and an unchanged committable tree during verification.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
   comments, source comments, and typography.
-- **Dependencies:** declaration hygiene, unused dependencies, licenses, available stable updates, and the maximum
-  permitted freshness gap.
-- **Tests and evidence:** test execution, production-to-test boundaries, instruction and branch coverage at the
-  declared scope, current-build coverage evidence, mutation analysis, and accepted mutation survivors.
+- **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
+  released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
+  licenses, available stable updates, and the maximum permitted freshness gap.
+- **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
+  machine-local repository paths, or recognizable secret material.
+- **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test,
+  production-to-test boundaries, per-class line and branch coverage, current-build coverage
+  evidence, mutation analysis, and accepted mutation survivors.
 - **Repository assurance:** secret scanning, Qodana analysis, complete Git history, commit-message policy, commit
   typography, and history-wide compliance.
 
@@ -58,11 +55,12 @@ Airness goals together define the executable contract.
   `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
-- Change typography exclusions, coverage exclusions, mutation exclusions, mutation threads, or mutation timeouts only
-  for an explicit project requirement. Never use an exclusion or a larger timeout merely to obtain a pass.
-- Use a suppression only for a rule that genuinely does not apply. Put `@SuppressWarnings` and a non-empty
-  `@Justification` on the same declaration, use the analyzer's exact rule ID, match the suppression scope to the
-  justification scope, and remove the pair when the warning no longer occurs.
+- Change typography exclusions, coverage exclusions, mutation exclusions, mutation threads, mutation timeouts, or the
+  default test timeout only for an explicit project requirement. Never use an exclusion or a larger timeout merely to
+  obtain a pass.
+- For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
+  the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
+  baseline mechanism and keep the reason beside the entry.
 
 ### Mutation Baseline
 
