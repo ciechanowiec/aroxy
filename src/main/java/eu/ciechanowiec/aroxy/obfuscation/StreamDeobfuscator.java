@@ -28,6 +28,9 @@ public final class StreamDeobfuscator {
 
     /**
      * Accepts the next fragment and returns the portion that is now safe to emit, reversed.
+     *
+     * @param fragment the next logical text fragment
+     * @return the reversed text that is safe to emit
      */
     public String accept(String fragment) {
         String pending = this.carry + fragment;
@@ -38,6 +41,8 @@ public final class StreamDeobfuscator {
 
     /**
      * Emits and reverses any held-back remainder. Call once the stream is complete.
+     *
+     * @return the reversed remainder
      */
     public String flush() {
         String remainder = this.carry;

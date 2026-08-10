@@ -41,7 +41,7 @@ final class CursorDeltaStream {
     }
 
     ConnectJsonFrame accept(ConnectJsonFrame frame) {
-        ProtobufTransformer.Inbound restored = this.protobuf.inbound(
+        ProtobufInbound restored = this.protobuf.inbound(
             frame.payload(), this.leaf(this.fragments::accept)
         );
         this.wholeReversed += restored.reversed();

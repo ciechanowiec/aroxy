@@ -44,6 +44,8 @@ public final class ControlFiles {
 
     /**
      * Writes a strictly larger stamp into the reload trigger so the daemon's poll notices and reloads.
+     *
+     * @throws UncheckedIOException if the reload trigger cannot be written
      */
     public void touch() {
         String stamp = Long.toString(this.nextStamp());

@@ -35,7 +35,7 @@ final class CursorFrameTransformer {
         if (frame.terminal()) {
             return new CursorOutboundFrame(frame, List.of());
         }
-        ProtobufTransformer.Outbound transformed = this.protobuf.outbound(frame.payload());
+        ProtobufOutbound transformed = this.protobuf.outbound(frame.payload());
         return new CursorOutboundFrame(
             new ConnectJsonFrame(frame.flags(), transformed.payload()), transformed.matches()
         );

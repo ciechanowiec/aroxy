@@ -41,7 +41,7 @@ public final class RestrictedDir {
 
     private static FileAttribute<?>[] attributes() {
         return POSIX
-            ? new FileAttribute<?>[]{PosixFilePermissions.asFileAttribute(OWNER_ONLY)}
+            ? new FileAttribute<?>[] {PosixFilePermissions.asFileAttribute(OWNER_ONLY)}
             : new FileAttribute<?>[0];
     }
 

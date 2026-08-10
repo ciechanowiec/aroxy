@@ -31,7 +31,7 @@ class ConnectJsonFrameTest {
     void rejectsTruncatedAndOversizedEnvelopes() {
         assertThrows(
             ConnectProtocolException.class,
-            () -> ConnectJsonFrame.read(new ByteArrayInputStream(new byte[]{0, 0}))
+            () -> ConnectJsonFrame.read(new ByteArrayInputStream(new byte[] {0, 0}))
         );
         byte[] missingPayload = {0, 0, 0, 0, 1};
         assertThrows(

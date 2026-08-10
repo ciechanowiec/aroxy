@@ -25,7 +25,7 @@ final class TokenRegions {
         List<int[]> ranges = new ArrayList<>();
         Matcher matcher = PiiToken.TOKEN.matcher(text);
         while (matcher.find()) {
-            ranges.add(new int[]{matcher.start(), matcher.end()});
+            ranges.add(new int[] {matcher.start(), matcher.end()});
         }
         return new TokenRegions(ranges);
     }
@@ -59,7 +59,7 @@ final class TokenRegions {
 
     private Optional<int[]> cleanWindow(int start, int end) {
         boolean clean = start < end && this.ranges.stream().noneMatch(range -> overlaps(range, start, end));
-        return clean ? Optional.of(new int[]{start, end}) : Optional.empty();
+        return clean ? Optional.of(new int[] {start, end}) : Optional.empty();
     }
 
     private static boolean overlaps(int[] range, int start, int end) {

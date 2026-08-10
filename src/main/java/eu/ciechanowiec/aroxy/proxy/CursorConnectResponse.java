@@ -52,7 +52,7 @@ final class CursorConnectResponse {
             Optional<ConnectJsonFrame> frame = ConnectJsonFrame.read(body);
             while (frame.isPresent()) {
                 turn.received(frame.orElseThrow().bytes());
-                CursorResponseStream.Batch batch = stream.accept(frame.orElseThrow());
+                CursorResponseBatch batch = stream.accept(frame.orElseThrow());
                 CursorHttp.write(batch.frames(), output);
                 reporter.when(batch.complete(), stream.reversedCount());
                 frame = ConnectJsonFrame.read(body);

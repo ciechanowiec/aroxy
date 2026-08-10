@@ -48,6 +48,8 @@ public final class PidFile {
 
     /**
      * Deletes the pid file, if present.
+     *
+     * @throws UncheckedIOException if the pid file cannot be deleted
      */
     public void clear() {
         try {

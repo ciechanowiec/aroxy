@@ -130,7 +130,7 @@ class CursorResponseStreamTest {
     @Test
     void reportsTheEndOfStreamFlagAsACompleteTurn() {
         CursorResponseStream stream = CursorJson.reader();
-        CursorResponseStream.Batch batch = stream.accept(
+        CursorResponseBatch batch = stream.accept(
             new ConnectJsonFrame(ConnectJsonFrame.END_STREAM, "{}".getBytes(StandardCharsets.UTF_8))
         );
         assertTrue(batch.complete(), "the end-of-stream flag ends the turn on its own");
@@ -142,7 +142,7 @@ class CursorResponseStreamTest {
     void releasesAHeldPartialAfterAFragmentFrameThatEndsTheStream() {
         CursorResponseStream stream = CursorJson.reader();
         stream.accept(CursorJson.frame(CursorJson.delta(TEXT, "start ")));
-        CursorResponseStream.Batch last = stream.accept(
+        CursorResponseBatch last = stream.accept(
             new ConnectJsonFrame(
                 ConnectJsonFrame.END_STREAM,
                 CursorJson.delta(TEXT, "tail <<PII:AWS_").getBytes(StandardCharsets.UTF_8)

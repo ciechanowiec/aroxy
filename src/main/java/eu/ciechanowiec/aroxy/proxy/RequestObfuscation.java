@@ -48,6 +48,7 @@ final class RequestObfuscation {
 
     private Object transform(Object value, String parent) {
         return switch (value) {
+            case null -> JSONObject.NULL;
             case JSONObject object -> {
                 this.transformObject(object, parent);
                 yield object;

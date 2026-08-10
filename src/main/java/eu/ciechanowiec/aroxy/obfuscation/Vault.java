@@ -66,20 +66,16 @@ public final class Vault {
      * @param file the backing file for persisted entries, or empty for an in-memory-only vault
      */
     public Vault(Optional<Path> file) {
-        this(file, new Bounds(MAX_ENTRIES, TRIM_TO));
+        this(file, MAX_ENTRIES, TRIM_TO);
     }
 
     Vault(Optional<Path> file, int maxEntries, int trimTo) {
-        this(file, new Bounds(maxEntries, trimTo));
-    }
-
-    private Vault(Optional<Path> file, Bounds bounds) {
         this.originalToToken = new LinkedHashMap<>(INITIAL_CAPACITY, LOAD_FACTOR, true);
         this.tokenToOriginal = new HashMap<>();
         this.sensitiveKeys = new HashSet<>();
         this.lock = new ReentrantLock();
         this.file = file;
-        this.bounds = bounds;
+        this.bounds = new Bounds(maxEntries, trimTo);
         this.counter = 0;
         file.filter(Files::exists).ifPresent(this::load);
     }

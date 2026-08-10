@@ -39,7 +39,7 @@ final class CursorResponseStream {
         this.reversed = 0;
     }
 
-    Batch accept(ConnectJsonFrame frame) {
+    CursorResponseBatch accept(ConnectJsonFrame frame) {
         if (frame.compressed()) {
             throw ConnectProtocolException.unsupportedMedia(
                 "Compressed Connect envelopes are unsupported"
@@ -56,7 +56,7 @@ final class CursorResponseStream {
         );
         this.flushAfterFragment(ending, field, output);
         boolean complete = frame.terminal() || this.turnEnded(object);
-        return new Batch(output, complete);
+        return new CursorResponseBatch(output, complete);
     }
 
     List<ConnectJsonFrame> finish() {
@@ -205,7 +205,7 @@ final class CursorResponseStream {
                 || object.keySet().stream().anyMatch(key -> hasKey(object.get(key), keys));
             case JSONArray array -> IntStream.range(0, array.length())
                 .anyMatch(index -> hasKey(array.get(index), keys));
-            default -> false;
+            case null, default -> false;
         };
     }
 
@@ -214,12 +214,5 @@ final class CursorResponseStream {
     }
 
     private record FragmentField(JSONObject parent, String key, String value, String channel) {
-    }
-
-    public record Batch(List<ConnectJsonFrame> frames, boolean complete) {
-
-        public Batch {
-            frames = List.copyOf(frames);
-        }
     }
 }

@@ -79,7 +79,4 @@ final class ProtobufWire {
 
     public record Varint(long value, int end) {
     }
-
-    public static final class InvalidProtobufException extends RuntimeException {
-    }
 }

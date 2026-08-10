@@ -41,24 +41,24 @@
     </scm>
 
     <properties>
-        <!-- The package Airness analyzes as project-owned code. -->
-        <airness.package.root>eu.ciechanowiec.aroxy</airness.package.root>
-        <!-- Vendored tools and themes contain the typography they detect or belong to another tool. -->
-        <airness.typography.excludes>.vale/,.idea/,.docs/themes/</airness.typography.excludes>
         <!-- Process-boundary classes are exercised outside the JVM observed by JaCoCo and PIT. -->
         <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.Aroxy,eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.cli.DaemonEntry,eu.ciechanowiec.aroxy.cli.Version,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.daemon.LaunchCommand,eu.ciechanowiec.aroxy.daemon.DaemonProcess,eu.ciechanowiec.aroxy.daemon.Daemon,eu.ciechanowiec.aroxy.daemon.Home,eu.ciechanowiec.aroxy.fs.RestrictedDir</airness.coverage.excluded.classes>
         <airness.mutation.excluded.classes>eu.ciechanowiec.aroxy.cli.Aroxy,eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.cli.DaemonEntry,eu.ciechanowiec.aroxy.cli.Version,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.daemon.LaunchCommand,eu.ciechanowiec.aroxy.daemon.DaemonProcess,eu.ciechanowiec.aroxy.daemon.Daemon,eu.ciechanowiec.aroxy.daemon.Home,eu.ciechanowiec.aroxy.fs.RestrictedDir</airness.mutation.excluded.classes>
 
-        <main.class>eu.ciechanowiec.aroxy.cli.Aroxy</main.class>
+        <!-- The package Airness analyzes as project-owned code. -->
+        <airness.package.root>eu.ciechanowiec.aroxy</airness.package.root>
+        <!-- Vendored tools and themes contain the typography they detect or belong to another tool. -->
+        <airness.typography.excludes>.vale/,.idea/,.docs/themes/</airness.typography.excludes>
 
         <!-- Application dependencies. Harness dependency versions come from Airness. -->
-        <picocli.version>4.7.7</picocli.version>
         <slf4j-api.version>2.0.18</slf4j-api.version>
-        <tinylog.version>2.7.0</tinylog.version>
-        <org-json.version>20260719</org-json.version>
+        <picocli.version>4.7.7</picocli.version>
         <aircompressor.version>2.0.3</aircompressor.version>
         <jetty.version>12.1.12</jetty.version>
+        <org-json.version>20260719</org-json.version>
+        <tinylog.version>2.7.0</tinylog.version>
 
+        <main.class>eu.ciechanowiec.aroxy.cli.Aroxy</main.class>
     </properties>
 
     <dependencyManagement>

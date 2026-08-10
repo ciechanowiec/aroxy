@@ -42,13 +42,14 @@ public final class Launcher {
      *
      * @return the outcome of the bounded launch attempt
      * @throws InterruptedException if interrupted while waiting for readiness or child termination
+     * @throws UncheckedIOException if the launch lock cannot be acquired
      */
     public Outcome start() throws InterruptedException {
         try (
             FileChannel channel = FileChannel.open(
                 this.home.launchLock(), StandardOpenOption.CREATE, StandardOpenOption.WRITE
             );
-            FileLock ignored = channel.lock()
+            FileLock _ = channel.lock()
         ) {
             return this.startLocked();
         } catch (IOException exception) {

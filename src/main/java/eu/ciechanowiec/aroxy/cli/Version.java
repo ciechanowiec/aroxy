@@ -18,7 +18,7 @@ final class Version implements IVersionProvider {
 
     @Override
     public String[] getVersion() {
-        return new String[]{"aroxy " + this.read().strip()};
+        return new String[] {"aroxy " + this.read().strip()};
     }
 
     private String read() {

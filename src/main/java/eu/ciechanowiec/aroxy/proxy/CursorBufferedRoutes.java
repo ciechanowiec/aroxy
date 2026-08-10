@@ -44,7 +44,7 @@ final class CursorBufferedRoutes {
         String endpoint = request.getHttpURI().getPath();
         String stamp = this.parts.audit().nextStamp();
         byte[] original = CursorHttp.bounded(Request.asInputStream(request));
-        ProtobufTransformer.Outbound transformed = this.protobuf.outbound(original);
+        ProtobufOutbound transformed = this.protobuf.outbound(original);
         this.parts.audit().request(stamp, endpoint, transformed.matches());
         this.parts.audit().wireRedactedRequest(stamp, transformed.payload(), WireBody.BINARY);
         UpstreamReply reply = this.parts.upstream().send(
@@ -52,7 +52,7 @@ final class CursorBufferedRoutes {
             CursorHttp.headers(request), transformed.payload()
         );
         byte[] raw = CursorHttp.bounded(reply.body());
-        ProtobufTransformer.Inbound restored = this.protobuf.inbound(raw);
+        ProtobufInbound restored = this.protobuf.inbound(raw);
         this.parts.audit().wireRawResponse(stamp, raw, WireBody.BINARY);
         this.parts.audit().response(stamp, endpoint, restored.reversed(), false);
         CursorHttp.prepare(response, reply.status(), reply.headers(), restored.payload().length);

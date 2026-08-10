@@ -26,26 +26,26 @@ class TokenRegionsTest {
 
     @Test
     void keepsAWindowEntirelyBeforeATokenUnchanged() {
-        assertArrayEquals(new int[]{0, 3}, span(0, 3), "a window before the token is left as is");
+        assertArrayEquals(new int[] {0, 3}, span(0, 3), "a window before the token is left as is");
     }
 
     @Test
     void keepsAWindowEntirelyAfterATokenUnchanged() {
         assertArrayEquals(
-            new int[]{AFTER_TOKEN_START, AFTER_TOKEN_END},
+            new int[] {AFTER_TOKEN_START, AFTER_TOKEN_END},
             span(AFTER_TOKEN_START, AFTER_TOKEN_END), "a window after the token is left as is"
         );
     }
 
     @Test
     void trimsAWindowThatOverlapsTheTokenHead() {
-        assertArrayEquals(new int[]{2, 4}, span(2, 8), "the overlap into the token head is trimmed off");
+        assertArrayEquals(new int[] {2, 4}, span(2, 8), "the overlap into the token head is trimmed off");
     }
 
     @Test
     void trimsAWindowThatOverlapsTheTokenTail() {
         assertArrayEquals(
-            new int[]{TOKEN_END, TAIL_MATCH_END},
+            new int[] {TOKEN_END, TAIL_MATCH_END},
             span(TAIL_MATCH_START, TAIL_MATCH_END), "the overlap into the token tail is trimmed off"
         );
     }
@@ -66,7 +66,7 @@ class TokenRegionsTest {
     @Test
     void keepsTheTailWhenAMatchStartsExactlyAtTheTokenStart() {
         assertArrayEquals(
-            new int[]{TOKEN_END, TAIL_MATCH_END}, span(4, TAIL_MATCH_END),
+            new int[] {TOKEN_END, TAIL_MATCH_END}, span(4, TAIL_MATCH_END),
             "a match beginning on the token's first char is advanced past the whole token"
         );
     }
@@ -74,7 +74,7 @@ class TokenRegionsTest {
     @Test
     void keepsTheTrailerWhenAMatchStartsAtASeamBetweenAdjacentTokens() {
         assertArrayEquals(
-            new int[]{TRAILER_START, TWO_TOKENS_END},
+            new int[] {TRAILER_START, TWO_TOKENS_END},
             TokenRegions.scan(TWO_TOKENS).tokenFreeSpan(SECOND_TOKEN_START, TWO_TOKENS_END).orElseThrow(),
             "a match starting on the second token's first char is advanced past that token to the trailer"
         );
@@ -83,7 +83,7 @@ class TokenRegionsTest {
     @Test
     void keepsTheHeadWhenAMatchEndsExactlyAtTheTokenEnd() {
         assertArrayEquals(
-            new int[]{2, 4}, span(2, TOKEN_END),
+            new int[] {2, 4}, span(2, TOKEN_END),
             "a match ending on the token's last char is retracted to before the whole token"
         );
     }
@@ -99,7 +99,7 @@ class TokenRegionsTest {
     @Test
     void keepsTheFullWindowWhenNoTokenIsPresent() {
         assertArrayEquals(
-            new int[]{0, 5}, TokenRegions.scan("plain").tokenFreeSpan(0, 5).orElseThrow(),
+            new int[] {0, 5}, TokenRegions.scan("plain").tokenFreeSpan(0, 5).orElseThrow(),
             "token-free text leaves the whole window intact"
         );
     }

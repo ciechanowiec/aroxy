@@ -39,7 +39,7 @@ final class CursorJson {
         return new String(frame.payload(), StandardCharsets.UTF_8);
     }
 
-    static String text(CursorResponseStream.Batch batch) {
+    static String text(CursorResponseBatch batch) {
         return batch.frames().stream().map(CursorJson::payload).reduce("", String::concat);
     }
 }

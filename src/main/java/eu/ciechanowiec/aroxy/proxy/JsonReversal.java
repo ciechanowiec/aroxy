@@ -25,6 +25,7 @@ final class JsonReversal {
 
     private Object transform(Object value) {
         return switch (value) {
+            case null -> JSONObject.NULL;
             case JSONObject object -> this.object(object);
             case JSONArray array -> this.array(array);
             case String text -> this.text(text);

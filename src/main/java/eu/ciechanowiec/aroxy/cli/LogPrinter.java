@@ -56,10 +56,4 @@ final class LogPrinter {
             throw new UncheckedIOException("Could not read " + file, exception);
         }
     }
-
-    @FunctionalInterface
-    public interface Pause {
-
-        void run() throws InterruptedException;
-    }
 }

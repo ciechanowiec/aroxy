@@ -56,11 +56,11 @@ class ProtobufTransformerTest {
     void obfuscatesAndRestoresTextInsideNestedMessages() {
         ProtobufTransformer transformer = transformer();
         byte[] original = field(field("Ask ExampleCorp about ExampleCorp"));
-        ProtobufTransformer.Outbound outbound = transformer.outbound(original);
+        ProtobufOutbound outbound = transformer.outbound(original);
         String redacted = new String(outbound.payload(), StandardCharsets.UTF_8);
         assertEquals(2, outbound.matches().size());
         assertTrue(redacted.contains("<<PII:COMPANY:1>>"), redacted);
-        ProtobufTransformer.Inbound inbound = transformer.inbound(outbound.payload());
+        ProtobufInbound inbound = transformer.inbound(outbound.payload());
         assertArrayEquals(original, inbound.payload());
         assertEquals(2, inbound.reversed());
     }
@@ -114,7 +114,7 @@ class ProtobufTransformerTest {
     void rejectsAVarintThatRunsPastTheEndOfTheBuffer() {
         ProtobufTransformer transformer = transformer();
         assertThrows(
-            ConnectProtocolException.class, () -> transformer.outbound(new byte[]{DANGLING_VARINT})
+            ConnectProtocolException.class, () -> transformer.outbound(new byte[] {DANGLING_VARINT})
         );
     }
 
@@ -124,7 +124,7 @@ class ProtobufTransformerTest {
     void rejectsFieldNumberZero() {
         ProtobufTransformer transformer = transformer();
         assertThrows(
-            ConnectProtocolException.class, () -> transformer.outbound(new byte[]{2, 0})
+            ConnectProtocolException.class, () -> transformer.outbound(new byte[] {2, 0})
         );
     }
 
@@ -137,7 +137,7 @@ class ProtobufTransformerTest {
         for (int depth = 1; depth < MAX_DEPTH; depth++) {
             nested = field(nested);
         }
-        ProtobufTransformer.Outbound transformed = transformer.outbound(nested);
+        ProtobufOutbound transformed = transformer.outbound(nested);
         assertEquals(1, transformed.matches().size(), "the leaf at the cap is still transformed");
         assertArrayEquals(nested, transformer.inbound(transformed.payload()).payload());
     }
@@ -190,8 +190,8 @@ class ProtobufTransformerTest {
     @Test
     void rejectsMalformedTopLevelMessages() {
         ProtobufTransformer transformer = transformer();
-        assertThrows(ConnectProtocolException.class, () -> transformer.outbound(new byte[]{10, 5, 1}));
-        assertThrows(ConnectProtocolException.class, () -> transformer.inbound(new byte[]{0}));
+        assertThrows(ConnectProtocolException.class, () -> transformer.outbound(new byte[] {10, 5, 1}));
+        assertThrows(ConnectProtocolException.class, () -> transformer.inbound(new byte[] {0}));
     }
 
     @Test
@@ -200,7 +200,7 @@ class ProtobufTransformerTest {
         byte[] longText = field(
             "ExampleCorp " + "x".repeat(LONG_TEXT_CHARACTERS) + "\n\r\t"
         );
-        ProtobufTransformer.Outbound transformed = transformer.outbound(longText);
+        ProtobufOutbound transformed = transformer.outbound(longText);
         assertTrue(
             new String(transformed.payload(), StandardCharsets.UTF_8)
                 .contains("<<PII:COMPANY:1>>")

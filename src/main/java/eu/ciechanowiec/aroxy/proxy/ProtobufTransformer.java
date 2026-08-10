@@ -41,14 +41,14 @@ final class ProtobufTransformer {
         this.text = text;
     }
 
-    Outbound outbound(byte[] message) {
+    ProtobufOutbound outbound(byte[] message) {
         ProtobufChange transformed = this.requireMessage(
             message, (content, _) -> this.text.outbound(content)
         );
-        return new Outbound(transformed.bytes(), transformed.matches());
+        return new ProtobufOutbound(transformed.bytes(), transformed.matches());
     }
 
-    Inbound inbound(byte[] message) {
+    ProtobufInbound inbound(byte[] message) {
         return this.inbound(message, (content, _) -> this.text.inbound(content));
     }
 
@@ -59,9 +59,9 @@ final class ProtobufTransformer {
      * @param leaf    the transform applied to each text leaf, by path
      * @return the restored message
      */
-    Inbound inbound(byte[] message, ProtobufLeaf leaf) {
+    ProtobufInbound inbound(byte[] message, ProtobufLeaf leaf) {
         ProtobufChange transformed = this.requireMessage(message, leaf);
-        return new Inbound(transformed.bytes(), transformed.reversed());
+        return new ProtobufInbound(transformed.bytes(), transformed.reversed());
     }
 
     private ProtobufChange requireMessage(byte[] message, ProtobufLeaf leaf) {
@@ -82,7 +82,7 @@ final class ProtobufTransformer {
     private Optional<ProtobufChange> parseMessage(byte[] input, ProtobufLeaf leaf, List<Integer> path) {
         try {
             return Optional.of(this.parseValidMessage(input, leaf, path));
-        } catch (ProtobufWire.InvalidProtobufException _) {
+        } catch (InvalidProtobufException _) {
             return Optional.empty();
         }
     }
@@ -186,45 +186,7 @@ final class ProtobufTransformer {
 
     private static void ensureFieldNumber(ProtobufWire.Varint key) {
         if (ProtobufWire.fieldNumber(key.value()) == 0) {
-            throw new ProtobufWire.InvalidProtobufException();
-        }
-    }
-
-    public static final class Outbound {
-
-        private final byte[] payload;
-        private final Collection<ObfuscationMatch> matches;
-
-        Outbound(byte[] payload, Collection<ObfuscationMatch> matches) {
-            this.payload = payload.clone();
-            this.matches = List.copyOf(matches);
-        }
-
-        public byte[] payload() {
-            return this.payload.clone();
-        }
-
-        public Collection<ObfuscationMatch> matches() {
-            return List.copyOf(this.matches);
-        }
-    }
-
-    public static final class Inbound {
-
-        private final byte[] payload;
-        private final int reversed;
-
-        Inbound(byte[] payload, int reversed) {
-            this.payload = payload.clone();
-            this.reversed = reversed;
-        }
-
-        public byte[] payload() {
-            return this.payload.clone();
-        }
-
-        public int reversed() {
-            return this.reversed;
+            throw new InvalidProtobufException();
         }
     }
 }

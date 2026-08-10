@@ -46,6 +46,14 @@ public final class Upstream {
 
     /**
      * Sends one request and returns the streamed reply (status, headers, body stream).
+     *
+     * @param method       the HTTP method to forward
+     * @param pathAndQuery the path and query to append to the upstream base
+     * @param headers      the request headers to forward
+     * @param body         the request body to forward
+     * @return the streamed upstream reply
+     * @throws IOException          if the request cannot be sent or its response cannot be received
+     * @throws InterruptedException if the request is interrupted
      */
     public UpstreamReply send(
         String method, String pathAndQuery, Map<String, List<String>> headers, byte[] body

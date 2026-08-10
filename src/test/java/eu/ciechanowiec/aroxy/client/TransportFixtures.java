@@ -19,9 +19,11 @@ public final class TransportFixtures {
      *
      * @param profile the profile to narrow
      * @return that profile's buffered transport
+     * @throws AssertionError if the profile has no buffered transport
      */
     public static BufferedTransport buffered(ClientProfile profile) {
         return switch (profile.transport()) {
+            case null -> throw new AssertionError(profile.displayName() + " has no transport");
             case BufferedTransport transport -> transport;
             case CursorTransport _ -> throw new AssertionError(profile.displayName() + " is not buffered");
         };
