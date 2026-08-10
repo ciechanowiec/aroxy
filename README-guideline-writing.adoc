@@ -21,6 +21,7 @@
 :!table-caption:
 :!figure-caption:
 :!example-caption:
+ifndef::env-github[:not-env-github:]
 ifdef::env-github[]
 :bad-icon: ❌
 :good-icon: ✅
@@ -36,34 +37,54 @@ ifndef::backend-docbook5[]
 endif::[]
 endif::[]
 
+ifdef::backend-html5+not-env-github[]
+++++
+<link href="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo.css" rel="stylesheet">
+<!-- Inlined so the IntelliJ AsciiDoc preview honors these rules: its webview blocks external CSS even in
+     UNSAFE mode, so the remote stylesheet above is dropped in the IDE preview. Mirrors rules already in
+     adoc-css-style.css for the published HTML - enforces [cols="..."] column widths and wraps long content. -->
+<style>
+    table.tableblock {
+        table-layout: fixed;
+    }
+
+    table.tableblock td,
+    table.tableblock th {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+</style>
+++++
+endif::[]
+
 [cols=">.^1h,<.^1"]
 |===
 | Document last modified: | {docdatetime}
 | Document generated: | {localdatetime}
 |===
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Patronizing = NO -->
 ++++
 endif::[]
 This guideline governs how written documents are produced. Its purpose is to make documents precise, complete, easy to follow, and consistent across authors and over time.
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Patronizing = YES -->
 ++++
 endif::[]
 
-The guideline applies to non-fiction prose - reference documentation, design documents, runbooks, README files, protocol descriptions, and prose memos. It doesn't apply to fiction, marketing copy, or transient chat.
+The guideline applies to [[utilitarian-non-fiction,utilitarian non-fiction]]_utilitarian non-fiction_ - prose written to transfer accurate information from author to reader. Utilitarian non-fiction includes reference documentation, design documents, runbooks, README files, protocol descriptions, specifications, prose memos, and style guides, this guideline among them. The guideline doesn't apply to fiction, essays, memoirs, marketing copy, or transient chat.
 
 The guideline is written for authors of such prose, whether human or AI. It assumes the ability to write standard English and familiarity with the subject the author writes about. After reading, an author should be able to apply each rule while writing and to verify a finished document against the rules.
 
-The guideline is organized in four parts. xref:#part-1[Part 1] states rules that apply to any non-fiction document. xref:#part-2[Part 2] adds rules for technical texts - documents whose subject is a technical system. xref:#part-3[Part 3] adds rules that apply when the author is an AI system. xref:#part-4[Part 4] adds rules for the AsciiDoc markup that carries the document.
+The guideline is organized in four parts. xref:#part-1[Part 1] states rules that apply to any utilitarian non-fiction document. xref:#part-2[Part 2] adds rules for technical texts - documents whose subject is a technical system. xref:#part-3[Part 3] adds rules that apply when the author is an AI system. xref:#part-4[Part 4] adds rules for the AsciiDoc markup that carries the document.
 
 [[part-1]]
 == General Rules
 
-This part states rules that apply to any non-fiction document, whatever its subject and markup. The parts that follow add rules for narrower contexts without overriding the rules stated here.
+This part states rules that apply to any xref:#utilitarian-non-fiction[utilitarian non-fiction] document, whatever its subject and markup. The parts that follow add rules for narrower contexts without overriding the rules stated here.
 
 === Audience, Purpose, and Scope
 
@@ -146,7 +167,7 @@ The connection is established when the handshake completes. A request is sent as
 [#one-paragraph-one-topic]
 ==== One Paragraph, One Topic
 
-A paragraph develops one thought: a claim followed by its elaboration, qualifications, and consequences. When the topic shifts, the paragraph ends. A paragraph that introduces a second, parallel topic must be split, even when the two topics are related.
+A paragraph develops one thought: a claim followed by its elaboration, qualifications, and consequences. When the topic shifts, the paragraph ends. A paragraph that introduces a second, parallel topic must be split, even when the two topics are related. The procedure in xref:#verify-every-paragraph[] verifies this structure before delivery.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -160,6 +181,40 @@ A transaction groups a series of operations into a single atomic unit and is sta
 A transaction groups a series of operations into a single atomic unit. The transaction is started by calling `begin` and is concluded by either `commit` or `rollback`. Until the transaction is concluded, its changes are visible only to operations performed within the same transaction.
 
 An index is a precomputed lookup structure that accelerates query execution. The database maintains an index automatically: every insert, update, and delete on the indexed table updates the index in the same transaction as the data change.
+====
+
+[#verify-every-paragraph]
+==== Verify Every Paragraph
+
+. Verification of the xref:#one-paragraph-one-topic[one-paragraph-one-topic rule] runs after the text is written, after every material reorganization, and before delivery. It covers every prose paragraph, every paragraph inside a list item, every continuation paragraph, and every table cell that contains more than one sentence. A repaired paragraph re-enters verification. The pass ends only when every paragraph receives the xref:#cohesive-verdict[cohesive verdict] defined below.
+. Dissect one paragraph at a time before judging its prose. For every sentence, write its logical essence as a short subject-and-predicate statement. Remove transitions, emphasis, examples, and stylistic phrasing from the essence. This reduction exposes the topics that polished prose can conceal.
+. State the paragraph's governing topic in one concrete sentence. Then assign every sentence one role under that topic: claim, elaboration, evidence, example, qualification, mechanism, or consequence. A sentence that requires a second governing topic doesn't belong in the paragraph.
+. Test every boundary between adjacent sentences. Insert a hypothetical paragraph break at that boundary and read both resulting paragraphs.
+.. If the break loses no meaning, logical dependency, contrast, emphasis, or causal force, presume that the sentences carry different topics and split them.
+.. If the sentences carry one topic but remain equally clear after the break, rewrite them so their relationship is explicit. Make the later sentence visibly explain, evidence, qualify, implement, or follow from the earlier sentence. Naming the shared subject or the precise relationship is preferable to adding an empty transition such as _also_, _moreover_, or _in addition_.
+.. If the break damages a necessary relationship that the wording already makes clear, keep the sentences together.
+. Read the paragraph in xref:#forward-order[forward order]. The governing claim comes before its evidence or consequence, a cause comes before its effect, and a prerequisite comes before what depends on it. Reorder sentences when their logical essences reveal a stronger sequence.
+. Assign one verdict and act on it at once:
+.. [[cohesive-verdict,the cohesive verdict]]_Cohesive_ - one governing topic accounts for every sentence, every later sentence has an explicit role under it, and every pair passes the boundary test. No action follows.
+.. _Rewrite_ - the sentences share one topic, but their relationship depends only on proximity or an ambiguous reference. Rewrite the paragraph until the relationship is explicit, then verify it again.
+.. _Split_ - the paragraph contains parallel claims, independent mechanisms, separate boundaries, or any other second topic. Split at the topic change. Each resulting paragraph receives its own governing topic and re-enters verification.
+. After a split, apply xref:#references-across-paragraphs[] and xref:#internal-references-with-xref[] to the new boundary. The first sentence of the new paragraph names and links any concept carried from the preceding paragraph. It never begins with shorthand whose meaning depends on the old paragraph.
+. Finish with a whole-section read. Paragraphs must form a sequence in which the conclusion of one creates the premise or question answered by the next. This final read catches a paragraph that's internally cohesive but belongs under another heading or in another position.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The gateway gives clients one network address. The gateway checks credentials, enforces request limits, and selects the destination service.
+
+The sentences can be separated without losing meaning. Their shared topic is plausible, but the wording doesn't show how the second sentence develops the first.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The gateway provides one network address by checking credentials, enforcing request limits, and selecting the destination service for every client request.
+
+The mechanism now explains how the gateway provides one entry point. Splitting the thought would damage that relationship.
 ====
 
 ==== No Restatement
@@ -180,7 +235,7 @@ The cache entry for a record is invalidated when the record's `last++_++modified
 
 ==== Razor Sentences
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.We = NO -->
 ++++
@@ -192,7 +247,7 @@ Every sentence does work that no other sentence in the document does. If a sente
 ====
 There are several important things to consider when configuring the load balancer. Let us look at them. The first thing is the algorithm. The algorithm controls how requests are distributed across backends.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.We = YES -->
 ++++
@@ -204,6 +259,7 @@ endif::[]
 The load balancer's algorithm controls how requests are distributed across backends. The supported algorithms are round-robin, least-connections, and consistent-hash. The default is round-robin.
 ====
 
+[#forward-order]
 ==== Forward Order
 
 Information flows from the general to the specific, from the prerequisite to the dependent, and from the cause to the consequence. The reader should never need a fact that the document hasn't yet introduced. When a concept is needed before its full definition, give a short gloss at first mention and link to the full definition.
@@ -287,42 +343,53 @@ Heading: "Off by Default." Body: "Email and phone detection is off by default. T
 
 === Terminology and Precision
 
+[#strict-nomenclature]
 ==== Strict Nomenclature
 
-A concept is named once and the name is used everywhere. The name isn't varied for stylistic relief. Treat terms like identifiers in source code: renaming them mid-document is a defect that breaks the reader's ability to track the same thing across sentences.
-
-This applies with equal force to operations. _Create_, _insert_, _add_, _register_, _publish_, and _submit_ aren't synonyms. Each names a specific operation in most systems. When the system distinguishes them, the document distinguishes them. When the system doesn't, pick one and use only that one.
+. Give every concept one [[canonical-term,canonical term]]_canonical term_ and use that term throughout the document. The rule covers deliverables, actors, operations, states, boundaries, and units across prose, headings, lists, tables, diagrams, captions, and cross-reference labels.
+. Keep two related terms only when they name different concepts. The concepts differ when they have different functions, owners, outputs, or lifecycles. If none of those properties differ, choose one term and replace the other.
+. A comma-separated list, slash pair, or parenthetical alias is a violation when all terms name the same concept and the sentence gains no information from listing them.
 
 [.bad-example]
 .{bad-icon} Bad example
 ====
-The handler registers itself with the broker. Once the listener is active, the consumer dispatches incoming events to subscribers. (Three names. One concept.)
+After authentication, the service creates a session. The login context stores the user identifier. The authentication state expires after 30 minutes.
 ====
 
 [.good-example]
 .{good-icon} Good example
 ====
-The handler registers itself with the broker. Once the handler is active, it dispatches incoming events to subscribers.
+After authentication, the service creates a session. The session stores the user identifier and expires after 30 minutes.
 ====
 
 [.bad-example]
 .{bad-icon} Bad example
 ====
-You can add a record to the table, then submit the changes by committing the transaction.
+Editors select a page, fill the template with content, and publish the layout.
 ====
 
 [.good-example]
 .{good-icon} Good example
 ====
-A record is inserted into the table by `INSERT INTO`. The change becomes durable when the enclosing transaction is committed.
+Editors select a page template, add content, and publish the page.
 ====
+
+[#verify-nomenclature]
+==== Verify Nomenclature
+
+. Verify compliance with the rule xref:#strict-nomenclature[] after drafting, after every material reorganization, and before delivery. A repaired term re-enters the check.
+. Collect repeated noun phrases from prose, headings, lists, tables, diagrams, captions, and cross-reference labels.
+. Group terms that appear to name the same concept. Choose one xref:#canonical-term[canonical term] for each group and replace its aliases.
+. Check that each term names only one concept. If a term names more than one concept, split the term or narrow its definition and rename the outlying uses.
+. Keep related terms only when they name different concepts and each term is used consistently. When several terms name the same concept, remove terms that add no information.
+. Finish when each concept has one term and each term names one concept. A text search or linter may find candidates, but the final decision depends on the concepts named in context.
 
 [#defined-terms]
 ==== Defined Terms
 
 A term that has a specific meaning in the document is defined the first time it's used in a normative sense. The definition takes the form _X is Y that Z_. _Y_ is the genus - the broader category. _Z_ is the differentia - what distinguishes _X_ from other members of _Y_. After the definition, the term is used without redefinition.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Contractions = NO -->
 ++++
@@ -332,7 +399,7 @@ endif::[]
 ====
 A token is something the client sends to prove who it is.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Contractions = YES -->
 ++++
@@ -347,7 +414,7 @@ A _token_ is an opaque string issued by the authentication server that the clien
 [#concrete-vocabulary]
 ==== Concrete Vocabulary
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Marketing = NO -->
 ++++
@@ -359,7 +426,7 @@ Use words that two competent practitioners would interpret the same way. When tw
 ====
 The platform is flexible and supports seamless integration with modern enterprise systems.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Marketing = YES -->
 ++++
@@ -375,7 +442,7 @@ A new data source is added by implementing the `DataSource` interface and regist
 
 Prefer the older, well-understood term over a newer marketing-laden one when both denote the same thing. Use the fancier term only when it carries information the plain term lacks. The test is whether replacing the fancier term with the plain one would lose meaning. When it would not, the fancier term was decoration.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Formal = NO -->
 ++++
@@ -385,7 +452,7 @@ endif::[]
 ====
 The system leverages a cloud-native, distributed compute fabric to deliver intelligent responses.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Formal = YES -->
 ++++
@@ -399,17 +466,17 @@ Each request is processed by one of several stateless servers behind a load bala
 
 Further pairs where the plain form is usually correct:
 
-* _server_ over _compute node_
-* _file_ over _blob_ (when it's a file)
-* _call_ over _invocation_ (when it's an ordinary function call)
-* _list_ over _collection_ (when the order matters)
-* _user_ over _actor_ (when it's a person)
+. _server_ over _compute node_,
+. _file_ over _blob_ (when it's a file),
+. _call_ over _invocation_ (when it's an ordinary function call),
+. _list_ over _collection_ (when the order matters),
+. _user_ over _actor_ (when it's a person).
 
 ==== Acronyms and Abbreviations
 
 An acronym is expanded the first time it appears in the document and the first time it appears in each major section, in the form _Expanded Form (ACRONYM)_. After expansion, the acronym is used. Acronyms more recognizable than their expansions - HTTP, URL, JSON, XML, SQL, TCP - need not be expanded, except where the expansion adds information the reader needs.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 ++++
@@ -419,7 +486,7 @@ endif::[]
 ====
 The CRDT replica synchronizes via the SWIM protocol over QUIC. (Three acronyms. The reader may know none.)
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 ++++
@@ -523,7 +590,7 @@ Examples use names, values, and scenarios that resemble real usage: `OrderServic
 Acme Corp. agrees to provide widgets to Beta Ltd. on a date in the future.
 ====
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 <!-- vale Vale.Spelling = NO -->
@@ -535,7 +602,7 @@ endif::[]
 ====
 Supplier (Acme Corp., a Delaware corporation, EIN 99-1234567) shall deliver 1,200 sensor modules (part number SNS-V2-A) to Customer (Beta Ltd., a Polish limited liability company, KRS 0000123456) at Mostowa 12, 50-200 Wrocław, Poland, on or before 2026-09-30.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 <!-- vale Vale.Spelling = YES -->
@@ -598,7 +665,7 @@ The framework resolves dependencies and notifies registered listeners of state c
 
 A parenthetical buries content the reader still has to process. When the content matters, write it as a separate sentence. When it doesn't matter, delete it. A semicolon joins two independent clauses into one sentence, which xref:#one-sentence-one-thought[] forbids - split the clauses into two sentences.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Semicolons = NO -->
 ++++
@@ -608,7 +675,7 @@ endif::[]
 ====
 The connection pool (default size 10) is configured via `pool.size`; the value is read at startup.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Semicolons = YES -->
 ++++
@@ -620,25 +687,9 @@ endif::[]
 The connection pool is configured via `pool.size`. The default size is 10. The value is read at startup.
 ====
 
-==== Colon Before an Enumeration Only
-
-A paragraph ends with a colon only when a pure enumeration follows, a list whose items are single terms or short phrases. When the items are prose, full sentences or paragraphs even when numbered or lettered, the introducing paragraph ends with a period, and its last sentence is phrased so that no colon is wanted. That sentence still points the reader forward to the list, so the enumeration is expected and the reader never asks where it went. A locating word such as _below_ or _in this section_ does this, as does a phrase such as _the following_, or a stated count that the list then delivers. A colon promises a tight list, and prose that follows breaks the promise. A colon that introduces a single example, such as a command or a code block, is a separate convention and is unaffected.
-
-[.bad-example]
-.{bad-icon} Bad example
-====
-"The rules fall into three groups:" followed by three multi-sentence, labeled items. The colon promises a list, but each item is a paragraph.
-====
-
-[.good-example]
-.{good-icon} Good example
-====
-"The rules fall into three groups, described below." followed by the same three labeled paragraphs. The period replaces the colon, and "below" still points the reader to the list. A colon is right only before a pure enumeration of bare terms, such as red, green, and blue.
-====
-
 ==== Natural Phrasing
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.TooWordy = NO -->
 <!-- vale English.We = NO -->
@@ -653,7 +704,7 @@ Write the way an experienced practitioner would write a careful internal documen
 ====
 Herein, the aforementioned mechanism shall be utilized to leverage the synergies between the modules.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.TooWordy = YES -->
 <!-- vale English.We = YES -->
@@ -678,7 +729,7 @@ When a quantity matters, give the number, the unit, and the conditions under whi
 The cache holds many entries and evicts old ones quickly.
 ====
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.LyHyphens = NO -->
 ++++
@@ -688,7 +739,7 @@ endif::[]
 ====
 The cache holds up to 10,000 entries by default. When the cache is full, the least-recently-used entry is evicted on each insertion. Eviction is performed synchronously and typically completes in under 50 µs on commodity hardware.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.LyHyphens = YES -->
 ++++
@@ -697,7 +748,7 @@ endif::[]
 [#no-hedging]
 ==== No Hedging
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Weasel = NO -->
 ++++
@@ -709,7 +760,7 @@ Avoid hedges that weaken claims without adding information: _somewhat_, _fairly_
 ====
 The operation is generally pretty fast and usually completes fairly quickly.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Weasel = YES -->
 ++++
@@ -740,21 +791,21 @@ A query can use an index. The response is served from the cache on a hit and fro
 
 ==== No Patronizing
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Contractions = NO -->
 <!-- vale English.Patronizing = NO -->
 ++++
 endif::[]
 Don't tell the reader that something is _easy_, _simple_, _straightforward_, _obvious_, or _trivial_. When it is, the reader can see for themselves. When it isn't, the label rings false. State the steps. Let the reader judge the difficulty.
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Contractions = YES -->
 <!-- vale English.Patronizing = YES -->
 ++++
 endif::[]
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Patronizing = NO -->
 ++++
@@ -764,7 +815,7 @@ endif::[]
 ====
 Configuring the resolver is straightforward - just provide a simple hook implementation.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Patronizing = YES -->
 ++++
@@ -794,7 +845,7 @@ When the connection is established, the server sends a greeting frame containing
 
 ==== Person
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.We = NO -->
 ++++
@@ -806,7 +857,7 @@ Use the third person for descriptions of the system. Use the second person ("you
 ====
 We register the handler. The user can then look it up. One must be careful to unregister it on shutdown. You should also handle exceptions.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.We = YES -->
 ++++
@@ -835,6 +886,23 @@ The handler calls the resolver, which logs the request, and it returns the resul
 The handler calls the resolver. The resolver logs the request and returns the result to the handler.
 ====
 
+[#references-across-paragraphs]
+==== References Across Paragraphs
+
+A concept introduced in an earlier paragraph enters a later paragraph by name. A demonstrative shorthand - _this split_, _that mechanism_, a bare _This_ - doesn't reach across the paragraph boundary: the new paragraph offers no antecedent, so the reader guesses among every candidate of the previous one. The first mention in the new paragraph is specific. It uses the xref:#defined-terms[defined term] where one exists, or a noun phrase that identifies the concept with no rival reading. Later mentions inside the same paragraph may then shorten to pronouns within the limits of xref:#pronoun-antecedents[].
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+(A paragraph describes an eviction policy and a refresh schedule. The next paragraph opens with: "This mechanism also covers the session cache.") (Two candidate mechanisms precede. The demonstrative picks neither.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+(The next paragraph opens with: "The eviction policy also covers the session cache.") (The referent is named, so the reader resolves it without rereading the previous paragraph.)
+====
+
 [#inclusive-language]
 ==== Inclusive Language
 
@@ -857,7 +925,7 @@ When the user clicks Submit, the receipt is shown. If the card is declined, the 
 [#no-marketing]
 ==== No Marketing
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Marketing = NO -->
 ++++
@@ -869,7 +937,7 @@ Documentation doesn't sell. Remove claims of being _cutting-edge_, _next-generat
 ====
 The blazing-fast, industry-leading database delivers world-class performance for the most demanding workloads.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Marketing = YES -->
 ++++
@@ -883,7 +951,7 @@ The database sustains 50,000 reads per second and 8,000 writes per second on the
 
 ==== No Filler Phrases
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Jargon = NO -->
 <!-- vale English.Cliches = NO -->
@@ -900,7 +968,7 @@ Delete phrases that announce structure rather than provide content: _It's import
 ====
 It's important to note that, basically, the connection is, at the end of the day, not thread-safe.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Jargon = YES -->
 <!-- vale English.Cliches = YES -->
@@ -936,7 +1004,7 @@ A session is created by `login`. The session is bound to one workspace and one u
 [[no-throat-clearing]]
 ==== No Throat-Clearing
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.We = NO -->
 <!-- vale English.Preamble = NO -->
@@ -944,7 +1012,7 @@ ifdef::backend-html5[]
 endif::[]
 Sections, paragraphs, and sentences begin with content. They don't begin with announcements that content is about to follow ("Now let us turn our attention to..."), with apologies ("This is a complex topic, but..."), or with restatements of the heading.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Colons = NO -->
 ++++
@@ -960,7 +1028,7 @@ Section 4.2: Connection Pooling. In this section, we will now turn our attention
 ====
 Section 4.2: Connection Pooling. A _connection pool_ is a fixed-size set of pre-established connections that clients borrow for the duration of an operation and return when finished. Pooling avoids the per-request cost of opening and closing connections.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Colons = YES -->
 <!-- vale English.We = YES -->
@@ -970,7 +1038,7 @@ endif::[]
 
 ==== No Redundant Qualifiers
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Weasel = NO -->
 <!-- vale English.TooWordy = NO -->
@@ -979,7 +1047,7 @@ ifdef::backend-html5[]
 ++++
 endif::[]
 Drop qualifiers that don't narrow the claim: _very_, _really_, _actually_, _literally_, _quite_, _truly_, etc. Drop pleonasms: _end result_, _final outcome_, _advance planning_, _future plans_, _added bonus_, _past history_, etc. The shorter form means the same thing.
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Weasel = YES -->
 <!-- vale English.TooWordy = YES -->
@@ -988,7 +1056,7 @@ ifdef::backend-html5[]
 ++++
 endif::[]
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.TooWordy = NO -->
 <!-- vale English.RedundantQualifiers = NO -->
@@ -999,7 +1067,7 @@ endif::[]
 ====
 The actual end result is that the future plans for the service will literally have to be revised.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.TooWordy = YES -->
 <!-- vale English.RedundantQualifiers = YES -->
@@ -1092,14 +1160,23 @@ The resolver follows the rules defined in §5.3.
 [#lists-for-enumerable-content]
 ==== Lists for Enumerable Content
 
-Lists are used for content whose items are genuinely parallel and enumerable: a fixed set of states, a finite set of options, a sequence of steps. Prose is used for arguments, derivations, and connected reasoning. Don't bullet a paragraph. Don't write a list as a single run-on sentence. A list has two or more items at every level, or it isn't a list: a lone item is a bulleted paragraph and is written as prose, the way xref:#section-nesting[] forbids a lone subsection.
+. An _enumeration list_ presents genuinely parallel, enumerable content: a fixed set of states, a finite set of options, or a sequence of steps. Prose presents arguments, derivations, and connected reasoning. Keep connected reasoning in prose, and present parallel enumerable content as separate list items. Every enumeration list is ordered, even when its order only gives the items stable addresses.
+
+. Every enumeration list follows these rules:
+
+.. A complete sentence immediately precedes the list and ends with a colon. A parent item that introduces a nested list serves as its lead-in and also ends with a colon. A colon can also introduce one literal example, such as a command or code block.
+.. Every level contains at least two items. A lone item is prose, just as xref:#section-nesting[] forbids a lone subsection.
+.. Every item at a given level uses one of two forms uniformly.
+... _Sentence-form_ items begin with an uppercase letter and end with terminal punctuation. A question mark or exclamation mark can replace a period, and a colon is allowed only when the item introduces a nested list. Case-sensitive syntax can require a different initial letter.
+... _Fragment-form_ items begin with a lowercase letter and end with a comma, except that the final item ends with a period to close the enumeration. A fragment that introduces a nested list ends with a colon instead. A proper noun, acronym, quoted label, or case-sensitive token keeps its required capitalization.
 
 [.bad-example]
 .{bad-icon} Bad example
 ====
-- The system starts.
-- Then it loads the configuration.
-- It also validates it and applies it in order based on priority which is a number from 1 to N.
+The supported states are
+
+* received,
+* The request is authorized.
 ====
 
 [.good-example]
@@ -1108,18 +1185,30 @@ Lists are used for content whose items are genuinely parallel and enumerable: a 
 The system starts in four phases. First, it reads the configuration file. Second, it validates the configuration against the schema. Third, it resolves references between configuration sections. Fourth, it applies each resolved section in ascending order of priority.
 ====
 
-A bullet list is appropriate when the items are independent and parallel:
+Sentence form is appropriate when each item is a complete statement:
 
 [.good-example]
 .{good-icon} Good example
 ====
 A request is in exactly one of the following states:
 
-* RECEIVED - the request has been parsed but not yet authorized.
-* AUTHORIZED - the caller has been authenticated and authorized.
-* PROCESSING - the handler is executing.
-* COMPLETED - the response has been sent.
-* FAILED - the handler raised an unhandled error.
+. Received means that the request has been parsed but not yet authorized.
+. Authorized means that the caller has been authenticated and authorized.
+. Processing means that the handler is executing.
+. Completed means that the response has been sent.
+. Failed means that the handler raised an unhandled error.
+====
+
+Fragment form is appropriate when the items complete the lead-in sentence:
+
+[.good-example]
+.{good-icon} Good example
+====
+The supported output formats are:
+
+. `html`,
+. `pdf`,
+. `docx`.
 ====
 
 [#exhaustive-lists]
@@ -1166,7 +1255,7 @@ A table is used when each item has the same set of attributes and the reader wil
 [#capitalization-of-defined-terms]
 ==== Capitalization of Defined Terms
 
-A defined term is capitalized consistently with its definition. When the term is defined as _Connection Pool_, it's written _Connection Pool_ throughout, not _connection pool_ or _ConnectionPool_. When `ConnectionPool` is also a separate identifier referring to the type, both forms appear and the document distinguishes them.
+A xref:#defined-terms[defined term] is capitalized consistently with its definition. When the term is defined as _Connection Pool_, it's written _Connection Pool_ throughout, not _connection pool_ or _ConnectionPool_. When `ConnectionPool` is also a separate identifier referring to the type, both forms appear and the document distinguishes them.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1183,19 +1272,19 @@ A _Connection Pool_ is a fixed-size set of pre-established connections. Each wor
 [#dates-and-times]
 ==== Dates and Times
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 ++++
 endif::[]
 Dates are written in the ISO 8601 form `YYYY-MM-DD`. Times include a timezone offset or the timezone name. Durations are written in the ISO 8601 form `P30D` or with explicit units such as _30 calendar days_. Relative references - _yesterday_, _next week_, _Q3_, etc. - are avoided unless the reference point is the document's effective date and that date is stated.
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 ++++
 endif::[]
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.AMPM = NO -->
 <!-- vale English.DateCase = NO -->
@@ -1207,7 +1296,7 @@ endif::[]
 ====
 The migration completes next Tuesday at 5pm.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.AMPM = YES -->
 <!-- vale English.DateCase = YES -->
@@ -1225,7 +1314,7 @@ The migration completes on 2026-05-19 at 17:00 Europe/Warsaw.
 
 A fact appears in exactly one document. Other documents link to it. When a fact is duplicated across documents, the copies drift and the reader can't tell which is authoritative. The rule applies inside a document too: a parameter's default value is stated in the parameter table, not also in the prose two pages later.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale Vale.Terms = NO -->
 ++++
@@ -1241,11 +1330,241 @@ The retention period (90 days) is documented in the Storage Reference. The reten
 ====
 The retention period is defined in §4 of the Storage Reference. The Compliance Manual and the Onboarding Guide reference §4 of the Storage Reference.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale Vale.Terms = YES -->
 ++++
 endif::[]
+
+[#sources-and-attribution]
+=== Sources and Attribution
+
+A [[source,source]]_source_ is a document consulted during writing: provided with the request, or found and read while researching it.
+
+[#claim-classes]
+==== Claim Classes
+
+A statement that draws on xref:#source[sources] belongs to exactly one of three classes, and the class fixes its citation duty. A [[reported-claim,reported claim]]_reported claim_ is a statement that restates what a source says. An [[inferred-claim,inferred claim]]_inferred claim_ is a conclusion that the author derives from one or more sources. An [[author-supplied-claim,author-supplied claim]]_author-supplied claim_ is a statement the author makes on their own authority, without a source: own expertise or common knowledge.
+
+A xref:#reported-claim[reported claim] cites every source it restates. An xref:#inferred-claim[inferred claim] cites every source it draws on and is marked as an inference. A claim that rests on three sources, for example, cites all three. An xref:#author-supplied-claim[author-supplied claim] carries no citation. The classes close the text in both directions: every statement derived from a source carries a citation, and every statement without a citation must stand as author-supplied. A document whose every statement is author-supplied - a style guide written from expertise, for example - carries no citations and no source list.
+
+The xref:#request-source[request] that commissioned the text falls on both sides of the citation duty. A statement that reports what the request says is a xref:#reported-claim[reported claim] and cites the request. An instruction the author merely follows - a length cap, a topic to emphasize - shapes the text without being asserted in it, so there is nothing to cite. [[origin-test,the origin test]]The test is origin, not confidence: a particular that exists only because the request states it - a date, a volume, a constraint specific to the requester - is reported and cites the request. A statement that any competent author could make without the request is xref:#author-supplied-claim[author-supplied].
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The customer requires delivery by 2026-11-30 and an availability of 99.9%. Splitting the rollout into two phases would reduce the delivery risk. (The first sentence reports the customer's request for proposal and the second is an inference from it, but neither is cited, so the reader can't tell reported facts and derived conclusions from the author's own claims.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The customer requires delivery by 2026-11-30 and an availability of 99.9%. Both facts cite the request for proposal. The recommendation to split the rollout into two phases cites the same document and is marked as an inference. The remark that a phased delivery is established practice carries no citation, because it rests on the author's expertise.
+====
+
+A xref:#reported-claim[reported claim] asserts no more than its quote states in the source's own words. A count, a total, an aggregate over several items, or a second fact composed into the same sentence is content the author synthesized, not content the source reported in that form. Such a statement is an xref:#inferred-claim[inferred claim] that cites the items it rests on, or an xref:#author-supplied-claim[author-supplied claim] - never a reported claim backed by a quote of one item, because the quote of one item can't support a claim about the whole set.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The specification defines eight endpoints. (The citation quotes the definition of one endpoint. The quote names that endpoint and says nothing about how many exist, so it can't support the count of eight.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The count is written as an inference: _eight endpoints_ carries the _Inferred from_ prefix and cites the endpoint list it rests on. When the source states the count in its own words, the claim reports it and quotes that sentence instead.
+====
+
+[#closed-source-list]
+==== Closed Source List
+
+A document that cites sources ends with a list of them - in AsciiDoc, the bibliography that a xref:#bibliography-markup[dedicated section] defines. The list is closed in both directions. Every citation in the text resolves to a listed source. Every listed source is cited at least once, so a source that no statement rests on is removed from the list. The xref:#request-source[request] that commissioned the text - the brief from the requester - is a citable source like any other.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+A footnote cites "the vendor's pricing sheet," but the document lists its sources nowhere, so the reader can't tell which file, which version, or which vendor. A closing "Further reading" section names three reports that no statement cites.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+Every footnote points into the document's source list. The source list holds exactly the five sources the footnotes use: the request for proposal, the pricing workbook, a product screenshot, one web page, and the brief from the requester.
+====
+
+[#source-identity]
+==== Source Identity
+
+Every listed source is identified precisely enough that the reader can obtain the exact artifact the author used - not a similar one, not a later revision. The identity is stated in named fields of four groups. `Title` is common to every source and names it: the document's own title, the standard's name, a one-line description of an image. The three remaining groups are dimensions with one subsection each: the xref:#source-class[class] states how the reader can reach the source, the xref:#source-types[type] names the kind of artifact, and the xref:#source-status[status] states the artifact's standing.
+
+....
+                  +--------------+
+                  | source entry |
+                  +--------+-----+
+                           |
+      +-------------+------+------+-------------+
+      |             |             |             |
+      v             v             v             v
++-----------+ +-----------+ +-----------+ +-----------+
+|   title   | |   class   | |   type    | |  status   |
+| the name  | | how the   | | what kind | | what      |
+| of the    | | reader    | | of        | | standing  |
+| source    | | reaches it| | artifact  | | it has    |
++-----------+ +-----------+ +-----------+ +-----------+
+....
+
+An entry states its `Title`, every required field of its class and type, and the optional fields that apply, in the catalog order. The field names are exact. A required field whose value the author can't establish states the literal value _unknown_, so the reader sees a gap that was checked rather than skipped. An optional field whose value is unknown is omitted. A class field is never unknown, because it records the author's own acts: the archiving, the access, the request.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The numbers come from the pricing spreadsheet the customer sent. (Which file, which version, sent when, stored where? The claim can't be re-checked against the artifact the author used.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The entry's fields read: `Title` - 2026 Pricing Sheet. `Type` - Workbook. `Owner` - the customer's procurement office. `Date` - 2026-05-20. `Archived as` - the repository path. `SHA-256` - the digest of the archived bytes.
+====
+
+[#source-class]
+===== Source Class
+
+A _class_ states how the reader can reach a source, in one of four forms:
+
+. An [[archived-file,archived file]]_archived file_ is any source that exists as a file or was captured as one. The class spans documents, workbooks, presentations, email files, images, and code, among others, wherever they came from. It also spans content with no file form of its own - a database extract, a retrieval from an external tool, a page behind a login - saved to a file when it was consulted. The file is copied under `.docs/sources/` beside the document. Its fields name the archive path (`Archived as`) and the digest of the archived bytes (`SHA-256`).
+. A [[web-source,web source]]_web source_ is content that stays reachable at a URL. Its fields give the address (`URL`) and the access date (`Accessed`). A page that needs credentials or a subscription is still a web source, and the `Access` field then names the requirement.
+. A [[request-source,request]]_request_ - the brief that commissioned the text - carries the fields `Request of` (its date) and `By` (the channel it arrived through). It stays outside the archive, carries no digest, and takes no type. Material pasted into or attached to the request - a screenshot of a conversation, an interface, code, or an error, a photograph of an object, a file - is saved and listed as an xref:#archived-file[archived file].
+. A source that can't or must not be copied is declared with the field `Not archived`. Its value states the form of the canonical copy. Common forms are a paper book, a licensed standard, a confidential case file, and a live production system.
+
+When the document is committed to version control, its xref:#archived-file[archived files] are committed with it. A committed file can't change without a trace, so the entry's digest keeps matching the file the author cited.
+
+[#source-types]
+===== Source Types
+
+A [[source-type,type]]_type_ names what kind of artifact a source is and fixes the fields that describe it. The catalog below is closed, and a source that fits no listed type takes _Other_.
+
+A field is required only when it's constitutional for its type - every artifact of the type has it, the way every email has a sender and every image depicts something. Every other field is optional and stated when known.
+
+[cols="1,2,2",options="header"]
+|===
+|Type |Required fields |Optional fields
+|Contract |`Parties` |`Concluded on`, `Governing law`
+|Legal source |`Issuing body`, `Identifier` |`Date`
+|Official record |`Register` |`Entry number`
+|Financial record |`Issuer` |`Kind`, `Number`, `Date`, `Amount`
+|Correspondence |`Participants` |`Platform`, `Sender`, `Addressee`, `Sent on`, `Time range`, `Subject`
+|Email |`Sender`, `Sent on` |`Recipients`, `Subject`, `Time range`
+|Minutes |`Held on` |`Participants`, `Recorder`
+|Report | |`Author`, `Date`, `Period covered`
+|Specification |`System` |`Author`, `Date`, `Version`
+|Standard |`Identifier` |`Issuing body`, `Year`, `Version`
+|Publication |`Authors` |`Year`, `Publisher`, `Edition`, `ISBN`, `DOI`
+|Web page | |`Site`, `Published on`
+|Presentation | |`Author`, `Date`, `Slides`
+|Workbook | |`Owner`, `Date`, `Sheets`
+|Ticket |`Tracker`, `Ticket number` |`Ticket state`
+|Repository |`Host and path` |`Commit`, `Branch`
+|System output |`System` |`Query`, `Captured on`
+|Image |`Depicts` |`Captured as`, `Captured on`, `Place`
+|Recording |`Medium` |`Date`, `Participants`, `Duration`
+|Other |`Description` |`Date`, `Version`
+|===
+
+An `Email` entry names its `Sender` by address, and prefixes a display name when the source carries one. Its `Sent on` field records the date and the exact time the message was sent, so two messages of the same day stay distinguishable.
+
+An _Other_ entry describes the source in `Description` and gives the best available date or version, so the fallback can't produce an identity-free entry.
+
+The boundaries that recur resolve as follows:
+
+. _Email_ or _Correspondence_ - delivered by email, or through any other channel,
+. _Report_ or _Specification_ - describes findings, or prescribes a system,
+. _Report_ or _Publication_ - internal or commissioned, or published in an edited venue,
+. _Contract_ or _Correspondence_ - executed by the parties, or sent by one,
+. _Image_ or _System output_ - pixels, or text: a screenshot of an error is an Image, the copied error text is System output,
+. _Minutes_ or _Recording_ - the written record, or the media file of the same meeting,
+. _System output_ or _Publication_ for a dataset - extracted by the author, or published with its own identifier.
+
+[#source-status]
+===== Source Status
+
+A _status_ states the standing of the artifact in the `Status` field: `draft` for work in progress, or `final` for the released form - executed, published, sent, in force. Free elaboration follows the word - _draft v3 of 2026-07-15_, _final, executed 2026-07-30_. An entry of the xref:#source-types[Contract type] states its status always. Other entries state it whenever the standing is contestable.
+
+Status bounds support. The standing is part of the context in the support test of xref:#quote-and-locator[], so a claim that asserts more standing than its source has takes xref:#unsupported-verdict[]. A draft supports claims about the draft. The final instrument supports claims about what was agreed, released, or enacted.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+A memo cites the `docx` draft of a services agreement for the claim that the parties agreed to a 30-day payment term. The draft proposed the term. Only the executed instrument knows whether the parties agreed to it.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The entry for the signed PDF carries `Status` - final, executed 2026-07-30. The memo cites it for the agreed term, and cites the draft entry only for the drafting history.
+====
+
+[#citation-scope]
+==== Citation Scope
+
+The unit of citation is the sentence. A citation marker at the end of a sentence covers exactly that sentence. A marker placed inside a sentence covers the text from the previous marker in the same sentence - or from the sentence start - up to itself. The marker sits on exactly the text its source supports. When the fragments of one sentence rest on different sources, each fragment carries its own marker. When one sentence rests on several sources jointly, one marker cites them all. A paragraph derived from a single source repeats one shared citation on every sentence - in AsciiDoc, through xref:#footnote-reuse[] - and a sentence that lacks a citation therefore stays visibly bare.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+One footnote at the end of a paragraph covers all four of its sentences. The third sentence is the author's own transition, but nothing distinguishes it, so the source appears to back a claim it never made.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The delivery sentence lists three modules: the ingestion module rests on the request for proposal, the reporting module on the vendor's product sheet, and the export module on the pricing workbook. Each fragment carries its own marker, so every module's origin stays checkable.
+====
+
+[#quote-and-locator]
+==== Quote and Locator
+
+Every source cited by a claim carries a verbatim quote and a locator. The [[quote,quote]]_quote_ is the source's exact wording that the claim rests on. It binds the two directions of support: the quote must entail the claim, and the claim must not assert more than the quote and its context support. The [[locator,locator]]_locator_ is the most specific address the source's format offers. A fixed-layout source can use a stable section number or name, a page, or both. A section locator is desirable when it takes the reader closer to the quoted text than the page alone, and the page can accompany it when the combination makes retrieval faster. The most common forms are the following:
+
+. a section name or number, a page, or both for a fixed layout - a PDF or a printed book,
+. a section name or number for an editable document,
+. a sheet and row for a workbook,
+. a file and line for code,
+. a sender and timestamp for a message in a thread,
+. a timestamp for a recording,
+. a described region for an image.
+
+The quote is omitted only where no wording exists to quote - a visual fact cited from an image. The locator then carries the reference alone. When a claim cites several sources, each source keeps its own quote and locator.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The footnote names the storage specification and nothing else. To check one claim, the reader must re-read a 214-page document. Verification that costs that much doesn't happen.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The footnote cites the storage specification, page 12, and quotes: records are retained for 90 calendar days. The reader opens one page and compares one sentence against one claim.
+====
+
+[#attribution-in-citation]
+==== Attribution Lives in the Citation
+
+A cited claim carries its attribution in the citation itself, so the prose states the fact and doesn't also name the source. Phrases such as _the specification says_, _the report lists_, or _the contract requires_ repeat what the citation already records, and they make the reader pass through the source's identity before reaching the claim. A source is named in the prose only when its identity is the point. The cases are a fact new or changed relative to another source, a reconciliation of two sources that disagree, a claim marked as one source's opinion rather than settled fact, or a xref:#cross-references[cross-reference] to a fuller treatment.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The specification says the retention period is 90 days, and the vendor's report lists three supported formats. (Both clauses narrate their source. The citations already attribute the claims, so naming the sources is redundant and delays each fact.)
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The retention period is 90 days. Three formats are supported. (Each sentence states its fact and lets its citation carry the source. Naming a source in the prose is reserved for where its identity is the point, such as flagging that the 90-day period is new in version 3 of the specification.)
+====
 
 === Accessibility and Translatability
 
@@ -1268,7 +1587,7 @@ Every figure has a caption that states what the figure shows. Every figure also 
 
 ==== Translatable Phrasing
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Cliches = NO -->
 <!-- vale English.Cliches = NO -->
@@ -1276,7 +1595,7 @@ ifdef::backend-html5[]
 ++++
 endif::[]
 A document that may be translated avoids idioms, puns, and culture-specific references. _Cut to the chase_, _hit the ground running_, _the elephant in the room_, and _moving the needle_ rarely survive translation. Sports metaphors and political metaphors are avoided. Currency, units, and date formats are written in forms that don't presuppose a single locale. Example names are governed by the section xref:#inclusive-language[].
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Cliches = YES -->
 <!-- vale English.Cliches = YES -->
@@ -1284,7 +1603,7 @@ ifdef::backend-html5[]
 ++++
 endif::[]
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Jargon = NO -->
 <!-- vale English.Cliches = NO -->
@@ -1296,7 +1615,7 @@ endif::[]
 ====
 The new compaction strategy is a game changer that moves the needle on tail latency.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Cliches = YES -->
 <!-- vale English.Jargon = YES -->
@@ -1313,7 +1632,7 @@ The new compaction strategy reduces p99 read latency by 40% on the workload desc
 [[part-2]]
 == Technical Texts
 
-This part adds rules for documents whose subject is a technical system: specifications, reference documentation, architecture documents, design documents, protocol descriptions, runbooks, and operator manuals. The rules in xref:#part-1[Part 1] still apply. xref:#part-2[Part 2] specializes them and adds rules that are specific to technical writing.
+This part adds rules for documents whose subject is a technical system: specifications, reference documentation, architecture documents, design documents, protocol descriptions, runbooks, and operator manuals. The rules in xref:#part-1[Part 1] still apply, and the following rules specialize them for technical writing.
 
 === Show, Then Tell - Technical Form
 
@@ -1474,13 +1793,14 @@ Call `commit` to persist the changes.
 [[part-3]]
 == AI Authorship
 
-This part adds rules that apply when an AI system is given this guideline as a style instruction. The rules in xref:#part-1[Part 1] and xref:#part-2[Part 2] still apply. xref:#part-3[Part 3] addresses failure modes specific to AI authorship: inventing facts, restating the prompt, opening with throat-clearing, narrating rule application, hedging from uncertainty, over-weighting items mentioned in the prompt, and treating the guideline's markup as content.
+This part adds rules that apply when an AI system is given this guideline as a style instruction. The rules in xref:#part-1[Part 1] and xref:#part-2[Part 2] still apply. The following rules address failure modes specific to AI authorship: inventing facts, restating the prompt, opening with throat-clearing, narrating rule application, hedging from uncertainty, over-weighting items mentioned in the prompt, and treating the guideline's markup as content.
 
+[#dont-invent-facts]
 === Don't Invent Facts
 
 When you don't have a fact - an identifier, a path, a version number, a quotation, a citation, a metric, a date - state that you don't have it. Don't fabricate plausible-looking values. A reader uses the fact, and a fabricated fact becomes a defect that compounds with every downstream use.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 ++++
@@ -1490,7 +1810,7 @@ endif::[]
 ====
 The service runs on Postgres 16.4 with `max_connections=300` and exposes a `/health` endpoint that returns the build SHA. (None of the version, parameter, or endpoint was stated in the input.)
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 ++++
@@ -1523,7 +1843,7 @@ A connection pool is a fixed-size set of pre-established connections that client
 
 === Don't Throat-Clear
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Quotes = NO -->
 <!-- vale English.Preamble = NO -->
@@ -1532,14 +1852,14 @@ endif::[]
 
 This rule specializes xref:#no-throat-clearing[] for the AI failure mode. Don't open a response with service-style preambles - "Sure!", "Great question!", "I'd be happy to help.", "Of course!", "Certainly.", "Absolutely.", etc. The first sentence carries content.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Quotes = YES -->
 <!-- vale English.Preamble = YES -->
 ++++
 endif::[]
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Exclamation = NO -->
 <!-- vale English.FirstPerson = NO -->
@@ -1553,7 +1873,7 @@ Sure! I'd be happy to explain HTTP connection pooling. Let me walk you through i
 
 HTTP connection pooling is...
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Exclamation = YES -->
 <!-- vale English.FirstPerson = YES -->
@@ -1587,7 +1907,7 @@ A connection pool is a fixed-size set of pre-established connections...
 
 The xref:#no-hedging[] rule forbids softening claims with _usually_, _generally_, _somewhat_. When an AI author lacks a fact, the natural failure is to hedge: emit a softened claim that sounds plausible but conveys nothing the reader can act on. The right response is to name what's missing, not to weaken the assertion.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 ++++
@@ -1597,7 +1917,7 @@ endif::[]
 ====
 The cache is generally pretty fast, and the eviction policy is usually some form of LRU.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 ++++
@@ -1609,13 +1929,50 @@ endif::[]
 The cache's latency and eviction policy aren't stated in the input. Both would have to be specified to answer the question.
 ====
 
+[#independent-verification]
+=== Independent Verification
+
+. Verification is strongest when the reviewer didn't write the text. An author who verifies their own citations reads each claim already believing it, and that belief survives a sympathetic re-reading, so a real defect slips past. A reviewer who never saw the draft, or a check that receives only the claim, the quote, and the source, holds no such belief and catches what the author overlooks. An independent reviewer, whether a second person or an AI subagent, runs the verification where one is available. Otherwise the author runs it, because a self-check, though weaker, beats none.
+. A program such as a linter can check the citations, but its check isn't verification. It reaches only mechanical facts - whether a marker is well-formed, whether a xref:#quote[] appears in its source, and the like. Whether the quote entails the claim is a judgment, and no program makes it. A passing check therefore settles nothing about support, so the procedure of xref:#verify-citations[] still runs in full. The defect a check misses is the claim that asserts more than its quote carries - a count, an aggregate, or a second fact.
+
+[#verify-citations]
+=== Verify Every Citation
+
+. Verification runs after the text is written and before delivery. Each xref:#citation-scope[citation] receives exactly one of the three verdicts defined below, and a repaired claim or citation re-enters verification. The pass ends when every citation holds _supported_ and every statement without a citation stands as xref:#author-supplied-claim[author-supplied] after the sweep below.
+. Verify each citation against its xref:#source[], never against a memory of the source. Judge the quote before the claim: reading the claim first and asking whether the source agrees biases the judgment toward agreement. For every cited source, the check runs three steps in order.
+.. Open the source at the xref:#locator[].
+.. Find the xref:#quote[] verbatim at that place.
+.. Re-read the claim and judge the support: the quote must entail the claim, and the claim must not assert more than the quote and its context support.
+. Assign the verdict and act on it at once:
+.. _Supported_ - the quote entails the claim and the claim stays within what the quote and its context support. No action follows.
+.. [[unsupported-verdict,the unsupported verdict]]_Unsupported_ - the quote is present but doesn't entail the claim: the claim asserts more than the quote and its context support, or reports something different. Narrow or correct the claim until the quote entails it, or point the citation at a source that entails it. When no source entails the claim, xref:#dont-invent-facts[] governs it: state the gap or delete the claim.
+.. _Not found_ - the quote or the locator doesn't exist in the source. Search the source for the intended support. When the source holds it elsewhere, repair the quote and the locator. When it doesn't, treat the citation as _unsupported_ with no entailing source.
+. An xref:#inferred-claim[inferred claim] takes one more step. Verify every cited premise with the steps above, then judge whether the conclusion follows from the premises taken together. A conclusion that doesn't follow is _unsupported_ by its premises: narrow the conclusion until it follows, or delete it.
+. After every citation holds _supported_, classify each statement that carries no citation by xref:#origin-test[]. A statement that derives from a source gets its citation and enters verification. Whatever remains stands as xref:#author-supplied-claim[author-supplied].
+. Knowledge from training is the author's expertise. It yields xref:#author-supplied-claim[author-supplied claims], never citations, and a xref:#closed-source-list[source list] assembled from memory to look rigorous is fabrication. When the request requires sourced statements, consult sources and cite what was consulted.
+. Never fabricate a xref:#quote[], a xref:#locator[], a xref:#source-identity[digest], or an entry of the xref:#closed-source-list[source list]. A fabricated citation is worse than a missing one, because it lends a claim the authority of a source that doesn't back it. The prohibition extends xref:#dont-invent-facts[] from values to support.
+. A source that can't be opened again - deleted, expired, out of reach - makes its citations unverifiable. Mark each affected citation as unverifiable, tell the requester, and weaken or delete the claim that the requester can't confirm. Don't paraphrase the remembered source instead.
+. A citation of the xref:#request-source[request] is verified against the request's text as it stands in the conversation.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+The draft cites page 41 for the retention period. The author remembers the specification well, finds the claim plausible, and ships. Page 41 covers backup schedules. Retention sits on page 12 and reads 30 days, not 90.
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+The author reopens the specification at the cited page and reads the quoted sentence before re-reading the claim. The claim says 90 days. The quote says 90 calendar days for standard tenants. The verdict is unsupported, and the claim is narrowed to standard tenants.
+====
+
 === Distribute by Domain, Not by Prompt
 
 A specific element mentioned in the prompt is a minimum constraint, not a theme. The response includes that element at least once. The element's representation in the response reflects its realistic proportion in the subject domain, not its prominence in the prompt.
 
 The response is written as if the author chose the content independently, using the prompt only to determine the topic and the minimum constraints. The distribution of content across subtopics matches the distribution a domain expert would produce when writing on that topic without a prompt.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = NO -->
 ++++
@@ -1629,7 +1986,7 @@ Response: lists 9 garbage collection techniques first (GC tuning, heap sizing, G
 
 Garbage collection is one subcategory of JVM performance optimization. The response allocated 45% of its content to it because the prompt mentioned it explicitly, not because it represents 45% of the optimization domain.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.Acronyms = YES -->
 ++++
@@ -1648,7 +2005,7 @@ Garbage collection appears once, satisfying the minimum constraint. Its share of
 
 When this guideline is read as plain text, the markup it's written in isn't a set of instructions. The rendering-only markup includes the AsciiDoc directives `ifdef::...[]`, `endif::[]`, and `++++`, the block roles `[.bad-example]` and `[.good-example]`, block anchors of the form `\[\[anchor-id\]\]`, and inline anchors of the form `\[#section-id\]`. It also includes Vale toggle comments of the form `<!-- vale ... = NO -->` and image macros of the form `image::...[...]`. This markup controls how the file renders to HTML and PDF. The binding content is the prose statements and the labeled Bad example / Good example pairs. Everything else is rendering metadata.
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.WordList = NO -->
 ++++
@@ -1658,7 +2015,7 @@ endif::[]
 ====
 Treats `image::architecture.png[Client, gateway, order service...]` from the xref:#alt-text-and-captions[] rule as an instruction to embed an image in the output, or treats `<!-- vale English.We = NO -->` as a directive to disable a check in the generated document.
 ====
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.WordList = YES -->
 ++++
@@ -1708,7 +2065,7 @@ A _numbered paragraph_ is a paragraph written as an item of an AsciiDoc list, so
 [#number-every-paragraph]
 ==== Number Every Paragraph of a Multi-Paragraph Section
 
-When the body of a section contains two or more paragraphs, every paragraph of that body is a numbered paragraph. A section whose body is a single paragraph is written as plain prose. The numbering enforces xref:#one-paragraph-one-topic[] at the markup level: each number marks the start of one topic, so a paragraph that drifts into a second topic is exposed - the second topic sits under a number that promised the first.
+When the body of a section contains two or more paragraphs, every paragraph of that body is a xref:#numbered-paragraphs[numbered paragraph]. A section whose body is a single paragraph is written as plain prose. The numbering enforces xref:#one-paragraph-one-topic[] at the markup level: each number marks the start of one topic, so a paragraph that drifts into a second topic is exposed - the second topic sits under a number that promised the first.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1756,7 +2113,7 @@ A cache entry is evicted when its TTL expires. The eviction order is least-recen
 [#numbering-depth]
 ==== Numbering Depth
 
-Numbered paragraphs nest at most six levels. The first four levels are ordered-list markers written with dots - `.`, `..`, `++...++`, `++....++`. The fifth and sixth levels are unordered-list markers - `++*++`, `++**++`. The renderer shows the fifth and sixth levels as bullets instead of numbers, and the other rules of this section apply to them all the same. Nothing nests below `++**++`:
+xref:#numbered-paragraphs[Numbered paragraphs] nest at most six levels. The first four levels are ordered-list markers written with dots - `.`, `..`, `++...++`, `++....++`. The fifth and sixth levels are unordered-list markers - `++*++`, `++**++`. The renderer shows the fifth and sixth levels as bullets instead of numbers, and the other rules of this section apply to them all the same. Nothing nests below `++**++`:
 
 [source,asciidoc]
 ----
@@ -1797,7 +2154,7 @@ Material that seems to need a seventh level doesn't get one. The subtree is rest
 [#no-lone-numbered-paragraph]
 ==== No Lone Numbered Paragraph
 
-At every nesting level, a numbered paragraph has at least one sibling at the same level under the same parent. A level holds zero items or two or more. A lone item means the numbering does no work: there is nothing at that level to order the item against, so its content belongs in the parent paragraph's own text or in a continuation per xref:#continuation-content[] - or a sibling is missing. The rule mirrors xref:#section-nesting[], which forbids a lone subsection for the same reason.
+At every nesting level, a xref:#numbered-paragraphs[numbered paragraph] has at least one sibling at the same level under the same parent. A level holds zero items or two or more. A lone item means the numbering does no work: there is nothing at that level to order the item against, so its content belongs in the parent paragraph's own text or in a continuation per xref:#continuation-content[] - or a sibling is missing. The rule mirrors xref:#section-nesting[], which forbids a lone subsection for the same reason.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -1841,7 +2198,29 @@ At every nesting level, a numbered paragraph has at least one sibling at the sam
 [#paragraph-headers]
 ==== Paragraph Headers
 
-A numbered paragraph may open with a _paragraph header_ - a bold phrase that names the paragraph's topic. The header stands alone on the item's line. The paragraph's text follows as a continuation per xref:#continuation-content[] or as nested numbered paragraphs. A header is due when it helps the reader scan: the paragraph is long and holds several sentences, or the item heads a group of nested items whose shared topic needs a name. A header is omitted when it adds nothing: a paragraph of one or two sentences whose topic is already stated by the section heading doesn't restate that topic in bold. A paragraph header is the one place where bold appears in body text - see xref:#inline-formatting-semantics[].
+A xref:#numbered-paragraphs[numbered paragraph] may open with a _paragraph header_ - a bold phrase that names the paragraph's topic. The header stands alone on the item's line. The paragraph's text follows as a continuation per xref:#continuation-content[] or as nested numbered paragraphs. A paragraph header uses sentence case: the first word and any proper nouns, acronyms, or identifiers are capitalized, while ordinary words that follow remain lowercase. It never uses title case and never ends with a period. A header is due when it helps the reader scan: the paragraph is long and holds several sentences, or the item heads a group of nested items whose shared topic needs a name. A header is omitted when it adds nothing: a paragraph of one or two sentences whose topic is already stated by the section heading doesn't restate that topic in bold. A paragraph header is the one place where bold appears in body text - see xref:#inline-formatting-semantics[].
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+[source,asciidoc]
+----
+. *Cache Invalidation Rules*
++
+The cache removes an entry when the source record changes.
+----
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+[source,asciidoc]
+----
+. *Cache invalidation rules*
++
+The cache removes an entry when the source record changes.
+----
+====
 
 [.good-example]
 .{good-icon} Good example
@@ -1891,7 +2270,7 @@ The dispatcher stores rendered pages on disk. On a cache miss, the request is fo
 [#continuation-content]
 ==== Continuation Content
 
-Content whose meaning is strongly bound to the preceding numbered paragraph is attached to that paragraph with a list continuation - a line holding a single `+` - instead of being numbered. The attached block can be a paragraph that elaborates the item, a code listing, an image, a table, or an admonition. The continuation signals that the item's topic continues. Content that starts a new topic isn't attached - it takes its own number.
+Content whose meaning is strongly bound to the preceding xref:#numbered-paragraphs[numbered paragraph] is attached to that paragraph with a list continuation - a line holding a single `+` - instead of being numbered. The attached block can be a paragraph that elaborates the item, a code listing, an image, a table, or an admonition. The continuation signals that the item's topic continues. Content that starts a new topic isn't attached - it takes its own number.
 
 [.good-example]
 .{good-icon} Good example
@@ -1926,13 +2305,13 @@ The cache is configured via `cache.ttl`.
 (The attached paragraph starts a new topic. The cache isn't an elaboration of the pool's configuration, so the paragraph takes its own number.)
 ====
 
-ifdef::backend-html5[]
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.RedundantQualifiers = NO -->
 ++++
 endif::[]
-A continuation paragraph followed by deeper-level numbered paragraphs needs one more `{plus}` line between the paragraph and the first deeper item. That `{plus}` ends the continuation paragraph and attaches the deeper items to the same parent. Without it, the renderer doesn't recognize the deeper item's marker: it joins the marker and the item's text into the continuation paragraph as plain text and renders the item's own `{plus}` lines literally. A following item at the same level needs no such `{plus}` - its marker ends the continuation paragraph on its own.
-ifdef::backend-html5[]
+A continuation paragraph followed by deeper-level xref:#numbered-paragraphs[numbered paragraphs] needs one more `{plus}` line between the paragraph and the first deeper item. That `{plus}` ends the continuation paragraph and attaches the deeper items to the same parent. Without it, the renderer doesn't recognize the deeper item's marker: it joins the marker and the item's text into the continuation paragraph as plain text and renders the item's own `{plus}` lines literally. A following item at the same level needs no such `{plus}` - its marker ends the continuation paragraph on its own.
+ifdef::backend-html5+not-env-github[]
 ++++
 <!-- vale English.RedundantQualifiers = YES -->
 ++++
@@ -1970,7 +2349,7 @@ Validation runs on every lease, not only on creation.
 [#explicit-anchors]
 === Explicit Anchors
 
-A part of the text that a cross-reference targets carries an explicit anchor: a block anchor `+[[kebab-case-id]]+` on the line directly above a heading, or an inline anchor of the same form placed directly on text inside a block. The anchor sits on the narrowest span that alone defines the referenced concept. To choose that span, apply the following tests from narrowest to broadest and stop at the first that holds.
+A part of the text that a cross-reference targets carries an explicit anchor: a block anchor `+[[kebab-case-id]]+` on the line directly above a heading, or an inline anchor of the same form placed directly on text inside a block. The anchor sits on the narrowest span that alone defines the referenced concept. To choose that span, apply the following tests from narrowest to broadest and stop at the first that holds:
 
 . A single word defines the concept. Anchor that word.
 . One sentence or one list item defines it. Anchor that sentence or item.
@@ -2015,7 +2394,9 @@ A [[lease]]_lease_ is the exclusive right to use one pooled connection for the d
 [#internal-references-with-xref]
 === Internal References with `xref`
 
-A part of the text that refers to a concept defined in another part of the text links to the definition. The link is written with the `xref` macro against the definition's explicit anchor. The default form is `+xref:#connection-pool[]+` with empty brackets, which renders the target's title and stays correct when the title changes. Custom link text is supplied only when the title doesn't fit the grammar of the sentence. When a reference points to a section and the rendered title alone would leave the grammar or the meaning of the sentence unclear, the reference is preceded by a qualifier such as _the section_ or _the chapter_. xref:#cross-references[] governs the wording around the reference. This rule governs when a reference is due and the markup that carries it.
+In each paragraph that uses a concept defined elsewhere in the document, at least the first use links to the definition. Later uses in the same paragraph may stay plain. The link is written with the `xref` macro against the definition's explicit anchor. The default form is `+xref:#connection-pool[]+` with empty brackets, which renders the target's title and stays correct when the title changes. Custom link text is supplied only when the title doesn't fit the grammar of the sentence. When a reference points to a section and the rendered title alone would leave the grammar or the meaning of the sentence unclear, the reference is preceded by a qualifier such as _the section_ or _the chapter_. xref:#cross-references[] governs the wording around the reference. This rule governs when a reference is due and the markup that carries it.
+
+[[no-section-heading-self-references,no section-heading self-references]]A cross-reference never targets the heading of the current section, defined as the section begun by the nearest preceding heading. The reader is already inside that section, so the link provides no navigation and falsely suggests another destination. Write the current section's name as plain text. The prohibition applies only to the current section's heading. A concept or another anchor defined within the same section remains subject to the paragraph-level linking rule: in each paragraph that uses it, at least the first use links to the precise definition.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2039,7 +2420,7 @@ Each handler holds a xref:#lease[lease] on a pooled connection. Pool sizing is d
 (The defined term links to its definition. The empty-bracket form inherits the target's title, and the qualifier _the section_ keeps the meaning of the sentence clear. The last reference supplies custom text because the sentence needs a different inflection.)
 ====
 
-The empty-bracket form takes its text from the target's reference text. A section supplies its title. Any other anchor - on a paragraph, a list item, or a word - supplies a reference text only when the anchor declares one, in the form `+[[anchor-id,reference text]]+`. An empty-bracket reference against an anchor without a reference text renders the raw anchor ID, which is a defect. When the target isn't a section, either declare the reference text on the anchor or supply custom link text in the reference.
+[[anchor-reference-text,an anchor that declares a reference text]]The empty-bracket form takes its text from the target's reference text. A section supplies its title. Any other anchor - on a paragraph, a list item, or a word - supplies a reference text only when the anchor declares one, in the form `+[[anchor-id,reference text]]+`. An empty-bracket reference against an anchor without a reference text renders the raw anchor ID, which is a defect. When the target isn't a section, either declare the reference text on the anchor or supply custom link text in the reference.
 
 [.bad-example]
 .{bad-icon} Bad example
@@ -2065,6 +2446,134 @@ The purge job applies xref:#retention-schedule[].
 ----
 
 (The anchor declares a reference text, so the reference renders as "The purge job applies the retention schedule.")
+====
+
+[#bibliography-markup]
+=== Bibliography
+
+The closed source list of xref:#closed-source-list[] is written as a bibliography: the last section of the document, titled _Sources_, with the block anchor `+[[sources]]+` on the line above its heading. Each source is one ordered-list item that opens with an anchor of the form `+[[id,Reference Label]]+` - xref:#anchor-reference-text[]. The anchor id is lowercase kebab-case, per xref:#explicit-anchors[]. The native https://docs.asciidoctor.org/asciidoc/latest/sections/bibliography/[AsciiDoc bibliography attribute^], `[bibliography]`, isn't used, because its rendering bypasses the reference labels.
+
+The _reference label_ is the short name that every reference to the entry renders, so a reference needs no custom link text. A label reads meaningfully on its own - an author and a year, a short title, a standard's number - and is unique among the entries and different from the id. The item line carries the label alone, in italics.
+
+The entry's fields follow the item line, one per line, each written as a `Key::` marker and its value, opened by the attribute line `[horizontal.source-fields]` that renders the record small and two-columned. The keys and their order come from the dimensions of xref:#source-identity[]: `Title` first, then `Type` and the type's fields per xref:#source-types[], then the xref:#source-status[status] field, then the class fields. `Title` is omitted when the label already gives the title. Literal values - the archive path, the digest - stay monospaced.
+
+ifdef::backend-html5+not-env-github[]
+++++
+<!-- vale English.Acronyms = NO -->
+++++
+endif::[]
+[.good-example]
+.{good-icon} Good example
+====
+[source,asciidoc]
+----
+[[sources]]
+== Sources
+
+. [[storage-spec,Storage Spec v2.3]]_Storage Spec v2.3_
+[horizontal.source-fields]
+Title:: Storage Specification v2.3
+Type:: Specification
+System:: order storage of the Compass platform
+Author:: Harbor Retail
+Date:: 2026-06
+Archived as:: `.docs/sources/rfp/storage-spec.pdf`
+SHA-256:: `+9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08+`
+
+. [[style-book,Strunk and White 2000]]_Strunk and White 2000_
+[horizontal.source-fields]
+Title:: The Elements of Style
+Type:: Publication
+Authors:: Strunk, White
+Year:: 2000
+Edition:: 4th
+ISBN:: 978-0-205-30902-3
+Not archived:: paper book
+----
+====
+ifdef::backend-html5+not-env-github[]
+++++
+<!-- vale English.Acronyms = YES -->
+++++
+endif::[]
+
+ifdef::backend-html5+not-env-github[]
+++++
+<!-- vale English.Acronyms = NO -->
+++++
+endif::[]
+[.bad-example]
+.{bad-icon} Bad example
+====
+[source,asciidoc]
+----
+* [[[storage-spec]]] The specification the customer sent at some point. SHA-256: abc.
+----
+
+(The anchor uses the triple-bracket form and declares no reference label, so references render a bracketed raw id instead of a readable name. The fields sit inline instead of one per line, so no field can be resolved or checked. No class fields, no type, no usable digest: the exact artifact behind the citations can't be recovered.)
+====
+ifdef::backend-html5+not-env-github[]
+++++
+<!-- vale English.Acronyms = YES -->
+++++
+endif::[]
+
+[#citation-footnotes]
+=== Citation Footnotes
+
+A _citation footnote_ is a footnote whose body opens with a reference to an entry of the xref:#bibliography-markup[bibliography] and attaches a claim to its sources. One item carries one source: the reference, then after a comma the xref:#locator[], then after a colon the xref:#quote[]. Several items are separated with a semicolon and a space:
+
+[source,asciidoc]
+----
+The retention period is 90 days.footnote:retention[<<storage-spec>>, p. 12: "+records are retained for 90 calendar days+".]
+
+The rule covers every tenant.footnote:retention[]
+
+Two phases lower the delivery risk.footnote:phasing[Inferred from: <<storage-spec>>, p. 4: "+phase one comprises modules A and B+"; <<brief>>: "+we cannot absorb a big-bang rollout+".]
+----
+
+[[footnote-reuse,the footnote reuse]]The empty-bracket form re-cites an earlier footnote under the same number, so a paragraph derived from one source repeats its citation per sentence without repeating the text. The prefix `Inferred from:` marks the claim classes of xref:#claim-classes[]: with it the footnote cites the premises of an xref:#inferred-claim[inference], without it the footnote backs a xref:#reported-claim[reported claim].
+
+The xref:#quote[] is written between paired delimiters: a quotation mark, a plus sign, the quoted wording, a plus sign, a quotation mark. Each mark carries a duty. Quotation marks show the source's wording as a quotation in the body font. Plus signs keep the bytes exact - no substitution rewrites dashes or symbols - and the quote can therefore be searched in the xref:#archived-file[archived source] byte for byte. Evidence, not the author's prose, stands between them, so the rules that govern the author's language don't reach the quote. A `]` inside the quote is escaped as `\]`, which otherwise would end the footnote.
+
+A footnote whose body doesn't open with a reference to the xref:#bibliography-markup[bibliography] is an ordinary footnote, and no rule of this section restricts it.
+
+An external link doesn't replace a citation. A statement that rests on a web source cites the source's bibliography entry, and the address lives in that entry's `URL` field.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+[source,asciidoc]
+----
+The retention period is 90 days.footnote:[see the specification]
+----
+
+(The footnote gestures at a source without citing one: no bibliography reference, no locator, no quote. The claim stays unattributed and unverifiable.)
+====
+
+[#footnote-punctuation]
+=== Footnote Punctuation
+
+The text of a footnote ends with a period. The rule covers every footnote alike: an ordinary footnote closes its sentence, and a xref:#citation-footnotes[citation footnote] closes with a period after its last source item. A footnote without terminal punctuation reads as truncated, and mixed footnote punctuation across one document reads as noise. A reuse of the form `+footnote:id[]+` carries no text of its own, so nothing is there to close.
+
+[.bad-example]
+.{bad-icon} Bad example
+====
+[source,asciidoc]
+----
+The limit is 5 GB.footnote:[Set by the storage tier]
+----
+====
+
+[.good-example]
+.{good-icon} Good example
+====
+[source,asciidoc]
+----
+The limit is 5 GB.footnote:[Set by the storage tier.]
+
+The retention period is 90 days.footnote:retention[<<storage-spec>>, p. 12: "+records are retained for 90 calendar days+".]
+----
 ====
 
 [#link-text-carries-the-claim]
@@ -2119,60 +2628,60 @@ A _connection string_ is a URL-shaped value that names the database host, port, 
 
 == About the Document
 
-The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
+The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.
 
 === Guideline
 
-This document should follow the link:README-guideline-writing.adoc[Writing Guideline].
+The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
+
+[#export]
+=== Prerequisites
+
+To export and lint the source text, install the following tools:
+
+. https://asciidoctor.org/#installation[Asciidoctor^],
+. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^],
+. https://pandoc.org/installing.html[Pandoc^],
+. https://www.python.org/downloads/[Python 3^],
+. https://vale.sh/docs/install/[Vale^],
+. https://poppler.freedesktop.org[`pdftotext`^],
+. https://github.com/tesseract-ocr/tesseract[`tesseract`^].
 
 === Export
 
-. To export the document to the supported output formats, install the following tools:
-.. https://asciidoctor.org/#installation[Asciidoctor^]
-.. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
-.. https://pandoc.org/installing.html[Pandoc^]
-.. https://www.python.org/downloads/[Python 3^]
-
-. To export to HTML:
+. To export the source text to HTML:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
 ----
 
-. To export to PDF:
+. Export the source text to PDF with this command:
 +
 [source,bash,subs="attributes+"]
 ----
 asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
 ----
 
-. To export to DOCX - Asciidoctor converts the document to DocBook XML, which Pandoc then converts to DOCX:
+. Export the source text to DOCX with this command:
 +
 [source,bash,subs="attributes+"]
 ----
-asciidoctor --backend docbook --attribute allow-uri-read --out-file - {docname}{docfilesuffix} | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx
+prepared="$(python3 {sourcedir}/.docs/lib/export_prepare.py --docx-compat {docname}{docfilesuffix})" && asciidoctor --backend docbook --attribute allow-uri-read --out-file - "$prepared" | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx && rm "$prepared"
 ----
 
 === Linting
 
-==== General Rules
+Lint the source text:
 
-. The document is linted by `link:.docs/lib/adoc_lint.py[]`, a single command that runs three engines and merges their findings into one report. The three engines are Vale, a structural linter, and an Asciidoctor render pass.
-. The first engine, https://vale.sh[Vale^], checks prose and typography. Vale is configured in `link:.vale.ini[]` and enforces the following style guides:
-.. native https://vale.sh/docs/styles#vale[Vale style^], with https://github.com/vale-cli/en_US-web/tree/master[English dictionary^] included,
-.. a curated `English` style, inspired by the https://developers.google.com/style[Google Developer Documentation Style Guide^], the https://vale.sh/hub/jdkato/write-good/[write-good^] linter, and https://github.com/amperser/proselint/[proselint^],
-.. language-neutral typography rules, applied to every language.
-. The second engine, the structural linter, checks the markup, document structure, and ASCII diagrams that Vale can't see, defined in `link:.docs/lib/adoc_lint.py[]`.
-. The third engine, https://asciidoctor.org[Asciidoctor^], renders the document to a discarded output file and reports every warning or error it logs, such as a missing include file.
-
-==== Usage
-
-. Install Vale as described in the https://vale.sh/docs/install/[official documentation^]. The linter requires Vale and exits with an error when Vale is missing. The structural checks need only Python 3, and the render pass needs only Asciidoctor - the exports above already require both.
-
-. Lint the document:
-+
 [source,bash,subs="attributes+"]
 ----
 python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}
 ----
+
+ifdef::backend-html5+not-env-github[]
+++++
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.min.js"></script>
+<script src="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo-footer.js"></script>
+++++
+endif::[]
