@@ -127,6 +127,20 @@ jobs:
         if: steps.release_state.outputs.central_published != 'true'
         run: mvn --batch-mode --no-transfer-progress clean package -Pextended
 
+      - name: 'Publish signing public key'
+        if: steps.release_state.outputs.central_published != 'true'
+        run: |
+          set -eu
+          fingerprint="$(
+            gpg --batch --with-colons --list-secret-keys |
+              awk -F: '$1 == "fpr" { print $10; exit }'
+          )"
+          if ! [[ "$fingerprint" =~ ^[0-9A-F]+$ ]]; then
+            echo 'Cannot determine the signing key fingerprint.' >&2
+            exit 1
+          fi
+          gpg --batch --keyserver keyserver.ubuntu.com --send-keys "$fingerprint"
+
       - name: 'Publish signed artifacts'
         id: publish
         if: steps.release_state.outputs.central_published != 'true'
