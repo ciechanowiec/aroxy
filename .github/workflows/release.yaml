@@ -134,7 +134,7 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mvn --batch-mode --no-transfer-progress clean deploy -Prelease -DskipTests
+        run: mvn --batch-mode --no-transfer-progress deploy -Prelease -DskipTests
 
       - name: 'Create and push release tag'
         id: release_tag
