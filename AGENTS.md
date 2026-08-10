@@ -36,11 +36,9 @@ leaves the machine. It does not hide that an agent is used or change the destina
 ## Build & test
 
 - The project inherits the shared Java harness from
-  `eu.ciechanowiec:airness-parent:1.0.0-SNAPSHOT`. Airness owns analyzer versions, rule sets,
+  `eu.ciechanowiec:airness-parent:1.0.2`. Airness owns analyzer versions, rule sets,
   source shaping, coverage, repository governance, and the files its asset manifest marks pinned.
   Do not recreate a local copy of an inherited rule or plugin configuration.
-- Until the SNAPSHOT is published, first run `mvn clean install` in the Airness checkout. A clean
-  machine, including the current GitHub runners, cannot resolve this parent from a remote repository.
 - **Extended verification: `mvn clean package -Pextended`.** It runs every default gate plus commit-history and
   typography checks, dependency freshness, mutation testing, gitleaks, Qodana, and the project-owned
   README lint. Gitleaks and Qodana require Docker. The README lint requires the local documentation
@@ -292,5 +290,9 @@ The manual `.github/workflows/release.yaml` workflow publishes signed main, sour
 artifacts to Maven Central after Extended verification. It then creates an immutable `v<version>` tag,
 smoke-tests the standalone installer against Maven Central, and creates a metadata-only GitHub Release.
 `install.sh` pins one Maven Central version or builds from source. The `release` Maven profile rejects
-SNAPSHOT project, parent, and dependency coordinates, so the current `airness-parent:1.0.2-SNAPSHOT`
+SNAPSHOT project, parent, and dependency coordinates, so the current `aroxy:1.0.1-SNAPSHOT` coordinate
 must be replaced with its released coordinate before publication.
+
+A version change updates the root `pom.xml`, `RELEASE_VERSION` in `install.sh`, and the
+`release_version` default in `.github/workflows/release.yaml` together. Search every committable file
+for the previous version after the edit so a stale pin cannot survive the bump.
