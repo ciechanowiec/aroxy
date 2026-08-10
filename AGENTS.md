@@ -288,5 +288,9 @@ no longer be deobfuscated, whereas the curated names survive the round trip. A t
 
 ## Release
 
-The `.github/workflows/release.yaml` workflow builds the jar and publishes it as a GitHub release in
-`ciechanowiec/aroxy`. `install.sh` pulls that jar or builds from source. Not published to Maven Central.
+The manual `.github/workflows/release.yaml` workflow publishes signed main, source, Javadoc, and POM
+artifacts to Maven Central after Extended verification. It then creates an immutable `v<version>` tag,
+smoke-tests the standalone installer against Maven Central, and creates a metadata-only GitHub Release.
+`install.sh` pins one Maven Central version or builds from source. The `release` Maven profile rejects
+SNAPSHOT project, parent, and dependency coordinates, so the current `airness-parent:1.0.2-SNAPSHOT`
+must be replaced with its released coordinate before publication.

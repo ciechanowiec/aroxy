@@ -17,12 +17,13 @@
 
     <name>aroxy</name>
     <description>Agent Proxy: a local PII/secret-redacting gateway for coding agents</description>
-    <url>https://ciechanowiec.eu/</url>
+    <url>https://github.com/ciechanowiec/aroxy</url>
     <inceptionYear>2026</inceptionYear>
 
     <licenses>
         <license>
-            <name>MIT No Attribution</name>
+            <name>MIT-0</name>
+            <url>https://spdx.org/licenses/MIT-0.html</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -36,7 +37,7 @@
 
     <scm>
         <connection>scm:git:https://github.com/ciechanowiec/aroxy.git</connection>
-        <developerConnection>scm:git:https://github.com/ciechanowiec/aroxy.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:ciechanowiec/aroxy.git</developerConnection>
         <url>https://github.com/ciechanowiec/aroxy</url>
     </scm>
 
@@ -220,33 +221,11 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>put-sources-in-jar-archive</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <failOnWarnings>${airness.enforce}</failOnWarnings>
                     <doclint>all,-missing</doclint>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>put-javadoc-in-jar-archive</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <!-- Mockito and logback are aroxy-specific bans, not family-wide Airness policy. -->
             <plugin>

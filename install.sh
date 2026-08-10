@@ -2,8 +2,8 @@
 #
 # aroxy installer (macOS + Linux). Works two ways:
 #   * From a source checkout: it uses target/aroxy.jar, building it with Maven if absent.
-#   * Standalone (curl -fsSL .../install.sh | bash): it downloads the latest release jar
-#     from https://github.com/ciechanowiec/aroxy/releases.
+#   * Standalone (curl -fsSL .../install.sh | bash): it downloads the version pinned below
+#     from Maven Central.
 #
 # It always reinstalls from scratch, idempotently and with clear logging:
 #   1. When aroxy is already installed, it reports the current version and the new version,
@@ -29,8 +29,10 @@ readonly INSTALLED_JAR="$AROXY_HOME/aroxy.jar"
 readonly STAGED_JAR="$AROXY_HOME/.aroxy.jar.new"
 readonly COMPLETION="$AROXY_HOME/aroxy_completion"
 readonly PID_FILE="$AROXY_HOME/aroxy.pid"
-readonly RELEASE_JAR_URL="https://github.com/ciechanowiec/aroxy/releases/latest/download/aroxy.jar"
-readonly RELEASE_SHA_URL="https://github.com/ciechanowiec/aroxy/releases/latest/download/aroxy.jar.sha256"
+readonly RELEASE_VERSION="1.0.0"
+readonly MAVEN_RELEASE_BASE="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy/$RELEASE_VERSION"
+readonly RELEASE_JAR_URL="$MAVEN_RELEASE_BASE/aroxy-$RELEASE_VERSION.jar"
+readonly RELEASE_SHA_URL="$RELEASE_JAR_URL.sha256"
 readonly BLOCK_START="# >>> aroxy >>>"
 readonly BLOCK_END="# <<< aroxy <<<"
 readonly STOP_WAIT_ATTEMPTS=50
@@ -113,7 +115,7 @@ acquire_jar() {
     ( cd "$here" && mvn -q clean package )
     cp "$here/target/aroxy.jar" "$dest"
   else
-    log "Downloading the latest release jar from GitHub..."
+    log "Downloading aroxy $RELEASE_VERSION from Maven Central..."
     curl -fsSL "$RELEASE_JAR_URL" -o "$dest"
     verify_jar "$dest"
   fi
@@ -133,12 +135,12 @@ sha256_of() {
 # missing checksum or a mismatch deletes the download and aborts the install, so a tampered or
 # corrupted jar is never put on PATH.
 verify_jar() {
-  local jar="$1" expected actual
+  local jar="$1" expected actual version
   log "Verifying the download against its published SHA-256..."
   expected="$(curl -fsSL "$RELEASE_SHA_URL" | tr -d '[:space:]')"
-  if [[ -z "$expected" ]]; then
+  if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
     rm -f "$jar"
-    log "ERROR: could not fetch the published checksum; aborting."
+    log "ERROR: Maven Central returned no valid SHA-256; aborting."
     exit 1
   fi
   actual="$(sha256_of "$jar")"
@@ -147,7 +149,13 @@ verify_jar() {
     log "ERROR: checksum mismatch (expected $expected, got $actual); aborting."
     exit 1
   fi
-  log "Checksum verified."
+  version="$(jar_version "$jar")"
+  if [[ "$version" != "aroxy $RELEASE_VERSION" ]]; then
+    rm -f "$jar"
+    log "ERROR: downloaded jar reports '$version', not 'aroxy $RELEASE_VERSION'; aborting."
+    exit 1
+  fi
+  log "Checksum and version verified."
 }
 
 write_launcher() {
