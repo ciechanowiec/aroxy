@@ -206,4 +206,4 @@ jobs:
             echo "GitHub Release $tag already exists."
             exit 0
           fi
-          gh release create "$tag" --verify-tag --title "aroxy $tag" --notes ''
+          gh release create "$tag" --verify-tag --title "Aroxy // $RELEASE_VERSION" --notes ''
