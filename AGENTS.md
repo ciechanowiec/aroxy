@@ -294,8 +294,7 @@ The manual `.github/workflows/release.yaml` workflow publishes signed main, sour
 artifacts to Maven Central after Extended verification. It then creates an immutable `v<version>` tag,
 smoke-tests the standalone installer against Maven Central, and creates a metadata-only GitHub Release.
 `install.sh` pins one Maven Central version or builds from source. The `release` Maven profile rejects
-SNAPSHOT project, parent, and dependency coordinates, so the current `aroxy:1.0.1-SNAPSHOT` coordinate
-must be replaced with its released coordinate before publication.
+SNAPSHOT project, parent, and dependency coordinates.
 
 A version change updates the root `pom.xml`, `RELEASE_VERSION` in `install.sh`, and the
 `release_version` default in `.github/workflows/release.yaml` together. Search every committable file
