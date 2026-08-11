@@ -7,6 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.Gateway;
+import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
 import java.io.IOException;
@@ -78,7 +79,8 @@ class ProxyServerConcurrencyTest {
         Gateway gateway = new Gateway(0, URI.create("http://" + LocalHost.HOST + ":" + upstreamPort));
         Obfuscator obfuscator = new Obfuscator(List.of(), new Vault(Optional.empty()));
         ProxyParts parts = new ProxyParts(
-            obfuscator, new Upstream(gateway), new AuditLog(logs), ClaudeCode.profile()
+            obfuscator, new Upstream(gateway), new AuditLog(logs), ClaudeCode.profile(),
+            new Home(logs)
         );
         return new ProxyServer(LocalHost.HOST, gateway, parts);
     }

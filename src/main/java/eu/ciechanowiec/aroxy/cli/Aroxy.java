@@ -25,6 +25,7 @@ import picocli.CommandLine.Command;
         ConfigCommand.class,
         ReloadCommand.class,
         LogsCommand.class,
+        CopilotCommand.class,
         DaemonEntry.class,
         GenerateCompletion.class
     }
@@ -44,6 +45,8 @@ public final class Aroxy implements Runnable {
         CommandLine commandLine = new CommandLine(new Aroxy());
         Optional.ofNullable(commandLine.getSubcommands().get("generate-completion"))
             .ifPresent(sub -> sub.getCommandSpec().usageMessage().hidden(true));
+        Optional.ofNullable(commandLine.getSubcommands().get("copilot"))
+            .ifPresent(sub -> sub.getCommandSpec().parser().unmatchedOptionsArePositionalParams(true));
         return commandLine;
     }
 

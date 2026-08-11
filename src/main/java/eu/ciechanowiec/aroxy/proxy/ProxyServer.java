@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.BufferedTransport;
+import eu.ciechanowiec.aroxy.client.CopilotTransport;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import java.io.IOException;
@@ -40,6 +41,8 @@ public final class ProxyServer {
     )
     public ProxyServer(String listenHost, Gateway gateway, ProxyParts parts) throws IOException {
         this.listener = switch (parts.profile().transport()) {
+            case CopilotTransport copilot ->
+                new CopilotProxyListener(listenHost, gateway.listenPort(), parts, copilot);
             case CursorTransport cursor ->
                 new CursorProxyListener(listenHost, gateway.listenPort(), parts, cursor);
             case BufferedTransport buffered ->

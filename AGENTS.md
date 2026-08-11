@@ -24,11 +24,10 @@ obfuscates secrets and configured keywords in each request before egress and deo
 response before it reaches the agent, so the client sees real values while the network and the vendor
 see only tokens like `<<PII:AWS_KEY:1>>`.
 
-Three agents are served, each on its own port, by one daemon sharing one vault, one rule set, and one
-audit log: **Claude Code** on `8788` to `api.anthropic.com`, **Codex CLI signed in with ChatGPT** on
-`8789` to `chatgpt.com/backend-api/codex`, and **Cursor CLI** (`agent`) on `8790` to
-`api2.cursor.sh`. A port per agent means no request is routed by guessing which vendor a path belongs
-to.
+Four agents are served, each on its own port, by one daemon sharing one vault, one rule set, and one
+audit log: **Claude Code** on `8788`, **Codex CLI signed in with ChatGPT** on `8789`, **Cursor CLI**
+(`agent`) on `8790`, and **GitHub Copilot CLI** on `8791`. A port per agent means no request is routed
+by guessing which vendor a path belongs to.
 
 **Boundary:** this is data minimization, not circumvention. It removes sensitive content from what
 leaves the machine. It does not hide that an agent is used or change the destination.
@@ -138,6 +137,8 @@ aroxy CLI (picocli) ──state files + signal──> aroxy daemon (background J
                                                 │     obfuscate ⇄ deobfuscate ── chatgpt.com/backend-api/codex
                                                 ├─ listener 127.0.0.1:8790 ── Cursor CLI (HTTP/1.1 + HTTP/2)
                                                 │     Run / RunSSE / BidiAppend ⇄ api2.cursor.sh
+                                                ├─ listener 127.0.0.1:8791 ── GitHub Copilot CLI
+                                                │     CONNECT + process-local CA ⇄ GitHub-selected Copilot API
                                                 └─ reload watcher (polls control files)
                                         one Obfuscator + one Vault + one AuditLog, shared by all
 ```
@@ -159,7 +160,8 @@ One shared daemon serves every agent session on the machine: Claude Code points
 `~/.codex/config.toml` at `127.0.0.1:8789`, and Cursor CLI
 points `--endpoint` or `CURSOR_API_ENDPOINT` at `http://localhost:8790`. Cursor's listener accepts its
 native cleartext HTTP/2 stream and its HTTP/1.1 compatibility transport. They share one proxy, one
-vault, and one audit log, so a secret carries the same token whichever agent sends it.
+vault, and one audit log, so a secret carries the same token whichever agent sends it. The installed
+`copilot` wrapper delegates to `aroxy copilot`.
 Shell completion is set up by `install.sh` (a managed block in the user's rc). The
 `generate-completion` subcommand it calls is hidden from `--help`. `uninstall.sh` reverses install.
 
@@ -182,9 +184,9 @@ the reason the cost lands at compile time instead of at the first request.
 
 Packages under `eu.ciechanowiec.aroxy`:
 - `client` - the extension point: `ClientId`, `ClientProfile`, `ClientRegistry`, `Gateway`,
-  `PathScope`, and the transport as *data* (buffered HTTP with an `SseDialect`, or Cursor protobuf),
-  with one profile class per agent. No vendor vocabulary lives outside the corresponding profile or
-  transport implementation.
+  `PathScope`, and the transport as *data* (buffered HTTP with an `SseDialect`, Cursor protobuf, or
+  Copilot CONNECT interception), with one profile class per agent. No vendor vocabulary lives outside
+  the corresponding profile or transport implementation.
 - `obfuscation` - the engine: `Obfuscator`, `Vault`, `Rule` (composes `RulePattern` + `RuleLabel`),
   `RuleApplication`, `PiiToken`, `MaskedSecret`, `RuleCompiler` (loose/leet),
   `StreamDeobfuscator` (SSE carry-buffer over text fragments), `ObfuscationResult`/`ObfuscationMatch`.
@@ -212,14 +214,16 @@ Carrying two HTTP clients means their reach is made to agree deliberately, becau
 not. Trust already agrees (Jetty with no key store of its own builds from the platform default trust
 managers). The proxy does not: Jetty starts with an empty proxy configuration and would go direct where
 the JDK client honours `https.proxyHost`. `JdkProxySelection` reads the same `ProxySelector` and hands
-Jetty the answer, so a machine behind an egress proxy reaches all three upstreams or none - never two of
-three, failing at connect time with nothing naming the cause.
+Jetty the answer, so a machine behind an egress proxy reaches the fixed upstreams consistently.
+
+Copilot uses CONNECT interception because GitHub selects among several API hosts. `aroxy copilot`
+trusts aroxy's CA only in its child process, while unrelated hosts remain opaque tunnels.
 
 State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `reload` (the
 reload trigger), `temporaries` (this session's temporary attachments, cleared on start),
 `default.conf` (materialized, user-editable), `attachments` (persistent registry), `vault.tsv`,
-`.daemon.jar` (the snapshot a running daemon executes, staged at launch so replacing the installed
-jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
+the Copilot CA files, `.daemon.jar` (the snapshot a running daemon executes, staged at launch so
+replacing the installed jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
 
 ## Engine behaviors that must not regress
 

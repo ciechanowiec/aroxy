@@ -201,6 +201,8 @@ if [ -f "$HOME/.aroxy/aroxy_completion" ]; then
   if [ -n "${ZSH_VERSION:-}" ]; then autoload -U +X bashcompinit 2>/dev/null && bashcompinit 2>/dev/null; fi
   . "$HOME/.aroxy/aroxy_completion"
 fi
+# Keep trust and proxy settings inside the Copilot process tree. Use `command copilot` to bypass aroxy.
+copilot() { command aroxy copilot "$@"; }
 # <<< aroxy <<<
 BLOCK
   log "Set up PATH and completion in: $rc"

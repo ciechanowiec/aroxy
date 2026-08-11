@@ -46,7 +46,7 @@ endif::[]
 
 . _aroxy_, short for _Agent Proxy_, is a local HTTP proxy that stands between your coding agent and the API it talks to. The agent sends its API traffic to _aroxy_ instead of directly to the vendor. _aroxy_ replaces sensitive values in the request body with tokens, forwards the request to the real API, and restores the original values in the response before returning it to the agent.
 +
-Three agents are supported, each on its own local port, and one _aroxy_ serves them at once:
+Four agents are supported, each on its own local port, and one _aroxy_ serves them at once:
 +
 [cols="1,1,1"]
 |===
@@ -63,12 +63,16 @@ Three agents are supported, each on its own local port, and one _aroxy_ serves t
 | https://cursor.com/cli[Cursor command-line tool^] (`agent`)
 | `127.0.0.1:8790`
 | `api2.cursor.sh`
+
+| https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli[GitHub Copilot command-line tool^]
+| `127.0.0.1:8791`
+| GitHub Copilot API
 |===
 +
 All listeners share one vault, one rule set, and one xref:#audit-log[audit log], so a value carries the same token whichever agent sends it.
 +
 .Supported agent listeners and upstream APIs
-image::.docs/img/architecture.drawio.png[alt="Claude Code, Codex, and the Cursor command-line tool connect to separate listeners inside one aroxy on ports 8788, 8789, and 8790. The listeners forward to api.anthropic.com, chatgpt.com/backend-api/codex, and api2.cursor.sh. All listeners share one vault, one rule set, and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
+image::.docs/img/architecture.drawio.png[alt="Claude Code, Codex, Cursor, and GitHub Copilot command-line tool connect to separate listeners inside one aroxy. All listeners share one vault, one rule set, and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
 . A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` identifies the value. For example, the first AWS key becomes `+<<PII:AWS_KEY:1>>+`. The API receives the token, while the agent receives the restored value.
 . This is data minimization, not concealment. _aroxy_ neither hides that an agent is in use nor changes the API destination. An observer still sees a TLS connection to the vendor's API. Confirm that your agent and its API host are permitted on the network before relying on this setup.
 
@@ -114,6 +118,9 @@ or
 +
 or
 * The Cursor command-line tool, logged in with a Cursor account or configured with an API key.
++
+or
+* The GitHub Copilot command-line tool, logged in with a GitHub account that has an active Copilot subscription.
 --
 +
 _aroxy_ forwards the authentication header unchanged, so every one of those logins works. Nothing about your credentials is read, stored, or rewritten.
@@ -139,7 +146,7 @@ mvn -q clean package
 . `install.sh` writes the jar to `~/.aroxy/aroxy.jar`, creates the `~/.local/bin/aroxy` launcher, and configures `PATH` and completion in `~/.zshrc` or `~/.bashrc`.
 . A reinstall stops the service and deletes the entire `~/.aroxy/` state directory before installing a clean copy. Back up any configuration or logs you need. Reattach xref:#persistent-configuration-file[persistent configuration files] before starting _aroxy_ again.
 . Once the installer finishes, restart your shell, or source the startup file, so the new `PATH` and completion take effect. You can then confirm the install with `aroxy --version`.
-. _aroxy_ keeps its state under `~/.aroxy/`: the xref:#default-configuration-file[default configuration file `default.conf`], the xref:#registry[registry] of xref:#persistent-configuration-file[persistent configuration files], the token xref:#vault[vault `vault.tsv`], the process id and a small runtime status file while running, and `logs/` with the xref:#audit-log[audit log], the xref:#diagnostic-log[diagnostic log], and the xref:#wire-dumps[wire dumps].
+. _aroxy_ keeps its configuration registry, token xref:#vault[vault `vault.tsv`], process id, runtime status, and `logs/` under `~/.aroxy/`.
 
 == Uninstall
 
@@ -218,6 +225,17 @@ agent
 +
 Use the `localhost` spelling exactly: the Cursor command-line tool recognizes it as the local agent endpoint, and _aroxy_ still binds only to `127.0.0.1`.
 +
+. *GitHub Copilot command-line tool*
++
+Run Copilot normally after installing _aroxy_:
++
+[source,bash]
+----
+copilot
+----
++
+The installed shell wrapper starts _aroxy_ when needed and routes Copilot through it because Copilot provides no base-URL setting for its HTTPS API traffic. Run `command copilot` to bypass _aroxy_.
++
 . _aroxy_ must be running whenever an agent uses one of these local endpoints. When _aroxy_ is stopped, the agent can't reach its API. You can run several sessions of any supported agent at once: each one shares the same running _aroxy_, as described in the section xref:#vault-and-sessions[].
 
 == Commands
@@ -234,6 +252,7 @@ The following command table uses `<f>` for the path to a configuration file writ
 | `aroxy config` | Show the configuration in force, or the configuration for the next start while the service is stopped.
 | [[reload-command]]`aroxy reload` | Re-read every active configuration file and apply the settings that can change without dropping connections.
 | `aroxy logs [--audit\|--app\|--wire\|--all] [-f]` | Print a log. `--audit` is the default. `-f` follows the selected log, `--audit` or `--app`, like `tail -f`, but `--wire` and `--all` ignore it. The kinds are described in the section xref:#logs[].
+| `aroxy copilot [arguments]` | Run the GitHub Copilot command-line tool through _aroxy_.
 | `aroxy config attach <f> [--persistent\|--temporary]` | Attach a configuration file as persistent or temporary, described in the section xref:#configuration[].
 | `aroxy config detach <f>` | Detach a xref:#persistent-configuration-file[persistent configuration file]. Allowed only while the service is stopped.
 | `aroxy config list` | List the configuration files attached, each labelled persistent or temporary. While the service runs it also shows each configuration file's load time. While stopped it lists the xref:#persistent-configuration-file[persistent configuration files] from the xref:#registry[registry].
@@ -253,7 +272,7 @@ The following command table uses `<f>` for the path to a configuration file writ
 [[gateway-keys]]
 == The Gateway Keys
 
-The `[gateway]` stanza takes four keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
+The `[gateway]` stanza takes five keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
 
 [cols="1,1,3",options="header"]
 |===
@@ -261,10 +280,11 @@ The `[gateway]` stanza takes four keys, one listen port per supported agent plus
 | `listen_claude` | `8788` | The port Claude Code connects to. Forwarded to `api.anthropic.com`.
 | `listen_codex` | `8789` | The port Codex connects to. Forwarded to `chatgpt.com/backend-api/codex`.
 | `listen_cursor` | `8790` | The port the Cursor command-line tool connects to. Forwarded to `api2.cursor.sh`.
+| `listen_copilot` | `8791` | The port used by the GitHub Copilot command-line tool.
 | `mask_secrets` | `true` | `true` masks the values of `sensitive` rules in the xref:#audit-log[audit log].
 |===
 
-Each listen key supplies only a port. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone. Each upstream is fixed. Giving two agents the same port breaks the configuration file. Port changes require `aroxy restart`, while `mask_secrets` changes take effect on reload.
+Each listen key supplies only a port. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone. Giving two agents the same port breaks the configuration file. Port changes require `aroxy restart`, while `mask_secrets` changes take effect on reload.
 
 [[the-rule-format]]
 == The Rule Format

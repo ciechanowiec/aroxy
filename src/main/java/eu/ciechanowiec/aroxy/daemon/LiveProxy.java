@@ -54,7 +54,8 @@ final class LiveProxy {
         Vault vault = new Vault(Optional.of(home.vault()));
         Obfuscator obfuscator = new Obfuscator(config.rules(), vault);
         AuditLog audit = new AuditLog(home.logsDirectory(), settings.maskSecrets());
-        Map<ClientId, ProxyServer> servers = bindAll(settings, obfuscator, audit);
+        Binding binding = new Binding(home, settings, obfuscator, audit);
+        Map<ClientId, ProxyServer> servers = bindAll(binding);
         servers.values().forEach(ProxyServer::start);
         return new LiveProxy(obfuscator, audit, servers);
     }
@@ -70,12 +71,12 @@ final class LiveProxy {
     @SuppressWarnings(
         "PMD.UseConcurrentHashMap"
     )
-    private static Map<ClientId, ProxyServer> bindAll(
-        Settings settings, Obfuscator obfuscator, AuditLog audit
-    ) throws IOException {
+    private static Map<ClientId, ProxyServer> bindAll(Binding binding) throws IOException {
         Map<ClientId, ProxyServer> servers = new LinkedHashMap<>();
         try {
-            bindInto(servers, settings, obfuscator, audit);
+            for (ClientProfile profile : ClientRegistry.profiles()) {
+                servers.put(profile.id(), bind(binding, profile));
+            }
         } catch (IOException exception) {
             servers.values().forEach(ProxyServer::stop);
             throw exception;
@@ -83,20 +84,12 @@ final class LiveProxy {
         return servers;
     }
 
-    private static void bindInto(
-        Map<ClientId, ProxyServer> servers, Settings settings, Obfuscator obfuscator, AuditLog audit
-    ) throws IOException {
-        for (ClientProfile profile : ClientRegistry.profiles()) {
-            servers.put(profile.id(), bind(settings, profile, obfuscator, audit));
-        }
-    }
-
-    private static ProxyServer bind(
-        Settings settings, ClientProfile profile, Obfuscator obfuscator, AuditLog audit
-    ) throws IOException {
-        Gateway gateway = settings.gateway(profile.id());
-        ProxyParts parts = new ProxyParts(obfuscator, new Upstream(gateway), audit, profile);
-        return new ProxyServer(settings.listenHost(), gateway, parts);
+    private static ProxyServer bind(Binding binding, ClientProfile profile) throws IOException {
+        Gateway gateway = binding.settings().gateway(profile.id());
+        ProxyParts parts = new ProxyParts(
+            binding.obfuscator(), Upstream.forProfile(gateway, profile), binding.audit(), profile, binding.home()
+        );
+        return new ProxyServer(binding.settings().listenHost(), gateway, parts);
     }
 
     void reload(EffectiveConfig config) {
@@ -134,5 +127,8 @@ final class LiveProxy {
 
     void stop() {
         this.servers.values().forEach(ProxyServer::stop);
+    }
+
+    private record Binding(Home home, Settings settings, Obfuscator obfuscator, AuditLog audit) {
     }
 }

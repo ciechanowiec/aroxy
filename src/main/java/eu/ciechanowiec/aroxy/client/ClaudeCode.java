@@ -51,8 +51,17 @@ public final class ClaudeCode {
             "Claude Code",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(MESSAGES), MESSAGES),
-            new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect())
+            transport()
         );
+    }
+
+    /**
+     * The buffered message transport, also reused when Copilot selects an Anthropic model.
+     *
+     * @return the Claude message transport
+     */
+    public static BufferedTransport transport() {
+        return new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect());
     }
 
     private static SseDialect dialect() {

@@ -25,6 +25,7 @@ public final class TransportFixtures {
         return switch (profile.transport()) {
             case null -> throw new AssertionError(profile.displayName() + " has no transport");
             case BufferedTransport transport -> transport;
+            case CopilotTransport _ -> throw new AssertionError(profile.displayName() + " is a forward proxy");
             case CursorTransport _ -> throw new AssertionError(profile.displayName() + " is not buffered");
         };
     }

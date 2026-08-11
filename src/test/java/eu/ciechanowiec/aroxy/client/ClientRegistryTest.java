@@ -30,6 +30,7 @@ class ClientRegistryTest {
     private static final int CLAUDE_CODE_PORT = 8788;
     private static final int CODEX_PORT = 8789;
     private static final int CURSOR_PORT = 8790;
+    private static final int COPILOT_PORT = 8791;
     private static final int OTHER_PORT = 9999;
 
     @Test
@@ -39,6 +40,7 @@ class ClientRegistryTest {
         assertTrue(ids.contains(ClaudeCode.ID), "Claude Code is served");
         assertTrue(ids.contains(CodexCli.ID), "Codex is served");
         assertTrue(ids.contains(CursorCli.ID), "Cursor is served");
+        assertTrue(ids.contains(CopilotCli.ID), "GitHub Copilot is served");
     }
 
     @Test
@@ -90,6 +92,7 @@ class ClientRegistryTest {
         assertEquals(CLAUDE_CODE_PORT, port(gateways, ClaudeCode.ID), "Claude Code keeps its port");
         assertEquals(CODEX_PORT, port(gateways, CodexCli.ID), "Codex takes its own port");
         assertEquals(CURSOR_PORT, port(gateways, CursorCli.ID), "Cursor takes the next port");
+        assertEquals(COPILOT_PORT, port(gateways, CopilotCli.ID), "Copilot takes its own port");
     }
 
     private static int port(Map<ClientId, Gateway> gateways, ClientId id) {

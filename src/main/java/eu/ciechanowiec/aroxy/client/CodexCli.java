@@ -59,8 +59,17 @@ public final class CodexCli {
             "Codex CLI",
             new Gateway(DEFAULT_PORT, URI.create(UPSTREAM)),
             new PathScope(List.of(RESPONSES), RESPONSES),
-            new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect())
+            transport()
         );
+    }
+
+    /**
+     * The buffered Responses transport, also reused when Copilot selects that API shape.
+     *
+     * @return the Responses transport
+     */
+    public static BufferedTransport transport() {
+        return new BufferedTransport(RequestBodyPolicy.jsonExcept(ENCODED), dialect());
     }
 
     private static SseDialect dialect() {

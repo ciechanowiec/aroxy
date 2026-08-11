@@ -1,5 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import eu.ciechanowiec.aroxy.client.ClientProfile;
+import eu.ciechanowiec.aroxy.client.CopilotTransport;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,6 +12,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Forwards requests to one client's upstream API over a plain {@link HttpClient} (HTTP/1.1, a fixed
@@ -29,6 +32,7 @@ public final class Upstream {
     private static final int CONNECT_TIMEOUT_SECONDS = 30;
     private final HttpClient client;
     private final String base;
+    private final boolean dynamic;
 
     /**
      * Creates an upstream client targeting one client's API base.
@@ -36,12 +40,32 @@ public final class Upstream {
      * @param gateway the gateway carrying the upstream base address
      */
     public Upstream(Gateway gateway) {
+        this(gateway, false);
+    }
+
+    private Upstream(Gateway gateway, boolean dynamic) {
         this.base = gateway.upstream().toString();
+        this.dynamic = dynamic;
         this.client = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
             .build();
+    }
+
+    /**
+     * Creates the upstream mode selected by a profile and its effective gateway. A forward proxy uses
+     * the request destination in production. A test seam whose gateway differs from the registered
+     * one remains fixed on its in-JVM upstream.
+     *
+     * @param gateway the effective gateway
+     * @param profile the registered client profile
+     * @return an upstream with the profile's destination policy
+     */
+    public static Upstream forProfile(Gateway gateway, ClientProfile profile) {
+        boolean forwardProxy = profile.transport() instanceof CopilotTransport;
+        boolean unchanged = gateway.upstream().equals(profile.gateway().upstream());
+        return new Upstream(gateway, forwardProxy && unchanged);
     }
 
     /**
@@ -63,12 +87,45 @@ public final class Upstream {
         return new UpstreamReply(response.statusCode(), response.headers().map(), response.body());
     }
 
+    /**
+     * Sends one request to an explicit HTTPS destination. Forward-proxy transports use this after
+     * validating the destination host against their own allowlist.
+     *
+     * @param destination the complete upstream request {@link URI}
+     * @param method      the HTTP method to forward
+     * @param headers     the request headers to forward
+     * @param body        the request body to forward
+     * @return the streamed upstream reply
+     * @throws IOException          if the request cannot be sent or its response cannot be received
+     * @throws InterruptedException if the request is interrupted
+     */
+    public UpstreamReply sendTo(
+        URI destination, String method, Map<String, List<String>> headers, byte[] body
+    ) throws IOException, InterruptedException {
+        URI effective = this.dynamic ? destination : URI.create(this.base + pathAndQuery(destination));
+        HttpRequest request = this.buildRequest(effective, method, headers, body);
+        HttpResponse<InputStream> response = this.client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        return new UpstreamReply(response.statusCode(), response.headers().map(), response.body());
+    }
+
+    private static String pathAndQuery(URI destination) {
+        return Optional.ofNullable(destination.getRawQuery())
+            .map(query -> destination.getRawPath() + "?" + query)
+            .orElse(destination.getRawPath());
+    }
+
     private HttpRequest buildRequest(
         String method, String pathAndQuery,
         Map<String, List<String>> headers, byte[] body
     ) {
+        return this.buildRequest(URI.create(this.base + pathAndQuery), method, headers, body);
+    }
+
+    private HttpRequest buildRequest(
+        URI destination, String method, Map<String, List<String>> headers, byte[] body
+    ) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-            .uri(URI.create(this.base + pathAndQuery))
+            .uri(destination)
             .method(method, publisher(body));
         headers.forEach((name, values) -> forward(builder, name, values));
         builder.header("Accept-Encoding", "identity");

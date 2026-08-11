@@ -6,6 +6,7 @@ import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
+import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
@@ -63,11 +64,19 @@ final class ProxyHarness {
     }
 
     ProxyHarness(FakeUpstream upstream, Path logsDirectory, ClientProfile profile) throws IOException {
+        this(upstream, logsDirectory, profile, 0);
+    }
+
+    ProxyHarness(
+        FakeUpstream upstream, Path logsDirectory, ClientProfile profile, int listenPort
+    ) throws IOException {
         this.upstream = upstream;
         Obfuscator obfuscator = obfuscator();
         AuditLog audit = new AuditLog(logsDirectory);
-        Gateway gateway = new Gateway(0, upstream.uri());
-        ProxyParts parts = new ProxyParts(obfuscator, new Upstream(gateway), audit, profile);
+        Gateway gateway = new Gateway(listenPort, upstream.uri());
+        ProxyParts parts = new ProxyParts(
+            obfuscator, Upstream.forProfile(gateway, profile), audit, profile, new Home(logsDirectory)
+        );
         this.server = new ProxyServer(LocalHost.HOST, gateway, parts);
         this.server.start();
     }

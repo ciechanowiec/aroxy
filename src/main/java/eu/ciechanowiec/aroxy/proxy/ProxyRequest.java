@@ -4,11 +4,14 @@ import com.sun.net.httpserver.HttpExchange;
 import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.PathScope;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.server.Request;
 
 /**
  * The parsed inbound request: its method, the raw path, the path-and-query to forward, the request
@@ -52,6 +55,17 @@ record ProxyRequest(
             exchange.getRequestMethod(), path + query, path,
             exchange.getRequestHeaders(), body
         );
+    }
+
+    static ProxyRequest from(Request request) throws IOException {
+        String path = request.getHttpURI().getPath();
+        String pathAndQuery = request.getHttpURI().getPathQuery();
+        try (InputStream input = Request.asInputStream(request)) {
+            byte[] body = input.readAllBytes();
+            return new ProxyRequest(
+                request.getMethod(), pathAndQuery, path, HttpFields.asMap(request.getHeaders()), body
+            );
+        }
     }
 
     /**
