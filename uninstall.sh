@@ -14,7 +14,11 @@
 
 set -euo pipefail
 
+# Exported so every aroxy JVM this script invokes resolves the same state directory the script
+# cleans. A JVM on macOS derives user.home from the account database and ignores HOME, so without
+# the export a run under an overridden HOME would remove a sandbox while stopping the real daemon.
 readonly AROXY_HOME="${AROXY_HOME:-$HOME/.aroxy}"
+export AROXY_HOME
 readonly BIN_DIR="$HOME/.local/bin"
 readonly LAUNCHER="$BIN_DIR/aroxy"
 readonly INSTALLED_JAR="$AROXY_HOME/aroxy.jar"

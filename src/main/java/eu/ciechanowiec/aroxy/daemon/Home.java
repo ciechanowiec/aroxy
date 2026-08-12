@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import eu.ciechanowiec.aroxy.fs.RestrictedDir;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -12,12 +13,20 @@ import java.util.Optional;
  * {@code @TempDir}. Every accessor returns the canonical path for a state artifact. The directory
  * accessors create the directory on demand so callers never have to.
  *
+ * <p>The default reads the {@code HOME} environment variable before the {@code user.home} system
+ * property, because a JVM on macOS derives {@code user.home} from the account database and ignores
+ * {@code HOME}. Reading the property first makes an installer script and the JVM it invokes disagree
+ * about which state directory they mean, so a run under an overridden {@code HOME} cleans a sandbox
+ * while stopping the real daemon.
+ *
  * @param base the base state directory, defaulting to {@code ~/.aroxy}
  */
 public record Home(Path base) {
 
     private static final String ENV_VAR = "AROXY_HOME";
     private static final String PROPERTY = "aroxy.home";
+    private static final String HOME_VAR = "HOME";
+    private static final String HOME_PROPERTY = "user.home";
     private static final String DEFAULT_DIR = ".aroxy";
     private static final String LOGS = "logs";
 
@@ -31,8 +40,16 @@ public record Home(Path base) {
         return new Home(locate());
     }
 
+    @SuppressFBWarnings(
+        value = "ENV_USE_PROPERTY_INSTEAD_OF_ENV",
+        justification = "the portable property this detector recommends is the very value that must not "
+            + "win here, because a JVM on macOS reads it from the account database and so ignores an "
+            + "overridden HOME"
+    )
     private static Path locate() {
-        return override().map(Path::of).orElseGet(Home::userDefault);
+        Optional<String> variable = Optional.ofNullable(System.getenv(HOME_VAR));
+        String property = System.getProperty(HOME_PROPERTY);
+        return override().map(Path::of).orElseGet(() -> userDefault(variable, property));
     }
 
     private static Optional<String> override() {
@@ -42,8 +59,17 @@ public record Home(Path base) {
         );
     }
 
-    private static Path userDefault() {
-        return Path.of(System.getProperty("user.home")).resolve(DEFAULT_DIR);
+    /**
+     * The default state directory for a user whose home is described by the given pair. It is exposed
+     * so a test can pin the precedence without setting a process environment variable.
+     *
+     * @param variable the value of the {@code HOME} environment variable, empty when it is unset
+     * @param property the value of the {@code user.home} system property, used when the variable
+     *                 names nothing usable
+     * @return the base state directory the two values resolve to
+     */
+    static Path userDefault(Optional<String> variable, String property) {
+        return Path.of(variable.filter(value -> !value.isBlank()).orElse(property)).resolve(DEFAULT_DIR);
     }
 
     /**

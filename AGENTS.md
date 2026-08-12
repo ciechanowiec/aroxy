@@ -293,9 +293,18 @@ no longer be deobfuscated, whereas the curated names survive the round trip. A t
 The manual `.github/workflows/release.yaml` workflow publishes signed main, source, Javadoc, and POM
 artifacts to Maven Central after Extended verification. It then creates an immutable `v<version>` tag,
 smoke-tests the standalone installer against Maven Central, and creates a metadata-only GitHub Release.
-`install.sh` pins one Maven Central version or builds from source. The `release` Maven profile rejects
-SNAPSHOT project, parent, and dependency coordinates.
+The `release` Maven profile rejects SNAPSHOT project, parent, and dependency coordinates.
 
-A version change updates the root `pom.xml`, `RELEASE_VERSION` in `install.sh`, and the
-`release_version` default in `.github/workflows/release.yaml` together. Search every committable file
-for the previous version after the edit so a stale pin cannot survive the bump.
+**`install.sh` pins no version.** From a checkout it uses or builds `target/aroxy.jar`, and standalone
+it reads `maven-metadata.xml` for the artifact, takes the `<release>` element, and installs that
+version. It is served from `main`, where the declared version is a SNAPSHOT between releases, so a pin
+there would name a version Maven Central does not serve and the documented `curl | bash` install would
+break the moment a release lands. A metadata answer that is missing, malformed, or a SNAPSHOT aborts
+the install rather than becoming a download URL. The release workflow enforces the invariant from both
+ends: it fails if `install.sh` reintroduces a `RELEASE_VERSION` pin, waits until `maven-metadata.xml`
+names the new version (not only until the artifacts return HTTP 200, because that document syncs
+separately), and asserts the smoke-tested install reports exactly the released version.
+
+A version change updates the root `pom.xml` and the `release_version` default in
+`.github/workflows/release.yaml` together. Search every committable file for the previous version
+after the edit so a stale pin cannot survive the bump.

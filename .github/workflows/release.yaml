@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Version already declared in pom.xml and install.sh'
+        description: 'Version already declared in pom.xml'
         required: true
         default: '1.0.2-SNAPSHOT'
         type: string
@@ -54,10 +54,10 @@ jobs:
             echo 'Maven Central releases cannot use a SNAPSHOT version.' >&2
             exit 1
           fi
-          grep -qF "readonly RELEASE_VERSION=\"$RELEASE_VERSION\"" install.sh || {
-            echo 'install.sh does not pin the requested release version.' >&2
+          if grep -q 'readonly RELEASE_VERSION=' install.sh; then
+            echo 'install.sh must resolve the newest Maven Central release, not pin a version.' >&2
             exit 1
-          }
+          fi
 
       - name: 'Validate release secrets'
         env:
@@ -166,15 +166,18 @@ jobs:
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           set -eu
-          base="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy/$RELEASE_VERSION"
+          base="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy"
           for attempt in {1..60}; do
-            pom_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/aroxy-$RELEASE_VERSION.pom")"
-            jar_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/aroxy-$RELEASE_VERSION.jar")"
-            sum_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/aroxy-$RELEASE_VERSION.jar.sha256")"
-            if [ "$pom_status" = '200' ] && [ "$jar_status" = '200' ] && [ "$sum_status" = '200' ]; then
+            pom_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/$RELEASE_VERSION/aroxy-$RELEASE_VERSION.pom")"
+            jar_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/$RELEASE_VERSION/aroxy-$RELEASE_VERSION.jar")"
+            sum_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/$RELEASE_VERSION/aroxy-$RELEASE_VERSION.jar.sha256")"
+            # The standalone installer reads maven-metadata.xml rather than a pinned version, so the
+            # release is only reachable the documented way once that document names it too.
+            latest="$(curl --silent --fail "$base/maven-metadata.xml" | grep -o '<release>[^<]*</release>' | sed -e 's|<release>||' -e 's|</release>||' || true)"
+            if [ "$pom_status" = '200' ] && [ "$jar_status" = '200' ] && [ "$sum_status" = '200' ] && [ "$latest" = "$RELEASE_VERSION" ]; then
               exit 0
             fi
-            echo "Maven Central is synchronizing (POM $pom_status, JAR $jar_status, SHA-256 $sum_status; attempt $attempt/60)."
+            echo "Maven Central is synchronizing (POM $pom_status, JAR $jar_status, SHA-256 $sum_status, metadata release '$latest'; attempt $attempt/60)."
             sleep 30
           done
           echo 'Maven Central did not become readable within 30 minutes.' >&2
@@ -182,13 +185,19 @@ jobs:
 
       - name: 'Smoke-test the standalone installer'
         if: steps.publish.outcome == 'success'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           set -eu
           isolated_home="$RUNNER_TEMP/aroxy-install-home"
           mkdir -p "$isolated_home" "$RUNNER_TEMP/aroxy-installer"
           cp install.sh uninstall.sh "$RUNNER_TEMP/aroxy-installer/"
           HOME="$isolated_home" SHELL=/bin/bash bash "$RUNNER_TEMP/aroxy-installer/install.sh"
-          HOME="$isolated_home" "$isolated_home/.local/bin/aroxy" --version
+          installed="$(HOME="$isolated_home" "$isolated_home/.local/bin/aroxy" --version | head -n 1)"
+          if [ "$installed" != "aroxy $RELEASE_VERSION" ]; then
+            echo "The standalone installer produced '$installed', not 'aroxy $RELEASE_VERSION'." >&2
+            exit 1
+          fi
           HOME="$isolated_home" bash "$RUNNER_TEMP/aroxy-installer/uninstall.sh"
 
       - name: 'Create metadata-only GitHub Release'

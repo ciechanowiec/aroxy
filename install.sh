@@ -2,8 +2,10 @@
 #
 # aroxy installer (macOS + Linux). Works two ways:
 #   * From a source checkout: it uses target/aroxy.jar, building it with Maven if absent.
-#   * Standalone (curl -fsSL .../install.sh | bash): it downloads the version pinned below
-#     from Maven Central.
+#   * Standalone (curl -fsSL .../install.sh | bash): it asks Maven Central which version is the
+#     newest release and downloads that one. Nothing is pinned here, because this file is served
+#     from main, and main carries a SNAPSHOT version between releases -- a pin would name a
+#     version Maven Central does not serve.
 #
 # It always reinstalls from scratch, idempotently and with clear logging:
 #   1. When aroxy is already installed, it reports the current version and the new version,
@@ -22,17 +24,20 @@
 
 set -euo pipefail
 
+# Exported so every aroxy JVM this script invokes resolves the same state directory the script
+# writes. A JVM on macOS derives user.home from the account database and ignores HOME, so without
+# the export a run under an overridden HOME would install into a sandbox while stopping the real
+# daemon.
 readonly AROXY_HOME="${AROXY_HOME:-$HOME/.aroxy}"
+export AROXY_HOME
 readonly BIN_DIR="$HOME/.local/bin"
 readonly LAUNCHER="$BIN_DIR/aroxy"
 readonly INSTALLED_JAR="$AROXY_HOME/aroxy.jar"
 readonly STAGED_JAR="$AROXY_HOME/.aroxy.jar.new"
 readonly COMPLETION="$AROXY_HOME/aroxy_completion"
 readonly PID_FILE="$AROXY_HOME/aroxy.pid"
-readonly RELEASE_VERSION="1.0.2-SNAPSHOT"
-readonly MAVEN_RELEASE_BASE="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy/$RELEASE_VERSION"
-readonly RELEASE_JAR_URL="$MAVEN_RELEASE_BASE/aroxy-$RELEASE_VERSION.jar"
-readonly RELEASE_SHA_URL="$RELEASE_JAR_URL.sha256"
+readonly RELEASE_BASE_URL="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy"
+readonly RELEASE_METADATA_URL="$RELEASE_BASE_URL/maven-metadata.xml"
 readonly BLOCK_START="# >>> aroxy >>>"
 readonly BLOCK_END="# <<< aroxy <<<"
 readonly STOP_WAIT_ATTEMPTS=50
@@ -105,7 +110,7 @@ stop_service() {
 }
 
 acquire_jar() {
-  local dest="$1" here
+  local dest="$1" here version
   here="$(script_dir 2>/dev/null || true)"
   if [[ -n "$here" && -f "$here/target/aroxy.jar" ]]; then
     log "Using the locally built jar: $here/target/aroxy.jar"
@@ -115,10 +120,28 @@ acquire_jar() {
     ( cd "$here" && mvn -q clean package )
     cp "$here/target/aroxy.jar" "$dest"
   else
-    log "Downloading aroxy $RELEASE_VERSION from Maven Central..."
-    curl -fsSL "$RELEASE_JAR_URL" -o "$dest"
-    verify_jar "$dest"
+    version="$(latest_release_version)" || exit 1
+    log "Downloading aroxy $version from Maven Central..."
+    curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar" -o "$dest"
+    verify_jar "$dest" "$version"
   fi
+}
+
+# Asks Maven Central for the newest published release, reading the <release> element of the
+# artifact's maven-metadata.xml, and fails closed when the metadata is unreachable or names no
+# usable version. A SNAPSHOT or otherwise malformed answer is rejected rather than turned into a
+# download URL, so a corrupted or hostile metadata document cannot steer the install elsewhere.
+latest_release_version() {
+  local metadata version
+  log "Resolving the newest aroxy release published to Maven Central..."
+  metadata="$(curl -fsSL "$RELEASE_METADATA_URL" || true)"
+  version="$(printf '%s' "$metadata" | grep -o '<release>[^<]*</release>' | tail -n 1 |
+    sed -e 's|<release>||' -e 's|</release>||' | tr -d '[:space:]')"
+  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ || "$version" == *-SNAPSHOT ]]; then
+    log "ERROR: $RELEASE_METADATA_URL published no usable release version; aborting."
+    exit 1
+  fi
+  printf '%s' "$version"
 }
 
 # Computes the SHA-256 of a file, using whichever tool the OS provides (sha256sum on Linux,
@@ -135,9 +158,9 @@ sha256_of() {
 # missing checksum or a mismatch deletes the download and aborts the install, so a tampered or
 # corrupted jar is never put on PATH.
 verify_jar() {
-  local jar="$1" expected actual version
+  local jar="$1" version="$2" expected actual reported
   log "Verifying the download against its published SHA-256..."
-  expected="$(curl -fsSL "$RELEASE_SHA_URL" | tr -d '[:space:]')"
+  expected="$(curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar.sha256" | tr -d '[:space:]')"
   if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
     rm -f "$jar"
     log "ERROR: Maven Central returned no valid SHA-256; aborting."
@@ -149,10 +172,10 @@ verify_jar() {
     log "ERROR: checksum mismatch (expected $expected, got $actual); aborting."
     exit 1
   fi
-  version="$(jar_version "$jar")"
-  if [[ "$version" != "aroxy $RELEASE_VERSION" ]]; then
+  reported="$(jar_version "$jar")"
+  if [[ "$reported" != "aroxy $version" ]]; then
     rm -f "$jar"
-    log "ERROR: downloaded jar reports '$version', not 'aroxy $RELEASE_VERSION'; aborting."
+    log "ERROR: downloaded jar reports '$reported', not 'aroxy $version'; aborting."
     exit 1
   fi
   log "Checksum and version verified."
@@ -162,7 +185,11 @@ write_launcher() {
   mkdir -p "$BIN_DIR"
   cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
-exec java -jar "\$HOME/.aroxy/aroxy.jar" "\$@"
+# AROXY_HOME is exported so the JVM resolves the same state directory this launcher reads the jar
+# from. A JVM on macOS derives user.home from the account database and ignores HOME, so without the
+# export a launcher run under an overridden HOME would act on the real state directory.
+export AROXY_HOME="\${AROXY_HOME:-\$HOME/.aroxy}"
+exec java -jar "\$AROXY_HOME/aroxy.jar" "\$@"
 EOF
   chmod +x "$LAUNCHER"
   log "Wrote launcher: $LAUNCHER"

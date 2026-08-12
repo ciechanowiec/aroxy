@@ -128,7 +128,7 @@ _aroxy_ forwards the authentication header unchanged, so every one of those logi
 [[install]]
 == Install
 
-. [[install-with-curl]]Install _aroxy_ without building:
+. [[install-with-curl]]Install _aroxy_ without building. The installer asks Maven Central which release is the newest and installs that one, so this command always yields the current version:
 +
 [source,bash]
 ----
