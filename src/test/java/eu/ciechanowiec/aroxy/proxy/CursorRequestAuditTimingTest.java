@@ -34,7 +34,7 @@ class CursorRequestAuditTimingTest {
             CursorWire.frame(CursorWire.protobuf(CursorWire.protobuf(TOKEN))), terminal
         );
         FakeUpstream upstream = new FakeUpstream(
-            CannedReply.connectProtobuf(CursorWire.text(response)), true
+            CannedReply.connectProtobuf(CursorWire.text(response)), ReplyEnding.HELD_OPEN
         );
         ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
         HTTP2Client transport = new HTTP2Client();

@@ -36,7 +36,7 @@ class CursorDrainTest {
     void waitsForAnActiveExchangeBeforeStopping(@TempDir Path logs) {
         byte[] terminal = CursorWire.framed(ConnectJsonFrame.END_STREAM, "{}");
         FakeUpstream upstream = new FakeUpstream(
-            CannedReply.connectProtobuf(CursorWire.text(terminal)), true
+            CannedReply.connectProtobuf(CursorWire.text(terminal)), ReplyEnding.HELD_OPEN
         );
         ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
         FutureTask<Boolean> exchange = exchange(harness);

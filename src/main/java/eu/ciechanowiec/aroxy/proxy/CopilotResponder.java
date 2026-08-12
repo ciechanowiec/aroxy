@@ -13,12 +13,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Response;
 
 /**
  * Writes a Copilot upstream reply after applying the response shape selected by its inference path.
  */
+@Slf4j
 @Justification(
     "a composed response boundary whose coupling is governed by the project's Checkstyle cap"
 )
@@ -68,14 +70,39 @@ final class CopilotResponder {
     ) throws IOException {
         response.setStatus(reply.status());
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
-        try (OutputStream output = Content.Sink.asOutputStream(response); InputStream body = reply.body()) {
-            StreamContext context = new StreamContext(body, output, capture, stamp);
-            if (this.transport.chatCompletions(path)) {
-                this.chat(context);
-            } else {
-                this.generic(context, path);
-            }
+        ClientSink sink = new ClientSink(Content.Sink.asOutputStream(response));
+        try (sink; InputStream body = reply.body()) {
+            this.transform(new StreamContext(body, sink, capture, stamp), path);
+        } catch (IOException exception) {
+            this.broken(stamp, capture, sink.isBroken(), exception);
+            throw exception;
         }
+    }
+
+    private void transform(StreamContext context, String path) throws IOException {
+        if (this.transport.chatCompletions(path)) {
+            this.chat(context);
+        } else {
+            this.generic(context, path);
+        }
+    }
+
+    /**
+     * Records what a stream that never completed managed to carry. The successful path dumps its
+     * capture only after the pump loop ends, so without this the one case worth investigating is the
+     * one case that leaves no wire evidence.
+     *
+     * @param stamp     the audit stamp the partial dump is filed under
+     * @param capture   the bytes the stream carried before it ended
+     * @param client    whether the client end is the one that broke
+     * @param exception the failure that ended the stream
+     */
+    private void broken(String stamp, ByteArrayOutputStream capture, boolean client, IOException exception) {
+        this.audit.wireRawResponse(stamp, capture.toByteArray(), WireBody.TEXT);
+        log.warn(
+            "Copilot stream broke on the {} end after {} captured byte(s), dumped as partial: {}",
+            client ? "client" : "upstream", capture.size(), exception.toString()
+        );
     }
 
     private void chat(StreamContext context) throws IOException {

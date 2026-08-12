@@ -42,12 +42,12 @@ final class FakeUpstream {
     private final ResponseGate response;
 
     FakeUpstream(CannedReply reply) {
-        this(reply, false);
+        this(reply, ReplyEnding.COMPLETE);
     }
 
-    FakeUpstream(CannedReply reply, boolean delayedEof) {
+    FakeUpstream(CannedReply reply, ReplyEnding ending) {
         this.reply = reply;
-        this.response = new ResponseGate(delayedEof);
+        this.response = new ResponseGate(ending);
         this.last = new AtomicReference<>(new Received("", "", Map.of()));
         this.requestCount = new AtomicInteger();
         this.server = new Server();
@@ -131,14 +131,7 @@ final class FakeUpstream {
                     .forEach((name, value) -> response.getHeaders().add(name, value));
                 byte[] payload = FakeUpstream.this.reply.body().getBytes(StandardCharsets.UTF_8);
                 response.setStatus(FakeUpstream.this.reply.status());
-                if (FakeUpstream.this.response.delayed()) {
-                    this.writeOpen(response, payload, callback);
-                } else {
-                    response.getHeaders().put("Content-Length", payload.length);
-                    write(response, payload);
-                    FakeUpstream.this.response.payloadWritten();
-                    callback.succeeded();
-                }
+                this.deliver(response, payload, callback);
             } catch (IOException exception) {
                 callback.failed(exception);
             }
@@ -155,6 +148,21 @@ final class FakeUpstream {
                     )
                 );
             }
+        }
+
+        private void deliver(Response response, byte[] payload, Callback callback) throws IOException {
+            if (FakeUpstream.this.response.ending() == ReplyEnding.COMPLETE) {
+                this.writeComplete(response, payload, callback);
+            } else {
+                this.writeOpen(response, payload, callback);
+            }
+        }
+
+        private void writeComplete(Response response, byte[] payload, Callback callback) throws IOException {
+            response.getHeaders().put("Content-Length", payload.length);
+            write(response, payload);
+            FakeUpstream.this.response.payloadWritten();
+            callback.succeeded();
         }
 
         private void write(Content.Sink response, byte[] payload) throws IOException {
@@ -179,28 +187,44 @@ final class FakeUpstream {
         private void finish(Content.Sink response, Callback callback) {
             try {
                 FakeUpstream.this.response.awaitEof();
-                response.write(true, ByteBuffer.allocate(0), callback);
+                this.end(response, callback);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 callback.failed(exception);
+            }
+        }
+
+        /**
+         * Ends a stream whose payload is already out. A truncated reply fails the exchange instead of
+         * writing the terminating chunk, so the connection dies with the response committed, which is
+         * what a stream broken in flight looks like to the proxy.
+         *
+         * @param response the sink the terminating chunk would go to
+         * @param callback the exchange callback completed or failed here
+         */
+        private void end(Content.Sink response, Callback callback) {
+            if (FakeUpstream.this.response.ending() == ReplyEnding.TRUNCATED) {
+                callback.failed(new IOException("upstream truncated the stream"));
+            } else {
+                response.write(true, ByteBuffer.allocate(0), callback);
             }
         }
     }
 
     private static final class ResponseGate {
 
-        private final boolean delayed;
+        private final ReplyEnding ending;
         private final CountDownLatch payload;
         private final CountDownLatch eof;
 
-        ResponseGate(boolean delayed) {
-            this.delayed = delayed;
+        ResponseGate(ReplyEnding ending) {
+            this.ending = ending;
             this.payload = new CountDownLatch(1);
-            this.eof = new CountDownLatch(delayed ? 1 : 0);
+            this.eof = new CountDownLatch(ending == ReplyEnding.HELD_OPEN ? 1 : 0);
         }
 
-        boolean delayed() {
-            return this.delayed;
+        ReplyEnding ending() {
+            return this.ending;
         }
 
         void payloadWritten() {

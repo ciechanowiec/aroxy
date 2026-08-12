@@ -41,7 +41,7 @@ class CursorDisconnectTest {
     @Test
     @SneakyThrows
     void anAgentDroppingTheStreamDoesNotErrorTheListener(@TempDir Path logs) {
-        FakeUpstream upstream = new FakeUpstream(CannedReply.connectProtobuf(bulkReply()), true);
+        FakeUpstream upstream = new FakeUpstream(CannedReply.connectProtobuf(bulkReply()), ReplyEnding.HELD_OPEN);
         ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
         try {
             disconnectMidStream(harness.base(), upstream);
