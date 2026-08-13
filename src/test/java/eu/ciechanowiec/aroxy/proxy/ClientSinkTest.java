@@ -92,14 +92,39 @@ class ClientSinkTest {
     @Test
     @SneakyThrows
     void countsOnlyAWholeIntervalWithoutAWriteAsSilence() {
+        Duration interval = Duration.ofSeconds(AWAIT_SECONDS);
         try (ClientSink sink = new ClientSink(new ByteArrayOutputStream())) {
             sink.write(PAYLOAD.getBytes(StandardCharsets.UTF_8));
             long written = System.nanoTime();
-            assertFalse(sink.silent(written), "a stream that just carried data is not silent");
+            assertFalse(sink.silent(written, interval), "a stream that just carried data is not silent");
             assertTrue(
-                sink.silent(written + Duration.ofSeconds(AWAIT_SECONDS).toNanos()),
+                sink.silent(written + interval.toNanos(), interval),
                 "a stream that carried nothing for an interval is silent"
             );
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void datesSilenceFromTheLastWriteRatherThanFromTheStart() {
+        Duration interval = Duration.ofSeconds(AWAIT_SECONDS);
+        try (ClientSink sink = new ClientSink(new ByteArrayOutputStream())) {
+            long opened = System.nanoTime();
+            sink.write(PAYLOAD.getBytes(StandardCharsets.UTF_8));
+            assertFalse(
+                sink.silent(opened + interval.toNanos(), interval),
+                "the write pushed the silence deadline out past an interval from the open"
+            );
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void flushesEveryKeepAliveSoItLeavesTheProxy() {
+        SignallingBytes target = new SignallingBytes();
+        try (ClientSink sink = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
+            assertTrue(target.awaitFlush(), "a keep-alive held in a buffer never arrives");
+            assertTrue(sink.keepAlives() >= 1, "the keep-alive is counted");
         }
     }
 
@@ -109,7 +134,7 @@ class ClientSinkTest {
         SignallingBytes target = new SignallingBytes();
         try (ClientSink sink = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
             assertTrue(
-                target.awaitWrite(AWAIT_SECONDS), "a silent stream is kept warm within the timeout"
+                target.awaitWrite(), "a silent stream is kept warm within the timeout"
             );
             assertTrue(sink.keepAlives() >= 1, "the keep-alive is counted");
         }
@@ -121,15 +146,27 @@ class ClientSinkTest {
 
         private final ByteArrayOutputStream bytes;
         private final CountDownLatch written;
+        private final CountDownLatch flushed;
 
         SignallingBytes() {
             this.bytes = new ByteArrayOutputStream();
             this.written = new CountDownLatch(1);
+            this.flushed = new CountDownLatch(1);
         }
 
         @SneakyThrows
-        boolean awaitWrite(int seconds) {
-            return this.written.await(seconds, TimeUnit.SECONDS);
+        boolean awaitWrite() {
+            return this.written.await(AWAIT_SECONDS, TimeUnit.SECONDS);
+        }
+
+        @SneakyThrows
+        boolean awaitFlush() {
+            return this.flushed.await(AWAIT_SECONDS, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void flush() {
+            this.flushed.countDown();
         }
 
         String text() {

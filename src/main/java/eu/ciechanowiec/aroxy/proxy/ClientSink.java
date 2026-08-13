@@ -30,9 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
 final class ClientSink extends OutputStream {
 
     private static final byte[] KEEP_ALIVE = ": keep-alive\n\n".getBytes(StandardCharsets.UTF_8);
-    private static final Duration INTERVAL = Duration.ofSeconds(5);
     private final OutputStream delegate;
-    private final Duration interval;
     private final Lock lock;
     private final AtomicLong lastWrite;
     private final AtomicBoolean broken;
@@ -40,12 +38,7 @@ final class ClientSink extends OutputStream {
     private final AtomicInteger pulses;
 
     ClientSink(OutputStream delegate) {
-        this(delegate, INTERVAL);
-    }
-
-    private ClientSink(OutputStream delegate, Duration interval) {
         this.delegate = delegate;
-        this.interval = interval;
         this.lock = new ReentrantLock();
         this.lastWrite = new AtomicLong(System.nanoTime());
         this.broken = new AtomicBoolean();
@@ -63,19 +56,9 @@ final class ClientSink extends OutputStream {
      * @return the wrapped sink, already pulsing
      */
     static ClientSink keepingAlive(OutputStream delegate, Duration interval) {
-        ClientSink sink = new ClientSink(delegate, interval);
-        Thread.startVirtualThread(sink::pulses);
+        ClientSink sink = new ClientSink(delegate);
+        Thread.startVirtualThread(() -> sink.pulses(interval));
         return sink;
-    }
-
-    /**
-     * Creates a sink that keeps the client connection warm on the production cadence.
-     *
-     * @param delegate the client sink to wrap
-     * @return the wrapped sink, already pulsing
-     */
-    static ClientSink keepingAlive(OutputStream delegate) {
-        return keepingAlive(delegate, INTERVAL);
     }
 
     /**
@@ -111,11 +94,12 @@ final class ClientSink extends OutputStream {
      * Whether nothing has been written for a whole interval as of the given instant. Taking the
      * instant as a parameter keeps the decision a pure one a test can make without waiting.
      *
-     * @param now the instant to judge silence at, on {@link System#nanoTime()}'s scale
+     * @param now      the instant to judge silence at, on {@link System#nanoTime()}'s scale
+     * @param interval how long the stream may be silent before it counts as silent
      * @return whether the stream has been silent long enough to need a keep-alive
      */
-    boolean silent(long now) {
-        return now - this.lastWrite.get() >= this.interval.toNanos();
+    boolean silent(long now, Duration interval) {
+        return now - this.lastWrite.get() >= interval.toNanos();
     }
 
     @Override
@@ -163,15 +147,15 @@ final class ClientSink extends OutputStream {
         }
     }
 
-    private void pulses() {
-        while (this.awaitInterval()) {
-            this.pulseWhenSilent();
+    private void pulses(Duration interval) {
+        while (this.awaitInterval(interval)) {
+            this.pulseWhenSilent(interval);
         }
     }
 
-    private boolean awaitInterval() {
+    private boolean awaitInterval(Duration interval) {
         try {
-            Thread.sleep(this.interval);
+            Thread.sleep(interval);
             return this.pulsing();
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
@@ -179,8 +163,8 @@ final class ClientSink extends OutputStream {
         }
     }
 
-    private void pulseWhenSilent() {
-        if (this.silent(System.nanoTime())) {
+    private void pulseWhenSilent(Duration interval) {
+        if (this.silent(System.nanoTime(), interval)) {
             this.pulse();
         }
     }

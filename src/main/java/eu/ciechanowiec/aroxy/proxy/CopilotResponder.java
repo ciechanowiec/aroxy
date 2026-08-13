@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.io.Content;
@@ -22,14 +23,17 @@ import org.eclipse.jetty.server.Response;
  */
 @Slf4j
 @Justification(
-    "a composed response boundary whose coupling is governed by the project's Checkstyle cap"
+    "a composed response boundary whose coupling is governed by the project's Checkstyle cap, which "
+        + "this class is within, and decomposing it further would split one reply's handling across "
+        + "types that only ever run in sequence"
 )
 @SuppressWarnings(
-    "ClassWithTooManyDependencies"
+    {"ClassWithTooManyDependencies", "PMD.CouplingBetweenObjects"}
 )
 final class CopilotResponder {
 
     private static final int BUFFER = 8192;
+    private static final Duration KEEP_ALIVE = Duration.ofSeconds(5);
     private final Obfuscator obfuscator;
     private final AuditLog audit;
     private final ClientProfile profile;
@@ -70,7 +74,7 @@ final class CopilotResponder {
     ) throws IOException {
         response.setStatus(reply.status());
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
-        ClientSink sink = ClientSink.keepingAlive(Content.Sink.asOutputStream(response));
+        ClientSink sink = ClientSink.keepingAlive(Content.Sink.asOutputStream(response), KEEP_ALIVE);
         try (sink; InputStream body = reply.body()) {
             this.transform(new StreamContext(body, sink, capture, stamp), path);
         } catch (IOException exception) {

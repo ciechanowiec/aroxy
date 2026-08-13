@@ -27,7 +27,14 @@ final class ActiveRules {
             .orElse(ACTIVE);
     }
 
-    private static String rules(int count) {
+    /**
+     * How a rule count reads in a status line. It is exposed so a test can pin the wording without
+     * standing up a daemon to publish a snapshot.
+     *
+     * @param count the number of rules in effect
+     * @return the count phrased for a reader
+     */
+    static String rules(int count) {
         if (count == 1) {
             return "1 rule in effect";
         }
