@@ -70,11 +70,11 @@ final class CopilotResponder {
     ) throws IOException {
         response.setStatus(reply.status());
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
-        ClientSink sink = new ClientSink(Content.Sink.asOutputStream(response));
+        ClientSink sink = ClientSink.keepingAlive(Content.Sink.asOutputStream(response));
         try (sink; InputStream body = reply.body()) {
             this.transform(new StreamContext(body, sink, capture, stamp), path);
         } catch (IOException exception) {
-            this.broken(stamp, capture, sink.isBroken(), exception);
+            this.broken(stamp, capture, sink, exception);
             throw exception;
         }
     }
@@ -94,14 +94,15 @@ final class CopilotResponder {
      *
      * @param stamp     the audit stamp the partial dump is filed under
      * @param capture   the bytes the stream carried before it ended
-     * @param client    whether the client end is the one that broke
+     * @param sink      the client end, which knows whether it broke and how long it was kept warm
      * @param exception the failure that ended the stream
      */
-    private void broken(String stamp, ByteArrayOutputStream capture, boolean client, IOException exception) {
+    private void broken(String stamp, ByteArrayOutputStream capture, ClientSink sink, IOException exception) {
         this.audit.wireRawResponse(stamp, capture.toByteArray(), WireBody.TEXT);
         log.warn(
-            "Copilot stream broke on the {} end after {} captured byte(s), dumped as partial: {}",
-            client ? "client" : "upstream", capture.size(), exception.toString()
+            "Copilot stream broke on the {} end after {} captured byte(s) and {} keep-alive(s), "
+                + "dumped as partial: {}",
+            sink.isBroken() ? "client" : "upstream", capture.size(), sink.keepAlives(), exception.toString()
         );
     }
 

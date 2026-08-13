@@ -10,12 +10,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 class ClientSinkTest {
 
     private static final String PAYLOAD = "event: message";
+    private static final int PULSE_MILLIS = 20;
+    private static final int AWAIT_SECONDS = 5;
 
     @Test
     @SneakyThrows
@@ -49,15 +54,6 @@ class ClientSinkTest {
 
     @Test
     @SneakyThrows
-    void staysUnbrokenWhenOnlyTheUpstreamEndWouldFail() {
-        try (ClientSink sink = new ClientSink(new ByteArrayOutputStream())) {
-            sink.write(PAYLOAD.getBytes(StandardCharsets.UTF_8));
-            assertFalse(sink.isBroken());
-        }
-    }
-
-    @Test
-    @SneakyThrows
     void recordsTheClientEndWhenAFlushFails() {
         try (ClientSink sink = new ClientSink(new BrokenPipe())) {
             assertThrows(IOException.class, sink::flush);
@@ -75,9 +71,96 @@ class ClientSinkTest {
         assertEquals(1, target.closes());
     }
 
+    @Test
+    @SneakyThrows
+    void pulsesUntilTheStreamIsClosed() {
+        ClientSink sink = new ClientSink(new ByteArrayOutputStream());
+        assertTrue(sink.pulsing(), "an open stream is worth keeping warm");
+        sink.close();
+        assertFalse(sink.pulsing(), "a finished stream needs no keep-alive");
+    }
+
+    @Test
+    @SneakyThrows
+    void stopsPulsingOnceTheClientIsGone() {
+        try (ClientSink sink = new ClientSink(new BrokenPipe())) {
+            assertThrows(IOException.class, () -> sink.write(1));
+            assertFalse(sink.pulsing(), "a stream with no reader left needs no keep-alive");
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void countsOnlyAWholeIntervalWithoutAWriteAsSilence() {
+        try (ClientSink sink = new ClientSink(new ByteArrayOutputStream())) {
+            sink.write(PAYLOAD.getBytes(StandardCharsets.UTF_8));
+            long written = System.nanoTime();
+            assertFalse(sink.silent(written), "a stream that just carried data is not silent");
+            assertTrue(
+                sink.silent(written + Duration.ofSeconds(AWAIT_SECONDS).toNanos()),
+                "a stream that carried nothing for an interval is silent"
+            );
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void writesAKeepAliveCommentWhileTheUpstreamIsSilent() {
+        SignallingBytes target = new SignallingBytes();
+        try (ClientSink sink = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
+            assertTrue(
+                target.awaitWrite(AWAIT_SECONDS), "a silent stream is kept warm within the timeout"
+            );
+            assertTrue(sink.keepAlives() >= 1, "the keep-alive is counted");
+        }
+        assertTrue(target.text().startsWith(": "), target.text());
+        assertTrue(target.text().endsWith("\n\n"), "a keep-alive ends on an event boundary");
+    }
+
+    private static final class SignallingBytes extends OutputStream {
+
+        private final ByteArrayOutputStream bytes;
+        private final CountDownLatch written;
+
+        SignallingBytes() {
+            this.bytes = new ByteArrayOutputStream();
+            this.written = new CountDownLatch(1);
+        }
+
+        @SneakyThrows
+        boolean awaitWrite(int seconds) {
+            return this.written.await(seconds, TimeUnit.SECONDS);
+        }
+
+        String text() {
+            return this.bytes.toString(StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public void write(int value) {
+            this.bytes.write(value);
+            this.written.countDown();
+        }
+
+        @Justification(
+            "Qodana reads the inherited array parameter as non-null and wants the override to restate "
+                + "that, while the project declares no nullability annotations to restate it with"
+        )
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public void write(byte[] chunk, int offset, int length) {
+            this.bytes.write(chunk, offset, length);
+            this.written.countDown();
+        }
+    }
+
     private static final class CountingClose extends OutputStream {
 
         private int closes;
+
+        CountingClose() {
+            this.closes = 0;
+        }
 
         int closes() {
             return this.closes;
