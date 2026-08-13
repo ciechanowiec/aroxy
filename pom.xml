@@ -219,6 +219,17 @@
                                         <exclude>module-info.class</exclude>
                                         <exclude>META-INF/versions/*/module-info.class</exclude>
                                         <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <!--
+                                            OSGi bundle metadata, which several dependencies of one
+                                            vendor family each carry, so shading them reports an
+                                            overlap. This artifact is an executable jar and is never
+                                            loaded as a bundle, so the directory cannot affect it at
+                                            any version. Excluding it keeps the overlap warning
+                                            meaning that two jars disagreed about something that
+                                            matters.
+                                        -->
+                                        <exclude>META-INF/versions/*/OSGI-INF/**</exclude>
+                                        <exclude>OSGI-INF/**</exclude>
                                         <exclude>META-INF/LICENSE</exclude>
                                         <exclude>META-INF/LICENSE.txt</exclude>
                                         <exclude>META-INF/LICENSE.md</exclude>
