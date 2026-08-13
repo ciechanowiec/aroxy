@@ -98,7 +98,7 @@ final class AttachCommand implements Callable<Integer> {
 
     private Integer online(Home home, boolean keep) {
         this.store(home, keep);
-        return ReloadRequest.send(home) ? this.attached() : this.unconfirmed();
+        return ReloadRequest.send(home) ? this.applied(home) : this.unconfirmed();
     }
 
     @Justification(
@@ -108,9 +108,10 @@ final class AttachCommand implements Callable<Integer> {
         "SameReturnValue"
     )
     private Integer unconfirmed() {
-        this.out.warning("Configuration attached, but reload was not confirmed");
-        this.out.detail("File", this.file.toAbsolutePath());
-        this.out.note("Run 'aroxy logs' to inspect the daemon.");
+        this.out.warning("Configuration attached, but the daemon did not confirm the reload");
+        this.describe();
+        this.out.detail("Status", "Recorded, the daemon may still be using the previous rules");
+        this.out.note("Run 'aroxy status' to check what is in force, then 'aroxy reload' to retry.");
         return FAILED;
     }
 
@@ -125,7 +126,7 @@ final class AttachCommand implements Callable<Integer> {
     private Integer offline(Home home, boolean keep) {
         if (keep) {
             new AttachmentRegistry(home.attachments()).attach(this.file);
-            return this.attached();
+            return this.recorded();
         }
         this.out.error("Cannot attach temporary configuration");
         this.out.detail("Reason", "Daemon is not running");
@@ -138,10 +139,29 @@ final class AttachCommand implements Callable<Integer> {
     @SuppressWarnings(
         "SameReturnValue"
     )
-    private Integer attached() {
+    private Integer applied(Home home) {
+        this.out.success("Configuration attached and applied");
+        this.describe();
+        this.out.detail("Status", ActiveRules.inForce(home));
+        return 0;
+    }
+
+    @Justification(
+        "CLI command returns a fixed exit code by contract"
+    )
+    @SuppressWarnings(
+        "SameReturnValue"
+    )
+    private Integer recorded() {
         this.out.success("Configuration attached");
+        this.describe();
+        this.out.detail("Status", "Pending, applies when the daemon starts");
+        this.out.note("Run 'aroxy start' to put it in force.");
+        return 0;
+    }
+
+    private void describe() {
         this.out.detail("File", this.file.toAbsolutePath());
         this.out.detail("Scope", this.temporary ? "Temporary" : "Persistent");
-        return 0;
     }
 }

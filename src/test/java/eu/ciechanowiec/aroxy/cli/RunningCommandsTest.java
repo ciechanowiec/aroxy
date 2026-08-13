@@ -111,6 +111,23 @@ class RunningCommandsTest {
         assertTrue(list.out().contains("persistent"), list.out());
     }
 
+    @Test
+    void attachWhileRunningReportsThatItIsAlreadyInForce() {
+        Path rule = this.writeRule("live_codename", "Vega");
+        CliCapture.Result attach = CliCapture.run(CONFIG, "attach", rule.toString(), "--persistent");
+        assertEquals(0, attach.exit());
+        assertTrue(attach.out().contains("attached and applied"), attach.out());
+        assertTrue(attach.out().contains("Active now"), attach.out());
+        assertTrue(attach.out().contains("in effect"), attach.out());
+    }
+
+    @Test
+    void reloadReportsWhatIsInForceAfterwards() {
+        CliCapture.Result reload = CliCapture.run("reload");
+        assertEquals(0, reload.exit());
+        assertTrue(reload.out().contains("Active now"), reload.out());
+    }
+
     private Path writeRule(String id, String value) {
         Path rule = this.home.resolve(id + ".conf");
         this.write(

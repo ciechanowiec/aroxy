@@ -50,6 +50,8 @@ final class DetachCommand implements Callable<Integer> {
         new AttachmentRegistry(home.attachments()).detach(this.file);
         this.out.success("Configuration detached");
         this.out.detail("File", this.file.toAbsolutePath());
+        this.out.detail("Status", "Pending, takes effect when the daemon starts");
+        this.out.note("Run 'aroxy start' to run without it.");
         return 0;
     }
 }

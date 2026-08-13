@@ -34,8 +34,10 @@ final class ReloadCommand implements Callable<Integer> {
         boolean confirmed = ReloadRequest.send(home);
         if (confirmed) {
             this.out.success("Configuration reloaded");
+            this.out.detail("Status", ActiveRules.inForce(home));
         } else {
             this.out.error("Reload was not confirmed");
+            this.out.detail("Status", "The daemon may still be using the previous rules");
             this.out.detail("Log", home.appLog());
         }
         return confirmed ? 0 : UNCONFIRMED;

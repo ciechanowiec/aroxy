@@ -57,6 +57,25 @@ class CliCommandTest {
     }
 
     @Test
+    void attachWhileStoppedSaysItIsNotInForceYet() {
+        Path rule = this.writeRule();
+        CliCapture.Result result = CliCapture.run(CONFIG, "attach", rule.toString());
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("Pending"), result.out());
+        assertTrue(result.out().contains("when the daemon starts"), result.out());
+        assertFalse(result.out().contains("Active now"), result.out());
+    }
+
+    @Test
+    void detachWhileStoppedSaysWhenItTakesEffect() {
+        Path rule = this.writeRule();
+        CliCapture.run(CONFIG, "attach", rule.toString());
+        CliCapture.Result detach = CliCapture.run(CONFIG, "detach", rule.toString());
+        assertEquals(0, detach.exit());
+        assertTrue(detach.out().contains("when the daemon starts"), detach.out());
+    }
+
+    @Test
     void detachWhileStoppedSucceeds() {
         Path rule = this.writeRule();
         CliCapture.run(CONFIG, "attach", rule.toString());
