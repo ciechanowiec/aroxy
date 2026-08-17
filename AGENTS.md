@@ -39,9 +39,9 @@ leaves the machine. It does not hide that an agent is used or change the destina
   source shaping, coverage, repository governance, and the files its asset manifest marks pinned.
   Do not recreate a local copy of an inherited rule or plugin configuration.
 - **Extended verification: `mvn clean package -Pextended`.** It runs every default gate plus commit-history and
-  typography checks, dependency freshness, mutation testing, gitleaks, Qodana, and the project-owned
-  README lint. Gitleaks and Qodana require Docker. The README lint requires the local documentation
-  toolchain described by `README.adoc`.
+  typography checks, dependency freshness, gitleaks, Qodana, and the project-owned README lint. Gitleaks
+  and Qodana require Docker. The README lint requires the local documentation toolchain described by
+  `README.adoc`.
 - **Default verification: `mvn clean package`.** It compiles, tests, runs Error Prone and NullAway,
   Checkstyle, PMD, SpotBugs, per-class JaCoCo, dependency and license checks, repository governance,
   and builds the executable jar without the slow profile.
@@ -102,8 +102,6 @@ leaves the machine. It does not hide that an agent is used or change the destina
 - Verification snapshots every committable file, fails without rewriting a changed pinned asset, and
   fails if a later build step changes that tree. `airness:assets-sync` is the explicit asset repair
   command, while the `format` profile is the explicit Java source-writing path.
-- PIT targets `eu.ciechanowiec.aroxy` except the role-based process boundaries configured in `pom.xml`.
-  `mutation-baseline.tsv` is project-owned and records each accepted survivor with its reason.
 - Qodana runs the profile embedded in Airness against a read-only repository copy. A genuine
   project-specific false positive is suppressed locally, never by weakening the shared profile.
 - Every `@SuppressWarnings` has a sibling `@Justification("...")` imported from
