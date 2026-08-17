@@ -8,14 +8,18 @@
 #     version Maven Central does not serve.
 #
 # It always reinstalls from scratch, idempotently and with clear logging:
-#   1. When aroxy is already installed, it reports the current version and the new version,
+#   1. Verifies the prerequisites and stops on the first one that is unmet, naming SDKMAN as the
+#      suggested source of a JDK. The JDK must be exactly the feature release aroxy is compiled for
+#      and is checked before anything on disk is read or written. The tool the chosen path needs
+#      (curl to download, Maven to build) is checked before that path starts.
+#   2. When aroxy is already installed, it reports the current version and the new version,
 #      stops the service if it is running, and removes the previous state directory ~/.aroxy
 #      (configuration, vault, logs, and attachments registry) so the reinstall starts clean --
 #      the same end state as running uninstall.sh and then install.sh.
-#   2. Puts the jar at ~/.aroxy/aroxy.jar.
-#   3. Writes a launcher to ~/.local/bin/aroxy and makes it executable.
-#   4. Generates a shell completion script to ~/.aroxy/aroxy_completion.
-#   5. Adds a reversible managed block to your shell rc (~/.zshrc or ~/.bashrc) that puts
+#   3. Puts the jar at ~/.aroxy/aroxy.jar.
+#   4. Writes a launcher to ~/.local/bin/aroxy and makes it executable.
+#   5. Generates a shell completion script to ~/.aroxy/aroxy_completion.
+#   6. Adds a reversible managed block to your shell rc (~/.zshrc or ~/.bashrc) that puts
 #      the launcher on PATH and enables completion. Re-running replaces the block; uninstall.sh
 #      removes it.
 #
@@ -42,8 +46,37 @@ readonly BLOCK_START="# >>> aroxy >>>"
 readonly BLOCK_END="# <<< aroxy <<<"
 readonly STOP_WAIT_ATTEMPTS=50
 readonly STOP_WAIT_PAUSE=0.1
+# The feature release aroxy's jar is compiled for. A JVM below it cannot load the jar at all, and one
+# above it is untested, so either would leave this script installing a launcher that fails on its
+# first run. Keep it in step with .java-version and the README prerequisites.
+readonly REQUIRED_JAVA=25
+readonly JAVA_SUGGESTION="https://sdkman.io"
 
-log() { printf '[aroxy-install] %s\n' "$1" >&2; }
+# Presentation. This mirrors the CLI's own output vocabulary (src/main/java/eu/ciechanowiec/aroxy/cli/
+# CliOutput.java) so installing reads like every other aroxy command: a cyan bullet for a step in
+# progress, a green check for one that completed, a dim circle for something absent, a yellow bang for
+# a warning, a red cross for a failure, and dim padded labels for the values underneath. It is
+# duplicated in uninstall.sh rather than sourced from a shared file on purpose, because both scripts
+# are used standalone (curl | bash, and copied one by one by the release smoke test), where a sibling
+# file would not be there to source. The block is kept identical in both copies so they can be compared
+# with a plain diff, which is why it also defines the states this script never reaches.
+if [[ -t 2 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
+  readonly RESET=$'\033[0m' BOLD=$'\033[1m' DIM=$'\033[2m'
+  readonly GREEN=$'\033[32m' YELLOW=$'\033[33m' CYAN=$'\033[36m' RED=$'\033[31m'
+else
+  readonly RESET='' BOLD='' DIM=''
+  readonly GREEN='' YELLOW='' CYAN='' RED=''
+fi
+
+state() { printf '%s%s%s %s%s%s\n' "$1" "$2" "$RESET" "$BOLD" "$3" "$RESET" >&2; }
+success() { state "$GREEN" '✓' "$1"; }
+info() { state "$CYAN" '●' "$1"; }
+inactive() { state "$DIM" '○' "$1"; }
+warning() { state "$YELLOW" '!' "$1"; }
+failure() { state "$RED" '✗' "$1"; }
+heading() { printf '%s%s%s%s\n' "$CYAN" "$BOLD" "$1" "$RESET" >&2; }
+detail() { printf '  %s%-12s%s %s\n' "$DIM" "$1" "$RESET" "$2" >&2; }
+note() { printf '  %s%s%s\n' "$DIM" "$1" "$RESET" >&2; }
 
 script_dir() {
   local src="${BASH_SOURCE[0]:-}"
@@ -59,8 +92,77 @@ target_rc() {
   esac
 }
 
+# Reports what a jar calls itself, or nothing when it cannot say. The failure is swallowed on purpose:
+# under `set -e` an assignment inherits the status of the command substitution that feeds it, so an
+# unguarded probe of an unreadable jar would abort the script with no message at all.
 jar_version() {
-  java -jar "$1" --version 2>/dev/null | head -n 1
+  java -jar "$1" --version 2>/dev/null | head -n 1 || true
+}
+
+# Reports the first line of `java --version`, or nothing when no usable JVM answers. Guarded for the
+# same reason as jar_version.
+java_report() {
+  java --version 2>/dev/null | head -n 1 || true
+}
+
+# Surfaces what java itself complained about, which is the whole message on a machine carrying only a
+# stub launcher (macOS ships one that exists on PATH and reports no runtime). Its own words beat any
+# guess this script could make. Only stderr is read, and the JVM's option banner is dropped so it
+# cannot be mistaken for the diagnosis.
+java_diagnosis() {
+  java --version 2>&1 >/dev/null | grep -v '^Picked up ' | head -n 1 || true
+}
+
+# Extracts the feature version from a `java --version` banner. Vendors disagree on the leading word
+# ("openjdk 25.0.3 ...", "java 25.0.1 ..."), so the first version-shaped token is taken rather than a
+# fixed field.
+java_feature() {
+  printf '%s' "$1" | grep -oE '[0-9]+(\.[0-9]+)*' | head -n 1 | cut -d . -f 1 || true
+}
+
+java_advice() {
+  note "Install JDK $REQUIRED_JAVA. The suggested way is SDKMAN: $JAVA_SUGGESTION"
+}
+
+# Fails closed on an unusable JDK, and does it first, before any state is read or written. Every later
+# step already depends on a working java (reading the installed jar's version, stopping a running
+# daemon, generating the completion script), and each of those hides java's stderr, so without this
+# check a missing JDK either aborts the install with a message blaming the download or, from a
+# checkout, completes it and leaves a launcher that dies on first use.
+require_java() {
+  local report feature
+  info 'Checking prerequisites'
+  if ! command -v java >/dev/null 2>&1; then
+    failure "aroxy needs JDK $REQUIRED_JAVA, and no java is on PATH"
+    java_advice
+    exit 1
+  fi
+  report="$(java_report)"
+  if [[ -z "$report" ]]; then
+    failure "aroxy needs JDK $REQUIRED_JAVA, and the java on PATH does not run"
+    detail 'Java' "$(command -v java)"
+    detail 'Reported' "$(java_diagnosis)"
+    java_advice
+    exit 1
+  fi
+  feature="$(java_feature "$report")"
+  if [[ "$feature" != "$REQUIRED_JAVA" ]]; then
+    failure "aroxy needs JDK $REQUIRED_JAVA, but PATH offers ${feature:-an unrecognized version}"
+    detail 'Java' "$report"
+    java_advice
+    exit 1
+  fi
+  detail 'Java' "$report"
+}
+
+# Fails closed on a missing install tool. Without this the absence surfaces much later as a wrong
+# answer rather than a missing program: an unreachable curl leaves the metadata empty, which reads as
+# Maven Central publishing no usable release.
+require_tool() {
+  local tool="$1" purpose="$2"
+  command -v "$tool" >/dev/null 2>&1 && return 0
+  failure "aroxy needs $tool to $purpose, and it is not on PATH"
+  exit 1
 }
 
 # Polls until the given pid is no longer alive, or ~5s elapses, whichever comes first.
@@ -90,7 +192,8 @@ stop_service() {
   pid="$(recorded_pid)"
   if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
     running="true"
-    log "The service is running (pid $pid) and will be stopped first."
+    info 'The service is running and will be stopped first'
+    detail 'PID' "$pid"
   fi
   if [[ -x "$LAUNCHER" ]]; then
     "$LAUNCHER" stop >/dev/null 2>&1 || true
@@ -106,22 +209,26 @@ stop_service() {
   if kill -0 "$pid" 2>/dev/null; then
     kill -9 "$pid" 2>/dev/null || true
   fi
-  log "Stopped the running service (pid $pid)."
+  success 'Stopped the running service'
 }
 
 acquire_jar() {
   local dest="$1" here version
   here="$(script_dir 2>/dev/null || true)"
   if [[ -n "$here" && -f "$here/target/aroxy.jar" ]]; then
-    log "Using the locally built jar: $here/target/aroxy.jar"
+    info 'Using the locally built jar'
+    detail 'Source' "$here/target/aroxy.jar"
     cp "$here/target/aroxy.jar" "$dest"
   elif [[ -n "$here" && -f "$here/pom.xml" ]]; then
-    log "Building the jar with: mvn -q clean package"
+    require_tool mvn 'build from this checkout'
+    info 'Building the jar'
+    detail 'Command' 'mvn -q clean package'
     ( cd "$here" && mvn -q clean package )
     cp "$here/target/aroxy.jar" "$dest"
   else
+    require_tool curl 'download a release'
     version="$(latest_release_version)" || exit 1
-    log "Downloading aroxy $version from Maven Central..."
+    info "Downloading aroxy $version from Maven Central"
     curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar" -o "$dest"
     verify_jar "$dest" "$version"
   fi
@@ -133,12 +240,13 @@ acquire_jar() {
 # download URL, so a corrupted or hostile metadata document cannot steer the install elsewhere.
 latest_release_version() {
   local metadata version
-  log "Resolving the newest aroxy release published to Maven Central..."
+  info 'Resolving the newest aroxy release published to Maven Central'
   metadata="$(curl -fsSL "$RELEASE_METADATA_URL" || true)"
   version="$(printf '%s' "$metadata" | grep -o '<release>[^<]*</release>' | tail -n 1 |
     sed -e 's|<release>||' -e 's|</release>||' | tr -d '[:space:]')"
   if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ || "$version" == *-SNAPSHOT ]]; then
-    log "ERROR: $RELEASE_METADATA_URL published no usable release version; aborting."
+    failure 'Maven Central published no usable release version'
+    detail 'Metadata' "$RELEASE_METADATA_URL"
     exit 1
   fi
   printf '%s' "$version"
@@ -159,26 +267,30 @@ sha256_of() {
 # corrupted jar is never put on PATH.
 verify_jar() {
   local jar="$1" version="$2" expected actual reported
-  log "Verifying the download against its published SHA-256..."
+  info 'Verifying the download against its published SHA-256'
   expected="$(curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar.sha256" | tr -d '[:space:]')"
   if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
     rm -f "$jar"
-    log "ERROR: Maven Central returned no valid SHA-256; aborting."
+    failure 'Maven Central returned no valid SHA-256, so the download was discarded'
     exit 1
   fi
   actual="$(sha256_of "$jar")"
   if [[ "$actual" != "$expected" ]]; then
     rm -f "$jar"
-    log "ERROR: checksum mismatch (expected $expected, got $actual); aborting."
+    failure 'Checksum mismatch, so the download was discarded'
+    detail 'Expected' "$expected"
+    detail 'Actual' "$actual"
     exit 1
   fi
   reported="$(jar_version "$jar")"
   if [[ "$reported" != "aroxy $version" ]]; then
     rm -f "$jar"
-    log "ERROR: downloaded jar reports '$reported', not 'aroxy $version'; aborting."
+    failure 'The downloaded jar reports the wrong version, so it was discarded'
+    detail 'Expected' "aroxy $version"
+    detail 'Reported' "${reported:-nothing}"
     exit 1
   fi
-  log "Checksum and version verified."
+  success 'Checksum and version verified'
 }
 
 write_launcher() {
@@ -192,7 +304,6 @@ export AROXY_HOME="\${AROXY_HOME:-\$HOME/.aroxy}"
 exec java -jar "\$AROXY_HOME/aroxy.jar" "\$@"
 EOF
   chmod +x "$LAUNCHER"
-  log "Wrote launcher: $LAUNCHER"
 }
 
 write_completion() {
@@ -206,15 +317,17 @@ write_completion() {
     sed -i.aroxy-bak '/\${IFS}/ s|$|\
     COMPREPLY+=( $(IFS=" "; compgen -W "${flag_opts} ${arg_opts}" -- "${curr_word}") )|' "$COMPLETION"
     rm -f "$COMPLETION.aroxy-bak"
-    log "Wrote completion (flags complete on bare TAB): $COMPLETION"
   else
-    log "WARNING: could not generate completion script (skipping)."
+    # The redirection above truncates the file before java runs, so a failure leaves an empty script
+    # behind. Removing it keeps the rc block from sourcing nothing and lets the summary report only
+    # what was really written.
+    rm -f "$COMPLETION"
+    warning 'Could not generate the completion script, so it was skipped'
   fi
 }
 
 setup_shell() {
-  local rc
-  rc="$(target_rc)"
+  local rc="$1"
   touch "$rc"
   if grep -qF "$BLOCK_START" "$rc" 2>/dev/null; then
     sed -i.aroxy-bak "/$BLOCK_START/,/$BLOCK_END/d" "$rc"
@@ -232,41 +345,70 @@ fi
 copilot() { command aroxy copilot "$@"; }
 # <<< aroxy <<<
 BLOCK
-  log "Set up PATH and completion in: $rc"
-  log "Done. Restart your shell (or 'source $rc'), then run: aroxy --help"
+}
+
+# Describes the installation already in place, and reports nothing when there is none. A jar that
+# cannot say what it is still counts as installed: the reinstall has to wipe the previous state either
+# way, and treating an unreadable jar as absent would leave the old configuration, vault, and shell
+# block in place while reporting a clean install.
+installed_version() {
+  local reported
+  [[ -f "$INSTALLED_JAR" ]] || return 0
+  reported="$(jar_version "$INSTALLED_JAR")"
+  printf '%s' "${reported:-an unreadable jar}"
 }
 
 reset_existing() {
   local current="$1"
   [[ -n "$current" ]] || return 0
-  log "aroxy is already installed (current version: $current)."
+  info "Already installed: $current"
   stop_service
   rm -rf "$AROXY_HOME"
-  log "Removed the previous installation (state directory $AROXY_HOME) for a clean reinstall."
+  success 'Removed the previous installation for a clean reinstall'
+  detail 'State' "$AROXY_HOME"
 }
 
 announce() {
   local current="$1" new="$2"
   if [[ -n "$current" ]]; then
-    log "Reinstalling it from scratch (new version: $new)."
+    info "Reinstalling from scratch as $new"
   else
-    log "Installing aroxy (version: $new)."
+    info "Installing $new"
   fi
 }
 
+# Renders the finished install the way `aroxy start` renders a started daemon: one headline, then the
+# paths that now exist. The completion line is conditional because generating it is allowed to fail.
+summarize() {
+  local version="$1" rc="$2"
+  success 'Installed'
+  detail 'Version' "$version"
+  detail 'Jar' "$INSTALLED_JAR"
+  detail 'Launcher' "$LAUNCHER"
+  if [[ -s "$COMPLETION" ]]; then
+    detail 'Completion' "$COMPLETION"
+  fi
+  detail 'Shell' "$rc"
+  note "Restart your shell (or: source $rc), then run: aroxy --help"
+}
+
 main() {
-  local current=""
-  [[ -f "$INSTALLED_JAR" ]] && current="$(jar_version "$INSTALLED_JAR")"
+  local current="" rc version
+  heading 'aroxy installer'
+  require_java
+  rc="$(target_rc)"
+  current="$(installed_version)"
   reset_existing "$current"
   mkdir -p "$AROXY_HOME"
   chmod 700 "$AROXY_HOME"
   acquire_jar "$STAGED_JAR"
-  announce "$current" "$(jar_version "$STAGED_JAR")"
+  version="$(jar_version "$STAGED_JAR")"
+  announce "$current" "$version"
   mv -f "$STAGED_JAR" "$INSTALLED_JAR"
-  log "Installed jar: $INSTALLED_JAR"
   write_launcher
   write_completion
-  setup_shell
+  setup_shell "$rc"
+  summarize "$version" "$rc"
 }
 
 main "$@"
