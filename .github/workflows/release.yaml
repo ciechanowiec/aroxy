@@ -6,7 +6,7 @@ on:
       release_version:
         description: 'Version already declared in pom.xml'
         required: true
-        default: '1.0.2-SNAPSHOT'
+        default: '1.0.2'
         type: string
       publish:
         description: 'Publish permanently after Extended verification'
