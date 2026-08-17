@@ -35,7 +35,7 @@ leaves the machine. It does not hide that an agent is used or change the destina
 ## Build & test
 
 - The project inherits the shared Java harness from
-  `eu.ciechanowiec:airness-parent:1.0.2`. Airness owns analyzer versions, rule sets,
+  `eu.ciechanowiec:airness-parent:1.0.4-SNAPSHOT`. Airness owns analyzer versions, rule sets,
   source shaping, coverage, repository governance, and the files its asset manifest marks pinned.
   Do not recreate a local copy of an inherited rule or plugin configuration.
 - **Extended verification: `mvn clean package -Pextended`.** It runs every default gate plus commit-history and

@@ -20,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * A stable, bidirectional original&lt;-&gt;token store. The same original always yields the same
+ * A stable, bidirectional {@code original<->token} store. The same original always yields the same
  * token, and a token reverses to its exact original. Pairs from non-sensitive rules are persisted to
  * a tab-separated file (the original is {@link Base64}-encoded so values with control characters survive a
  * round trip) so their tokens stay stable across a restart. Pairs from sensitive rules are held in
