@@ -35,7 +35,7 @@ leaves the machine. It does not hide that an agent is used or change the destina
 ## Build & test
 
 - The project inherits the shared Java harness from
-  `eu.ciechanowiec:airness-parent:1.0.4-SNAPSHOT`. Airness owns analyzer versions, rule sets,
+  `eu.ciechanowiec:airness-parent:1.0.4`. Airness owns analyzer versions, rule sets,
   source shaping, coverage, repository governance, and the files its asset manifest marks pinned.
   Do not recreate a local copy of an inherited rule or plugin configuration.
 - **Extended verification: `mvn clean package -Pextended`.** It runs every default gate plus commit-history and
@@ -55,8 +55,8 @@ leaves the machine. It does not hide that an agent is used or change the destina
 - **Starting the daemon needs no OS-level job submission.** `aroxy start` already spawns a detached JVM
   (`daemon/Launcher`) and writes under `~/.aroxy/logs/`. Do not wrap it in `launchctl`, systemd,
   `nohup`, or another scheduler. Invoke it normally and inspect the logs to confirm startup.
-- Requires JDK 25, Maven 3.9.16 or later, the locally installed Airness SNAPSHOT, and Docker plus the
-  documentation tools for extended verification.
+- Requires JDK 25, Maven 3.9.16 or later, and Docker plus the documentation tools for extended
+  verification.
 
 ## Conventions
 
