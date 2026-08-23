@@ -20,12 +20,6 @@ import java.util.stream.Collectors;
  * keeping its first-seen position, new ids append, and {@code enabled = false} rules are dropped from
  * the effective list. The contributing-file labels are retained for {@code aroxy config}.
  */
-@Justification(
-    "a composed class whose coupling is governed by the project's own Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 public final class EffectiveConfig {
 
     private final Settings settings;

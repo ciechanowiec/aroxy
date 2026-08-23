@@ -1,7 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import eu.ciechanowiec.airness.Justification;
-import eu.ciechanowiec.aroxy.daemon.Home;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,20 +34,20 @@ final class CopilotCertificates {
     private static final String KEY_STORE_FILE = "copilot-ca.p12";
     private static final String PASSWORD = "local-aroxy";
     private static final int PEM_LINE_LENGTH = 64;
-    private final Home home;
+    private final Path stateDirectory;
     private final KeyStore store;
     private final ReentrantLock lock;
 
-    private CopilotCertificates(Home home, KeyStore store) {
-        this.home = home;
+    private CopilotCertificates(Path stateDirectory, KeyStore store) {
+        this.stateDirectory = stateDirectory;
         this.store = store;
         this.lock = new ReentrantLock();
     }
 
-    static CopilotCertificates open(Home home) {
+    static CopilotCertificates open(Path stateDirectory) {
         try {
-            createAuthorityIfAbsent(home);
-            return new CopilotCertificates(home, load(home));
+            createAuthorityIfAbsent(stateDirectory);
+            return new CopilotCertificates(stateDirectory, load(stateDirectory));
         } catch (IOException | GeneralSecurityException | OperatorCreationException exception) {
             throw new UncheckedIOException("Could not prepare the Copilot certificate authority", asIo(exception));
         }
@@ -88,13 +87,13 @@ final class CopilotCertificates {
     }
 
     private static void createAuthorityIfAbsent(
-        Home home
+        Path stateDirectory
     ) throws IOException, GeneralSecurityException, OperatorCreationException {
-        if (Files.notExists(keyStore(home))) {
-            createAuthority(home);
+        if (Files.notExists(keyStore(stateDirectory))) {
+            createAuthority(stateDirectory);
         }
-        if (Files.notExists(authority(home))) {
-            writeAuthority(home, load(home));
+        if (Files.notExists(authority(stateDirectory))) {
+            writeAuthority(stateDirectory, load(stateDirectory));
         }
     }
 
@@ -105,7 +104,7 @@ final class CopilotCertificates {
         "OverlyBroadThrowsClause"
     )
     private static void createAuthority(
-        Home home
+        Path stateDirectory
     ) throws IOException, GeneralSecurityException, OperatorCreationException {
         KeyStore created = KeyStore.getInstance(STORE_TYPE);
         created.load(null, passwordChars());
@@ -114,8 +113,8 @@ final class CopilotCertificates {
             AUTHORITY_ALIAS, authority.signer(), passwordChars(),
             new Certificate[] {authority.certificate()}
         );
-        save(home, created);
-        writeAuthority(home, created);
+        save(stateDirectory, created);
+        writeAuthority(stateDirectory, created);
     }
 
     @Justification(
@@ -124,9 +123,9 @@ final class CopilotCertificates {
     @SuppressWarnings(
         "OverlyBroadThrowsClause"
     )
-    private static KeyStore load(Home home) throws IOException, GeneralSecurityException {
+    private static KeyStore load(Path stateDirectory) throws IOException, GeneralSecurityException {
         KeyStore loaded = KeyStore.getInstance(STORE_TYPE);
-        try (InputStream input = Files.newInputStream(keyStore(home))) {
+        try (InputStream input = Files.newInputStream(keyStore(stateDirectory))) {
             loaded.load(input, passwordChars());
         }
         return loaded;
@@ -145,15 +144,15 @@ final class CopilotCertificates {
         this.store.setKeyEntry(
             host, leaf.signer(), passwordChars(), new Certificate[] {leaf.certificate(), issuer}
         );
-        save(this.home, this.store);
+        save(this.stateDirectory, this.store);
     }
 
-    private static Path authority(Home home) {
-        return home.base().resolve(AUTHORITY_FILE);
+    private static Path authority(Path stateDirectory) {
+        return stateDirectory.resolve(AUTHORITY_FILE);
     }
 
-    private static Path keyStore(Home home) {
-        return home.base().resolve(KEY_STORE_FILE);
+    private static Path keyStore(Path stateDirectory) {
+        return stateDirectory.resolve(KEY_STORE_FILE);
     }
 
     @Justification(
@@ -162,8 +161,8 @@ final class CopilotCertificates {
     @SuppressWarnings(
         "OverlyBroadThrowsClause"
     )
-    private static void save(Home home, KeyStore saved) throws IOException, GeneralSecurityException {
-        try (OutputStream output = Files.newOutputStream(keyStore(home))) {
+    private static void save(Path stateDirectory, KeyStore saved) throws IOException, GeneralSecurityException {
+        try (OutputStream output = Files.newOutputStream(keyStore(stateDirectory))) {
             saved.store(output, passwordChars());
         }
     }
@@ -174,12 +173,14 @@ final class CopilotCertificates {
     @SuppressWarnings(
         "OverlyBroadThrowsClause"
     )
-    private static void writeAuthority(Home home, KeyStore source) throws IOException, GeneralSecurityException {
+    private static void writeAuthority(
+        Path stateDirectory, KeyStore source
+    ) throws IOException, GeneralSecurityException {
         X509Certificate certificate = (X509Certificate) source.getCertificate(AUTHORITY_ALIAS);
         String encoded = Base64.getMimeEncoder(PEM_LINE_LENGTH, new byte[] {'\n'})
             .encodeToString(certificate.getEncoded());
         String pem = "-----BEGIN CERTIFICATE-----\n" + encoded + "\n-----END CERTIFICATE-----\n";
-        Files.writeString(authority(home), pem, StandardCharsets.US_ASCII);
+        Files.writeString(authority(stateDirectory), pem, StandardCharsets.US_ASCII);
     }
 
     private static char[] passwordChars() {

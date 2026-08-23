@@ -25,16 +25,19 @@ Airness governs all of the following domains:
 - **Repository files and instructions:** managed, seeded, and forbidden files; agent instruction files; editor and Git
   configuration; and an unchanged committable tree during verification.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
-  comments, source comments, and typography.
+  comments, source comments, typography, banned substitutes, and cycles among the packages of a module.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
-  licenses, available stable updates, and the maximum permitted freshness gap.
+  declared mocking libraries, licenses, known vulnerabilities, available stable updates, and the maximum permitted
+  freshness gap.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material.
-- **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test,
-  production-to-test boundaries, per-class line and branch coverage, and current-build coverage evidence.
-- **Repository assurance:** secret scanning, Qodana analysis, complete Git history, commit-message policy, commit
-  typography, linear history, and history-wide compliance.
+- **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
+  shuffled execution order under a declared seed, an assertion in every test, assertions that literals alone cannot
+  settle, production-to-test boundaries, per-class line and branch coverage, and current-build coverage evidence.
+- **Repository assurance:** secret scanning, Qodana analysis, the ceiling on how many suppressions the repository
+  holds, complete Git history, commit-message policy, commit typography, linear history, and history-wide
+  compliance.
 
 Do not treat a domain omitted from one command's output as ungoverned. The parent POM, bundled configurations, and
 Airness goals together define the executable contract.
@@ -74,6 +77,16 @@ Check a commit as soon as it is recorded, with
 `mvn airness:commit-history airness:commit-typography airness:linear-history`. All three goals read the repository
 rather than the module, so none of them needs a build, and an unpublished commit can still be amended.
 
+### Assertions
+
+The harness checks that every test reaches an assertion and that no assertion compares one written-out value with
+another. Neither check decides the question those two stand in for, which is whether the assertion would notice if
+the behaviour went missing. That half binds in prose: a test fails when the behaviour its name states is removed
+from the code under test. Write each test so that it would, and read it back that way before finishing.
+
+The search for an assertion stops at the file boundary, so a test that reaches one only through a helper in another
+type reports as unproven. Move the assertion into the test's own source rather than suppressing the finding.
+
 ### History Shape
 
 The history is linear, so a merge commit is prohibited wherever it sits, including between two side branches. A
@@ -101,6 +114,8 @@ it is published, only a fresh history satisfies the rule.
   history, security, and tool failures at their source; do not disable the failing check.
 - Change typography exclusions, coverage exclusions, or the default test timeout only for an explicit project
   requirement. Never use an exclusion or a larger timeout merely to obtain a pass.
+- The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
+  suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.

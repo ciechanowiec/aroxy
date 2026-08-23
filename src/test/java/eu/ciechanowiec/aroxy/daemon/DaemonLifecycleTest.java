@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,12 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-@Justification(
-    "drives a real daemon end to end, and coupling is governed by the project's own Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class DaemonLifecycleTest {
 
     private static final int OK = 200;

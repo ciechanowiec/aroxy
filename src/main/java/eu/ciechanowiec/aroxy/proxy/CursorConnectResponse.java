@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.proxy.CursorHttp.WireFormat;
@@ -13,12 +12,6 @@ import org.eclipse.jetty.io.Content;
 /**
  * Restores Cursor Connect response envelopes while forwarding them to the CLI.
  */
-@Justification(
-    "composed class: it wires the two response dialects together, and coupling is capped by Checkstyle"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class CursorConnectResponse {
 
     private final CursorTransport transport;

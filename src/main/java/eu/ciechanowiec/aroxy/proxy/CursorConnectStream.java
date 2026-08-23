@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.proxy.CursorHttp.WireFormat;
 import java.io.IOException;
@@ -10,12 +9,6 @@ import org.eclipse.jetty.server.Response;
 /**
  * Transforms Cursor's bidirectional Connect envelopes while streaming them in both directions.
  */
-@Justification(
-    "composed class: it owns the upload, the duplex upstream and the response reader of one exchange"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class CursorConnectStream implements AutoCloseable {
 
     private final CursorConnectContext context;

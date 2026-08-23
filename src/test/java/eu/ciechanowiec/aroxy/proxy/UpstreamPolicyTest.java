@@ -2,7 +2,6 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.CodexCli;
@@ -18,12 +17,6 @@ import org.junit.jupiter.api.Test;
 /**
  * Pins when an explicit forward-proxy destination may replace the configured test seam.
  */
-@Justification(
-    "the socket-level policy test legitimately composes a profile, gateway, and real upstream"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class UpstreamPolicyTest {
 
     private static final URI UNREACHABLE = URI.create("http://127.0.0.1:1/chosen?value=one");

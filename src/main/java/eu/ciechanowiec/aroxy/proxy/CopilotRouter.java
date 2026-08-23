@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.CopilotTransport;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationResult;
@@ -19,12 +18,6 @@ import org.json.JSONException;
  * credential-bearing forwarder.
  */
 @Slf4j
-@Justification(
-    "a composed request boundary whose coupling is governed by the project's Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class CopilotRouter {
 
     private static final int BAD_REQUEST = 400;

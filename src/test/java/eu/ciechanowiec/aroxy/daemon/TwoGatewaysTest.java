@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClaudeCode;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.client.CodexCli;
@@ -33,12 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
  * shared vault means in practice: a value obfuscated in one agent's session is recognisable in the
  * other's.
  */
-@Justification(
-    "this socket-level integration test composes the daemon, every client profile, and HTTP fixtures"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class TwoGatewaysTest {
 
     private static final int OK = 200;

@@ -26,12 +26,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Justification(
-    "field/dependency counts are governed by the project's own PMD and Checkstyle caps"
+    "synchronization and field counts are governed by the project's own PMD caps"
 )
 @SuppressWarnings(
     {
         "PMD.AvoidSynchronizedAtMethodLevel", "PMD.AvoidUsingVolatile",
-        "ClassWithTooManyFields", "ClassWithTooManyDependencies"
+        "ClassWithTooManyFields"
     }
 )
 public final class Daemon {

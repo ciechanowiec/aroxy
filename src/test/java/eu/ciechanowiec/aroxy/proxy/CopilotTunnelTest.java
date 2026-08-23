@@ -3,12 +3,10 @@ package eu.ciechanowiec.aroxy.proxy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.BufferedTransport;
 import eu.ciechanowiec.aroxy.client.CopilotTransport;
 import eu.ciechanowiec.aroxy.client.RequestBodyPolicy;
 import eu.ciechanowiec.aroxy.client.SseDialect;
-import eu.ciechanowiec.aroxy.daemon.Home;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -28,12 +26,6 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Pins the routing decision that leaves hosts outside Copilot's boundary as ordinary tunnels.
  */
-@Justification(
-    "the socket-level tunnel test legitimately composes transport, certificates, TLS, and an upstream"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class CopilotTunnelTest {
 
     private static final int HTTPS = 443;
@@ -54,7 +46,7 @@ class CopilotTunnelTest {
             InetAddress.ofLiteral(LocalHost.HOST), INTERNAL
         );
         CopilotTunnel tunnel = new CopilotTunnel(
-            transport, CopilotCertificates.open(new Home(this.base)),
+            transport, CopilotCertificates.open(this.base),
             new SslContextFactory.Server(), intercepted
         );
         InetSocketAddress destination = tunnel.destination("github.com", HTTPS);

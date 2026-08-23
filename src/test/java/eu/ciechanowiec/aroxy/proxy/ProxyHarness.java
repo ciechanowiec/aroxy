@@ -6,7 +6,6 @@ import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.Gateway;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
-import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Rule;
 import eu.ciechanowiec.aroxy.obfuscation.Vault;
@@ -25,12 +24,6 @@ import java.util.Optional;
  * <p>The listener serves whichever {@link ClientProfile} it is given, defaulting to
  * {@link ClaudeCode}, so the same harness drives any client's path scope and stream dialect.
  */
-@Justification(
-    "the harness legitimately composes the whole proxy stack for socket-level tests"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class ProxyHarness {
 
     static final String SECRET = "AKIAIOSFODNN7EXAMPLE";
@@ -75,7 +68,7 @@ final class ProxyHarness {
         AuditLog audit = new AuditLog(logsDirectory);
         Gateway gateway = new Gateway(listenPort, upstream.uri());
         ProxyParts parts = new ProxyParts(
-            obfuscator, Upstream.forProfile(gateway, profile), audit, profile, new Home(logsDirectory)
+            obfuscator, Upstream.forProfile(gateway, profile), audit, profile, logsDirectory
         );
         this.server = new ProxyServer(LocalHost.HOST, gateway, parts);
         this.server.start();

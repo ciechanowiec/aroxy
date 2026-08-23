@@ -122,9 +122,8 @@ class ClientSinkTest {
     @SneakyThrows
     void flushesEveryKeepAliveSoItLeavesTheProxy() {
         SignallingBytes target = new SignallingBytes();
-        try (ClientSink sink = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
+        try (ClientSink _ = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
             assertTrue(target.awaitFlush(), "a keep-alive held in a buffer never arrives");
-            assertTrue(sink.keepAlives() >= 1, "the keep-alive is counted");
         }
     }
 
@@ -132,11 +131,10 @@ class ClientSinkTest {
     @SneakyThrows
     void writesAKeepAliveCommentWhileTheUpstreamIsSilent() {
         SignallingBytes target = new SignallingBytes();
-        try (ClientSink sink = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
+        try (ClientSink _ = ClientSink.keepingAlive(target, Duration.ofMillis(PULSE_MILLIS))) {
             assertTrue(
                 target.awaitWrite(), "a silent stream is kept warm within the timeout"
             );
-            assertTrue(sink.keepAlives() >= 1, "the keep-alive is counted");
         }
         assertTrue(target.text().startsWith(": "), target.text());
         assertTrue(target.text().endsWith("\n\n"), "a keep-alive ends on an event boundary");

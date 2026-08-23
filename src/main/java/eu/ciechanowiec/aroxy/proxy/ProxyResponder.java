@@ -32,12 +32,6 @@ import lombok.extern.slf4j.Slf4j;
  * the deobfuscator, which would corrupt it.
  */
 @Slf4j
-@Justification(
-    "a composed class whose coupling is governed by the project's own Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class ProxyResponder {
 
     private static final int BUFFER = 8192;

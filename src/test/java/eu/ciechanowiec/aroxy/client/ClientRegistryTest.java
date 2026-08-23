@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +18,6 @@ import org.junit.jupiter.api.Test;
  * its own configuration key. Two clients sharing any of those would make one of them unreachable, and
  * the failure would surface as a confusing bind error rather than as a broken registration.
  */
-@Justification(
-    "the registry contract necessarily names every part of a client profile"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class ClientRegistryTest {
 
     private static final int CLAUDE_CODE_PORT = 8788;

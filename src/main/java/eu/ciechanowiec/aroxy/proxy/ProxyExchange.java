@@ -2,7 +2,6 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.BufferedTransport;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationResult;
@@ -24,12 +23,6 @@ import org.json.JSONException;
  * the proxy cannot inspect would violate the data-minimization guarantee.
  */
 @Slf4j
-@Justification(
-    "a composed class whose coupling is governed by the project's own Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class ProxyExchange implements HttpHandler {
 
     private static final int BAD_GATEWAY = 502;

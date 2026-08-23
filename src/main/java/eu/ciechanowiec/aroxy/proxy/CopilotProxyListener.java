@@ -38,7 +38,7 @@ final class CopilotProxyListener implements ProxyListener {
         this.privateServer = new Server();
         this.exchange = new CopilotExchange(parts, transport);
         this.privateServer.setHandler(this.exchange);
-        CopilotCertificates certificates = CopilotCertificates.open(parts.home());
+        CopilotCertificates certificates = CopilotCertificates.open(parts.stateDirectory());
         SslContextFactory.Server tls = tls(certificates);
         ServerConnector privateConnector = privateConnector(this.privateServer, tls);
         this.privateServer.addConnector(privateConnector);

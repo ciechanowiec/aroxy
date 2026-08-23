@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.config.ConfigFile;
 import eu.ciechanowiec.aroxy.config.EffectiveConfig;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
@@ -21,12 +20,6 @@ import org.junit.jupiter.api.Test;
 /**
  * Verifies recursive protobuf transformation without relying on Cursor's generated descriptors.
  */
-@Justification(
-    "a unit test of the transformer necessarily names the config, rule and obfuscation types it builds it from"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class ProtobufTransformerTest {
 
     private static final int LONG_TEXT_CHARACTERS = 140;

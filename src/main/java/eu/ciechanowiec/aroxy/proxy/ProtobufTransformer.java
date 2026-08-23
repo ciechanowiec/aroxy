@@ -26,12 +26,6 @@ import java.util.stream.Stream;
  * message root, so a caller can single out one field - Cursor's streamed text delta, say - without the
  * transformer knowing anything about that vendor's schema.
  */
-@Justification(
-    "composed class: it holds the whole wire-format walk, and coupling is capped by Checkstyle"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class ProtobufTransformer {
 
     private static final int MAX_DEPTH = 64;

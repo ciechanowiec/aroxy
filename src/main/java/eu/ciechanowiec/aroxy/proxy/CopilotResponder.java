@@ -23,12 +23,11 @@ import org.eclipse.jetty.server.Response;
  */
 @Slf4j
 @Justification(
-    "a composed response boundary whose coupling is governed by the project's Checkstyle cap, which "
-        + "this class is within, and decomposing it further would split one reply's handling across "
-        + "types that only ever run in sequence"
+    "this composed response boundary exceeds PMD's raw coupling count, while decomposing it further "
+        + "would split one reply's handling across types that only ever run in sequence"
 )
 @SuppressWarnings(
-    {"ClassWithTooManyDependencies", "PMD.CouplingBetweenObjects"}
+    "PMD.CouplingBetweenObjects"
 )
 final class CopilotResponder {
 

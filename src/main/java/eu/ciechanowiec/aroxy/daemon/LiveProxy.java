@@ -31,12 +31,6 @@ import java.util.Optional;
  * audit masking are updated in place, so a reload never drops a connection or rebinds a port, and
  * every listener reloads together.
  */
-@Justification(
-    "composes the whole proxy stack once per client, and coupling is governed by the project's own Checkstyle cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class LiveProxy {
 
     private final Obfuscator obfuscator;
@@ -87,7 +81,8 @@ final class LiveProxy {
     private static ProxyServer bind(Binding binding, ClientProfile profile) throws IOException {
         Gateway gateway = binding.settings().gateway(profile.id());
         ProxyParts parts = new ProxyParts(
-            binding.obfuscator(), Upstream.forProfile(gateway, profile), binding.audit(), profile, binding.home()
+            binding.obfuscator(), Upstream.forProfile(gateway, profile), binding.audit(), profile,
+            binding.home().base()
         );
         return new ProxyServer(binding.settings().listenHost(), gateway, parts);
     }

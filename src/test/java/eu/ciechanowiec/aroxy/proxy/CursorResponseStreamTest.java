@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -16,12 +15,6 @@ import org.junit.jupiter.api.Test;
  * a held partial is released, and what counts as the end of a turn - because each of those is a place
  * where a wrong answer still produces plausible-looking output.
  */
-@Justification(
-    "a unit test of the response reader necessarily names the frame, shape and obfuscation types it drives"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 class CursorResponseStreamTest {
 
     private static final String TOKEN = "<<PII:AWS_KEY:1>>";

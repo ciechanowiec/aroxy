@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.io.InputStream;
 import org.eclipse.jetty.server.Request;
@@ -9,12 +8,6 @@ import org.eclipse.jetty.server.Response;
 /**
  * Handles Cursor methods whose request and response bodies do not require duplex streaming.
  */
-@Justification(
-    "composed class: it holds one whole buffered exchange, and coupling is capped by Checkstyle"
-)
-@SuppressWarnings(
-    "ClassWithTooManyDependencies"
-)
 final class CursorBufferedRoutes {
 
     private static final String PROTO = "application/proto";
