@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.jetty.io.Content;
 
 /**
@@ -97,17 +98,16 @@ final class CursorConnectResponse {
     private static final class Reporter {
 
         private final CursorTurn completed;
-        private boolean reported;
+        private final AtomicBoolean reported;
 
         Reporter(CursorTurn completed) {
             this.completed = completed;
-            this.reported = false;
+            this.reported = new AtomicBoolean();
         }
 
         void when(boolean complete, int reversed) {
-            if (complete && !this.reported) {
+            if (complete && this.reported.compareAndSet(false, true)) {
                 this.completed.completed(reversed);
-                this.reported = true;
             }
         }
 

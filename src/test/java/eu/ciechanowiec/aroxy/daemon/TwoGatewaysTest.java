@@ -18,7 +18,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,19 +39,16 @@ class TwoGatewaysTest {
     private static final String CLAUDE_NAME = ClaudeCode.profile().displayName();
     private static final String CODEX_NAME = CodexCli.profile().displayName();
 
-    @TempDir
-    private Path base;
-    private UpstreamStub claudeCodeApi;
-    private UpstreamStub codexApi;
-    private Daemon daemon;
-    private Home home;
+    private final UpstreamStub claudeCodeApi;
+    private final UpstreamStub codexApi;
+    private final Daemon daemon;
+    private final Home home;
 
-    @BeforeEach
     @SneakyThrows
-    void startDaemon() {
+    TwoGatewaysTest(@TempDir Path base) {
         this.claudeCodeApi = new UpstreamStub();
         this.codexApi = new UpstreamStub();
-        this.home = DaemonHarness.prepare(this.base);
+        this.home = DaemonHarness.prepare(base);
         this.daemon = new Daemon(
             this.home, DaemonSeam.eachAt(
                 Map.of(

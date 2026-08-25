@@ -7,7 +7,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Deobfuscates a {@code text/event-stream} response on the fly. Incoming bytes are buffered and split
@@ -35,14 +37,18 @@ final class SseTransformer {
     private final StreamDeobfuscator deobfuscator;
     private final SseDialect dialect;
     private final ByteArrayOutputStream pending;
-    private String lastFragment;
+    /**
+     * The block the last fragment arrived on. One stream is transformed by one thread, so this holds
+     * sequential state. It is atomic so the field can be final, not because this class is shared.
+     */
+    private final AtomicReference<String> lastFragment;
 
     SseTransformer(OutputStream out, StreamDeobfuscator deobfuscator, SseDialect dialect) {
         this.out = out;
         this.deobfuscator = deobfuscator;
         this.dialect = dialect;
         this.pending = new ByteArrayOutputStream();
-        this.lastFragment = "";
+        this.lastFragment = new AtomicReference<>("");
     }
 
     void push(byte[] chunk, int length) throws IOException {
@@ -90,7 +96,7 @@ final class SseTransformer {
     }
 
     private String transformFragment(String block) {
-        this.lastFragment = block;
+        this.lastFragment.set(block);
         return this.substituted(block, this.deobfuscator.accept(this.valueOf(block)));
     }
 
@@ -100,7 +106,8 @@ final class SseTransformer {
 
     private String flushBefore(String block) {
         String held = this.deobfuscator.flush();
-        return held.isEmpty() ? block : prepend(this.substituted(this.lastFragment, held), block);
+        String previous = Objects.requireNonNullElse(this.lastFragment.get(), "");
+        return held.isEmpty() ? block : prepend(this.substituted(previous, held), block);
     }
 
     /**

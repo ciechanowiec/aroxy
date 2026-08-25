@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,7 +59,7 @@ public final class Vault {
     private final Optional<Path> file;
     private final ReentrantLock lock;
     private final Bounds bounds;
-    private int counter;
+    private final AtomicInteger counter;
 
     /**
      * Creates a vault, optionally backed by a file that persists its non-sensitive entries.
@@ -76,7 +77,7 @@ public final class Vault {
         this.lock = new ReentrantLock();
         this.file = file;
         this.bounds = new Bounds(maxEntries, trimTo);
-        this.counter = 0;
+        this.counter = new AtomicInteger();
         file.filter(Files::exists).ifPresent(this::load);
     }
 
@@ -114,8 +115,7 @@ public final class Vault {
     }
 
     private String mint(String original, String placeholder, boolean sensitive) {
-        this.counter++;
-        String token = PiiToken.build(placeholder, this.counter);
+        String token = PiiToken.build(placeholder, this.counter.incrementAndGet());
         this.remember(token, original);
         this.classify(token, original, sensitive);
         this.trimIfNeeded();
@@ -180,7 +180,7 @@ public final class Vault {
         String token = line.substring(0, tab);
         try {
             this.remember(token, decode(line.substring(tab + 1)));
-            this.counter = Math.max(this.counter, PiiToken.indexOf(token));
+            this.counter.accumulateAndGet(PiiToken.indexOf(token), Math::max);
         } catch (IllegalArgumentException exception) {
             log.warn("Skipping malformed vault line for token {}: {}", token, exception.getMessage());
         }

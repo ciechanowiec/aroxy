@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.proxy;
 
 import java.io.ByteArrayOutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -52,12 +53,12 @@ final class BoundedCapture {
 
         private final String label;
         private final ByteArrayOutputStream kept;
-        private boolean announced;
+        private final AtomicBoolean announced;
 
         Direction(String label) {
             this.label = label;
             this.kept = new ByteArrayOutputStream();
-            this.announced = false;
+            this.announced = new AtomicBoolean();
         }
 
         void append(byte[] frame) {
@@ -79,8 +80,7 @@ final class BoundedCapture {
         // Announced on the first refusal only: a capped turn refuses every envelope that follows, and one
         // line per envelope would bury the diagnostic log under the very stream it is warning about.
         private void refuse() {
-            if (!this.announced) {
-                this.announced = true;
+            if (this.announced.compareAndSet(false, true)) {
                 log.info(
                     "The Cursor {} wire dump reached its {}-byte cap and is truncated", this.label, MAX_BYTES
                 );

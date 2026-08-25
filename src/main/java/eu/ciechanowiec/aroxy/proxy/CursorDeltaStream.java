@@ -4,7 +4,10 @@ import eu.ciechanowiec.aroxy.client.CursorTransport;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.StreamDeobfuscator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
 /**
@@ -28,24 +31,29 @@ final class CursorDeltaStream {
     private final ProtobufTransformer protobuf;
     private final ProtobufText text;
     private final StreamDeobfuscator fragments;
-    private Optional<ConnectJsonFrame> carrier;
-    private int wholeReversed;
+    /**
+     * The frame a held-back fragment would be replayed on. One turn is decoded by one thread, so this
+     * holds sequential state. It is atomic so the field can be final, not because this class is shared.
+     */
+    private final AtomicReference<Optional<ConnectJsonFrame>> carrier;
+
+    private final AtomicInteger wholeReversed;
 
     CursorDeltaStream(CursorTransport transport, Obfuscator obfuscator, ProtobufTransformer protobuf) {
         this.transport = transport;
         this.protobuf = protobuf;
         this.text = new ProtobufText(obfuscator);
         this.fragments = new StreamDeobfuscator(obfuscator);
-        this.carrier = Optional.empty();
-        this.wholeReversed = 0;
+        this.carrier = new AtomicReference<>(Optional.empty());
+        this.wholeReversed = new AtomicInteger();
     }
 
     ConnectJsonFrame accept(ConnectJsonFrame frame) {
         ProtobufInbound restored = this.protobuf.inbound(
             frame.payload(), this.leaf(this.fragments::accept)
         );
-        this.wholeReversed += restored.reversed();
-        this.carrier = this.fragments.holding() ? Optional.of(frame) : Optional.empty();
+        this.wholeReversed.addAndGet(restored.reversed());
+        this.carrier.set(this.fragments.holding() ? Optional.of(frame) : Optional.empty());
         return new ConnectJsonFrame(frame.flags(), restored.payload());
     }
 
@@ -56,11 +64,12 @@ final class CursorDeltaStream {
      */
     Optional<ConnectJsonFrame> finish() {
         String held = this.fragments.flush();
-        return held.isEmpty() ? Optional.empty() : this.carrier.map(frame -> this.replay(frame, held));
+        Optional<ConnectJsonFrame> pending = Objects.requireNonNullElse(this.carrier.get(), Optional.empty());
+        return held.isEmpty() ? Optional.empty() : pending.map(frame -> this.replay(frame, held));
     }
 
     int reversedCount() {
-        return this.wholeReversed + this.fragments.reversedCount();
+        return this.wholeReversed.get() + this.fragments.reversedCount();
     }
 
     // Replaying re-runs the same walk over the same bytes, and every non-delta leaf is restored by the

@@ -8,8 +8,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,19 +27,25 @@ final class CursorResponseStream {
     private final CursorJsonShape shape;
     private final Obfuscator obfuscator;
     private final StreamDeobfuscator fragments;
-    private Optional<JSONObject> lastFragment;
-    private String lastKey;
-    private String channel;
-    private int reversed;
+    /**
+     * The delta most recently restored, the key it sat under, and the channel it belongs to. One
+     * response is decoded by one thread, so these references hold sequential state. They are atomic
+     * so the fields can be final, not because this class is safe to share.
+     */
+    private final AtomicReference<Optional<JSONObject>> lastFragment;
+    private final AtomicReference<String> lastKey;
+    private final AtomicReference<String> channel;
+
+    private final AtomicInteger reversed;
 
     CursorResponseStream(CursorJsonShape shape, Obfuscator obfuscator) {
         this.shape = shape;
         this.obfuscator = obfuscator;
         this.fragments = new StreamDeobfuscator(obfuscator);
-        this.lastFragment = Optional.empty();
-        this.lastKey = "";
-        this.channel = "";
-        this.reversed = 0;
+        this.lastFragment = new AtomicReference<>(Optional.empty());
+        this.lastKey = new AtomicReference<>("");
+        this.channel = new AtomicReference<>("");
+        this.reversed = new AtomicInteger();
     }
 
     CursorResponseBatch accept(ConnectJsonFrame frame) {
@@ -66,7 +75,7 @@ final class CursorResponseStream {
     }
 
     int reversedCount() {
-        return this.reversed + this.fragments.reversedCount();
+        return this.reversed.get() + this.fragments.reversedCount();
     }
 
     private void flushBeforeWhole(
@@ -89,37 +98,39 @@ final class CursorResponseStream {
         ConnectJsonFrame frame, JSONObject object, FragmentField field,
         Collection<ConnectJsonFrame> output
     ) {
-        if (!this.channel.isEmpty() && !this.channel.equals(field.channel())) {
+        String open = Objects.requireNonNullElse(this.channel.get(), "");
+        if (!open.isEmpty() && !open.equals(field.channel())) {
             this.flush(output);
         }
         field.parent().put(field.key(), SENTINEL);
         Reversal whole = new JsonReversal(this.obfuscator).apply(object);
-        this.reversed += whole.count();
+        this.reversed.addAndGet(whole.count());
         JSONObject restored = new JSONObject(whole.text());
         FragmentField restoredField = this.find(restored, "").orElseThrow();
         String safe = this.fragments.accept(field.value());
         restoredField.parent().put(restoredField.key(), safe);
-        this.lastFragment = Optional.of(new JSONObject(restored.toString()));
-        this.lastKey = restoredField.key();
-        this.channel = field.channel();
+        this.lastFragment.set(Optional.of(new JSONObject(restored.toString())));
+        this.lastKey.set(restoredField.key());
+        this.channel.set(field.channel());
         output.add(jsonFrame(frame.flags(), restored));
     }
 
     private void whole(ConnectJsonFrame frame, JSONObject object, Collection<ConnectJsonFrame> output) {
         Reversal whole = new JsonReversal(this.obfuscator).apply(object);
-        this.reversed += whole.count();
+        this.reversed.addAndGet(whole.count());
         output.add(new ConnectJsonFrame(frame.flags(), whole.text().getBytes(StandardCharsets.UTF_8)));
     }
 
     private void flush(Collection<ConnectJsonFrame> output) {
         String held = this.fragments.flush();
-        if (!held.isEmpty() && this.lastFragment.isPresent()) {
-            JSONObject fragment = this.lastFragment.orElseThrow();
+        Optional<JSONObject> previous = Objects.requireNonNullElse(this.lastFragment.get(), Optional.empty());
+        if (!held.isEmpty() && previous.isPresent()) {
+            JSONObject fragment = previous.orElseThrow();
             FragmentField replay = this.find(fragment, "").orElseThrow();
-            replay.parent().put(this.lastKey, held);
+            replay.parent().put(Objects.requireNonNullElse(this.lastKey.get(), ""), held);
             output.add(jsonFrame(0, fragment));
         }
-        this.channel = "";
+        this.channel.set("");
     }
 
     private static JSONObject object(ConnectJsonFrame frame) {

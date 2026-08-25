@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,19 +39,18 @@ class RunningCommandsTest {
         pattern = (?:AKIA|ASIA)[0-9A-Z]{16}
         """;
 
-    @TempDir
-    private Path home;
-    private Daemon daemon;
+    private final Path home;
+    private final Daemon daemon;
 
-    @BeforeEach
     @SneakyThrows
-    void startDaemon() {
-        System.setProperty(PROPERTY, this.home.toString());
-        Home resolved = new Home(this.home);
-        this.write(resolved.defaultConfig(), DEFAULT);
+    RunningCommandsTest(@TempDir Path home) {
+        this.home = home;
+        System.setProperty(PROPERTY, home.toString());
+        Home resolved = new Home(home);
+        write(resolved.defaultConfig(), DEFAULT);
         this.daemon = new Daemon(resolved, DaemonSeam.onEphemeralPort());
         this.daemon.run();
-        this.write(resolved.pidFile(), Long.toString(ProcessHandle.current().pid()));
+        write(resolved.pidFile(), Long.toString(ProcessHandle.current().pid()));
     }
 
     @AfterEach
@@ -82,7 +80,7 @@ class RunningCommandsTest {
         assertEquals(0, initial.exit());
         assertTrue(initial.out().contains("Active configuration"), initial.out());
         assertTrue(initial.out().contains("• aws_key"), initial.out());
-        this.write(new Home(this.home).defaultConfig(), DEFAULT.replace("aws_key", "new_disk_rule"));
+        write(new Home(this.home).defaultConfig(), DEFAULT.replace("aws_key", "new_disk_rule"));
         CliCapture.Result beforeReload = CliCapture.run(CONFIG);
         assertTrue(beforeReload.out().contains("• aws_key"), beforeReload.out());
         assertFalse(beforeReload.out().contains("• new_disk_rule"), beforeReload.out());
@@ -130,14 +128,14 @@ class RunningCommandsTest {
 
     private Path writeRule(String id, String value) {
         Path rule = this.home.resolve(id + ".conf");
-        this.write(
+        write(
             rule, "[rule]\nid = " + id + "\ntype = literal\nplaceholder = COMPANY\nvalue = "
                 + value + "\n"
         );
         return rule;
     }
 
-    private void write(Path file, CharSequence text) {
+    private static void write(Path file, CharSequence text) {
         try {
             Files.writeString(file, text);
         } catch (IOException exception) {

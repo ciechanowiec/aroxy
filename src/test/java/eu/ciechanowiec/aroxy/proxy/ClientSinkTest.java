@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -191,14 +192,14 @@ class ClientSinkTest {
 
     private static final class CountingClose extends OutputStream {
 
-        private int closes;
+        private final AtomicInteger closes;
 
         CountingClose() {
-            this.closes = 0;
+            this.closes = new AtomicInteger();
         }
 
         int closes() {
-            return this.closes;
+            return this.closes.get();
         }
 
         @Override
@@ -208,7 +209,7 @@ class ClientSinkTest {
 
         @Override
         public void close() {
-            this.closes += 1;
+            this.closes.incrementAndGet();
         }
     }
 

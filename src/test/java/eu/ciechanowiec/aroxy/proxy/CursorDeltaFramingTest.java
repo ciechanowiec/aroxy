@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import eu.ciechanowiec.aroxy.proxy.CursorHttp.WireFormat;
 import java.io.ByteArrayInputStream;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -144,15 +145,15 @@ class CursorDeltaFramingTest {
 
     private static final class RecordingTurn implements CursorTurn {
 
-        private int reversed;
+        private final AtomicInteger reversed;
 
         RecordingTurn() {
-            this.reversed = 0;
+            this.reversed = new AtomicInteger();
         }
 
         @Override
         public void completed(int reversed) {
-            this.reversed = reversed;
+            this.reversed.set(reversed);
         }
 
         @Override
@@ -161,7 +162,7 @@ class CursorDeltaFramingTest {
         }
 
         int reversed() {
-            return this.reversed;
+            return this.reversed.get();
         }
     }
 }

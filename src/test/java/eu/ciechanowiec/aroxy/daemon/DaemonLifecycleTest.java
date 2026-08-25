@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,17 +25,16 @@ class DaemonLifecycleTest {
     private static final Duration PAUSE = Duration.ofMillis(50);
     private static final String PRODUCTION_PORT = ":8788";
 
-    @TempDir
-    private Path base;
-    private UpstreamStub upstream;
-    private Daemon daemon;
-    private Home home;
+    private final Path base;
+    private final UpstreamStub upstream;
+    private final Daemon daemon;
+    private final Home home;
 
-    @BeforeEach
     @SneakyThrows
-    void startDaemon() {
+    DaemonLifecycleTest(@TempDir Path base) {
+        this.base = base;
         this.upstream = new UpstreamStub();
-        this.home = DaemonHarness.prepare(this.base);
+        this.home = DaemonHarness.prepare(base);
         this.daemon = new Daemon(this.home, DaemonSeam.onEphemeralPort(this.upstream.uri()));
         this.daemon.run();
     }

@@ -1,5 +1,9 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * Reverses tokens across a sequence of logical text fragments (for example the {@code delta.text}
  * values of a streamed response). Because a token the model echoes can be split across two
@@ -12,8 +16,14 @@ package eu.ciechanowiec.aroxy.obfuscation;
 public final class StreamDeobfuscator {
 
     private final Obfuscator obfuscator;
-    private String carry;
-    private int reversed;
+
+    /**
+     * The trailing partial token held back for a later fragment, in a reference rather than a
+     * reassigned field. What moves between fragments is the text it holds, not the buffer itself.
+     */
+    private final AtomicReference<String> carry;
+
+    private final AtomicInteger reversed;
 
     /**
      * Creates a streaming deobfuscator that reverses tokens using the given obfuscator's vault.
@@ -22,8 +32,8 @@ public final class StreamDeobfuscator {
      */
     public StreamDeobfuscator(Obfuscator obfuscator) {
         this.obfuscator = obfuscator;
-        this.carry = "";
-        this.reversed = 0;
+        this.carry = new AtomicReference<>("");
+        this.reversed = new AtomicInteger();
     }
 
     /**
@@ -33,9 +43,9 @@ public final class StreamDeobfuscator {
      * @return the reversed text that is safe to emit
      */
     public String accept(String fragment) {
-        String pending = this.carry + fragment;
+        String pending = this.held() + fragment;
         int boundary = TokenBoundary.of(pending);
-        this.carry = pending.substring(boundary);
+        this.carry.set(pending.substring(boundary));
         return this.reverse(pending.substring(0, boundary));
     }
 
@@ -45,8 +55,7 @@ public final class StreamDeobfuscator {
      * @return the reversed remainder
      */
     public String flush() {
-        String remainder = this.carry;
-        this.carry = "";
+        String remainder = this.carry.getAndSet("");
         return this.reverse(remainder);
     }
 
@@ -72,7 +81,7 @@ public final class StreamDeobfuscator {
      * @return whether the carry buffer is non-empty
      */
     public boolean holding() {
-        return !this.carry.isEmpty();
+        return !this.held().isEmpty();
     }
 
     /**
@@ -81,12 +90,16 @@ public final class StreamDeobfuscator {
      * @return the running count of reversed tokens
      */
     public int reversedCount() {
-        return this.reversed;
+        return this.reversed.get();
+    }
+
+    private String held() {
+        return Objects.requireNonNullElse(this.carry.get(), "");
     }
 
     private String reverse(String text) {
         Reversal reversal = this.obfuscator.restore(text);
-        this.reversed += reversal.count();
+        this.reversed.addAndGet(reversal.count());
         return reversal.text();
     }
 }

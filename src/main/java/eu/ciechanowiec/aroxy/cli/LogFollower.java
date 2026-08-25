@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Follows a growing log file by remembering a byte offset and returning whatever was appended since
@@ -18,11 +19,15 @@ import java.util.Optional;
 final class LogFollower {
 
     private final Path file;
-    private long offset;
+    /**
+     * How far into the file the last poll read. One follower is polled by one command loop, so this
+     * holds sequential state. It is atomic so the field can be final, not because it is shared.
+     */
+    private final AtomicLong offset;
 
     LogFollower(Path file) {
         this.file = file;
-        this.offset = 0L;
+        this.offset = new AtomicLong();
     }
 
     Optional<String> poll() {
@@ -49,19 +54,20 @@ final class LogFollower {
     private Optional<String> readFrom(RandomAccessFile handle) throws IOException {
         long length = handle.length();
         this.resetIfTruncated(length);
-        if (length == this.offset) {
+        long from = this.offset.get();
+        if (length == from) {
             return Optional.empty();
         }
-        byte[] chunk = new byte[(int) (length - this.offset)];
-        handle.seek(this.offset);
+        byte[] chunk = new byte[(int) (length - from)];
+        handle.seek(from);
         handle.readFully(chunk);
-        this.offset = length;
+        this.offset.set(length);
         return Optional.of(new String(chunk, StandardCharsets.UTF_8));
     }
 
     private void resetIfTruncated(long length) {
-        if (length < this.offset) {
-            this.offset = 0L;
+        if (length < this.offset.get()) {
+            this.offset.set(0L);
         }
     }
 }

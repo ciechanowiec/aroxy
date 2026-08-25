@@ -5,7 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Accumulates the parsed stanzas of one configuration file: the merged {@code [gateway]} keys and an
@@ -20,25 +22,34 @@ final class StanzaSink {
     private final String label;
     private final Map<String, String> gatewayKeys;
     private final List<RuleEntry> rules;
-    private Optional<String> stanza;
-    private Map<String, String> ruleKeys;
+    /**
+     * The stanza currently open, held in a reference rather than a reassigned field. Empty until the
+     * first header, and replaced wholesale by each header after it.
+     */
+    private final AtomicReference<Optional<String>> stanza;
+
+    /**
+     * The pairs of the rule stanza being read. Cleared rather than replaced between stanzas, which is
+     * safe because {@link RuleReader} copies what it is handed before this sink moves on.
+     */
+    private final Map<String, String> ruleKeys;
 
     StanzaSink(String label) {
         this.label = label;
         this.gatewayKeys = new LinkedHashMap<>();
         this.rules = new ArrayList<>();
-        this.stanza = Optional.empty();
+        this.stanza = new AtomicReference<>(Optional.empty());
         this.ruleKeys = new LinkedHashMap<>();
     }
 
     void header(String name) {
         this.flushRule();
-        this.stanza = Optional.of(name.toLowerCase(Locale.ROOT));
-        this.ruleKeys = new LinkedHashMap<>();
+        this.stanza.set(Optional.of(name.toLowerCase(Locale.ROOT)));
+        this.ruleKeys.clear();
     }
 
     void pair(String key, String value) {
-        this.stanza.ifPresent(name -> this.route(name, key, value));
+        this.open().ifPresent(name -> this.route(name, key, value));
     }
 
     private void route(String name, String key, String value) {
@@ -56,10 +67,14 @@ final class StanzaSink {
     }
 
     private void flushRule() {
-        boolean openRule = this.stanza.filter(RULE::equals).isPresent() && !this.ruleKeys.isEmpty();
+        boolean openRule = this.open().filter(RULE::equals).isPresent() && !this.ruleKeys.isEmpty();
         if (openRule) {
             new RuleReader(this.label, this.ruleKeys).read().ifPresent(this.rules::add);
-            this.ruleKeys = new LinkedHashMap<>();
+            this.ruleKeys.clear();
         }
+    }
+
+    private Optional<String> open() {
+        return Objects.requireNonNullElse(this.stanza.get(), Optional.empty());
     }
 }

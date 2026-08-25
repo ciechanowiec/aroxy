@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
 import eu.ciechanowiec.aroxy.obfuscation.Reversal;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -11,16 +12,16 @@ import org.json.JSONObject;
 final class JsonReversal {
 
     private final Obfuscator obfuscator;
-    private int count;
+    private final AtomicInteger count;
 
     JsonReversal(Obfuscator obfuscator) {
         this.obfuscator = obfuscator;
-        this.count = 0;
+        this.count = new AtomicInteger();
     }
 
     Reversal apply(Object value) {
         Object restored = this.transform(value);
-        return new Reversal(JSONObject.valueToString(restored), this.count);
+        return new Reversal(JSONObject.valueToString(restored), this.count.get());
     }
 
     private Object transform(Object value) {
@@ -49,7 +50,7 @@ final class JsonReversal {
 
     private String text(String text) {
         Reversal reversal = this.obfuscator.restore(text);
-        this.count += reversal.count();
+        this.count.addAndGet(reversal.count());
         return reversal.text();
     }
 }

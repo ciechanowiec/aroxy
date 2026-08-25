@@ -26,7 +26,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,16 +40,15 @@ class CopilotProxyTest {
     private static final int HTTPS_PORT = 443;
     private static final int UPGRADE_REQUIRED = 426;
 
-    @TempDir
-    private Path base;
-    private FakeUpstream upstream;
-    private ProxyHarness proxy;
+    private final Path base;
+    private final FakeUpstream upstream;
+    private final ProxyHarness proxy;
 
-    @BeforeEach
     @SneakyThrows
-    void start() {
+    CopilotProxyTest(@TempDir Path base) {
+        this.base = base;
         this.upstream = new FakeUpstream(CannedReply.json("{\"answer\":\"" + TOKEN + "\"}"));
-        this.proxy = new ProxyHarness(this.upstream, this.base, CopilotFixtures.profile());
+        this.proxy = new ProxyHarness(this.upstream, base, CopilotFixtures.profile());
     }
 
     @AfterEach

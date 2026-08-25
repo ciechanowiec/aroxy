@@ -20,12 +20,13 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,21 +42,24 @@ class CopilotProxyResponseTest {
     private static final String ANSWER = "{\"answer\":\"" + TOKEN + "\"}";
     private static final int ACCEPTED = 202;
 
-    @TempDir
-    private Path base;
-    private FakeUpstream upstream;
-    private ProxyHarness proxy;
+    private final Path base;
 
-    @BeforeEach
+    /**
+     * The upstream and the proxy in front of it, held together in one reference because every case here
+     * restages them with a different canned reply. Pairing them is what keeps a test from reading the
+     * port of one upstream while talking to the proxy of another.
+     */
+    private final AtomicReference<ProxyHarness> proxy;
+
     @SneakyThrows
-    void start() {
-        this.upstream = new FakeUpstream(CannedReply.json("{}"));
-        this.proxy = new ProxyHarness(this.upstream, this.base, CopilotFixtures.profile());
+    CopilotProxyResponseTest(@TempDir Path base) {
+        this.base = base;
+        this.proxy = new AtomicReference<>(staged(CannedReply.json("{}"), base));
     }
 
     @AfterEach
     void stop() {
-        this.proxy.stop();
+        this.proxy().stop();
     }
 
     @Test
@@ -130,7 +134,8 @@ class CopilotProxyResponseTest {
         restart(CannedReply.json("{\"value\":\"" + TOKEN + "\"}"));
         HttpResponse<String> control = post("/models", ProxyHarness.SECRET);
         assertTrue(control.body().contains(TOKEN), control.body());
-        assertTrue(this.upstream.lastBody().contains(ProxyHarness.SECRET), this.upstream.lastBody());
+        String forwarded = this.proxy().upstream().lastBody();
+        assertTrue(forwarded.contains(ProxyHarness.SECRET), forwarded);
         restart(new CannedReply(Http.OK, Map.of("Content-Encoding", "gzip"), "opaque"));
         HttpResponse<byte[]> encoded = send(
             request(RESPONSES, "{}"), HttpResponse.BodyHandlers.ofByteArray()
@@ -140,13 +145,20 @@ class CopilotProxyResponseTest {
     }
 
     private void restart(CannedReply reply) {
-        this.proxy.stop();
-        this.upstream = new FakeUpstream(reply);
+        this.proxy().stop();
+        this.proxy.set(staged(reply, this.base));
+    }
+
+    private static ProxyHarness staged(CannedReply reply, Path base) {
         try {
-            this.proxy = new ProxyHarness(this.upstream, this.base, CopilotFixtures.profile());
+            return new ProxyHarness(new FakeUpstream(reply), base, CopilotFixtures.profile());
         } catch (IOException exception) {
             throw new UncheckedIOException(exception);
         }
+    }
+
+    private ProxyHarness proxy() {
+        return Objects.requireNonNull(this.proxy.get());
     }
 
     @SneakyThrows
@@ -175,7 +187,8 @@ class CopilotProxyResponseTest {
         managers.init(trust);
         SSLContext context = SSLContext.getInstance("TLS");
         context.init(null, managers.getTrustManagers(), null);
-        InetSocketAddress address = new InetSocketAddress(this.proxy.base().getHost(), this.proxy.base().getPort());
+        URI proxied = this.proxy().base();
+        InetSocketAddress address = new InetSocketAddress(proxied.getHost(), proxied.getPort());
         return HttpClient.newBuilder().sslContext(context).proxy(ProxySelector.of(address)).build();
     }
 
@@ -194,7 +207,7 @@ class CopilotProxyResponseTest {
     }
 
     private URI target(String path) {
-        return URI.create("https://localhost:" + this.upstream.uri().getPort() + path);
+        return URI.create("https://localhost:" + this.proxy().upstream().uri().getPort() + path);
     }
 
     private static String responseEvent(String value) {

@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -137,11 +138,11 @@ class SseTransformerTest {
     private static final class Recording extends OutputStream {
 
         private final ByteArrayOutputStream written;
-        private int flushes;
+        private final AtomicInteger flushes;
 
         Recording() {
             this.written = new ByteArrayOutputStream();
-            this.flushes = 0;
+            this.flushes = new AtomicInteger();
         }
 
         @Override
@@ -151,7 +152,7 @@ class SseTransformerTest {
 
         @Override
         public void flush() {
-            this.flushes++;
+            this.flushes.incrementAndGet();
         }
 
         String text() {
@@ -159,7 +160,7 @@ class SseTransformerTest {
         }
 
         int flushes() {
-            return this.flushes;
+            return this.flushes.get();
         }
     }
 }

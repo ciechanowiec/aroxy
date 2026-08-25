@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.daemon;
 
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Owns the daemon's start time and the monotonic {@code generation} counter, and writes a fresh
@@ -12,18 +13,23 @@ final class SnapshotPublisher {
 
     private final Path file;
     private final long startMillis;
-    private long generation;
+    /**
+     * The monotonic publish counter. Every publish still happens on the daemon's single synchronized
+     * path, so this claims no more than it did before. The counter object is what keeps the field
+     * final while the number it holds moves.
+     */
+    private final AtomicLong generation;
 
     SnapshotPublisher(Path file, long startMillis) {
         this.file = file;
         this.startMillis = startMillis;
-        this.generation = 0;
+        this.generation = new AtomicLong();
     }
 
     void publish(SnapshotData data) {
-        this.generation++;
+        long current = this.generation.incrementAndGet();
         new RuntimeSnapshot(
-            data.gateways(), this.startMillis, this.generation, data.files(), data.config()
+            data.gateways(), this.startMillis, current, data.files(), data.config()
         ).writeTo(this.file);
     }
 }

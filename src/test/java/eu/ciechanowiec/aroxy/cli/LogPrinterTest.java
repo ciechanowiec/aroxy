@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,11 +28,10 @@ class LogPrinterTest {
     @TempDir
     private Path directory;
 
-    private ByteArrayOutputStream buffer;
-    private LogPrinter printer;
+    private final ByteArrayOutputStream buffer;
+    private final LogPrinter printer;
 
-    @BeforeEach
-    void setUp() {
+    LogPrinterTest() {
         this.buffer = new ByteArrayOutputStream();
         this.printer = new LogPrinter(new CliOutput(new PrintStream(this.buffer, true, StandardCharsets.UTF_8)));
     }

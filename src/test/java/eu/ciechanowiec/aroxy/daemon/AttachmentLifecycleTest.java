@@ -8,22 +8,20 @@ import java.nio.file.Path;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AttachmentLifecycleTest {
 
-    @TempDir
-    private Path base;
-    private UpstreamStub upstream;
-    private Home home;
+    private final Path base;
+    private final UpstreamStub upstream;
+    private final Home home;
 
-    @BeforeEach
     @SneakyThrows
-    void prepare() {
+    AttachmentLifecycleTest(@TempDir Path base) {
+        this.base = base;
         this.upstream = new UpstreamStub();
-        this.home = DaemonHarness.prepare(this.base);
+        this.home = DaemonHarness.prepare(base);
     }
 
     @AfterEach

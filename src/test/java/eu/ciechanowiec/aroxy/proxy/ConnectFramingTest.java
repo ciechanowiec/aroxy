@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -86,10 +87,10 @@ class ConnectFramingTest {
      */
     private static final class Flushes extends OutputStream {
 
-        private int count;
+        private final AtomicInteger count;
 
         Flushes() {
-            this.count = 0;
+            this.count = new AtomicInteger();
         }
 
         @Override
@@ -99,11 +100,11 @@ class ConnectFramingTest {
 
         @Override
         public void flush() {
-            this.count++;
+            this.count.incrementAndGet();
         }
 
         int count() {
-            return this.count;
+            return this.count.get();
         }
     }
 }
