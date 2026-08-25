@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.config;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.IntStream;
@@ -22,16 +23,15 @@ final class ConfigSyntax {
     private static final String GATEWAY = "gateway";
     private static final String RULE = "rule";
 
-    static void validate(String label, List<String> lines) {
+    static void validate(String label, Collection<String> lines) {
         List<String> stripped = lines.stream().map(String::strip).toList();
         int opened = firstStanza(stripped);
         List<Integer> offending = IntStream.range(0, stripped.size())
-            .filter(index -> !ignorable(stripped.get(index)))
-            .filter(index -> !conforming(stripped.get(index), index > opened))
+            .filter(index -> offends(stripped.get(index), index > opened))
             .boxed()
             .toList();
         if (!offending.isEmpty()) {
-            long meaningful = stripped.stream().filter(line -> !ignorable(line)).count();
+            long meaningful = stripped.stream().filter(ConfigSyntax::meaningful).count();
             int first = offending.getFirst();
             throw new InvalidConfigException(
                 label, summary(offending.size(), meaningful, first + 1, stripped.get(first))
@@ -54,8 +54,12 @@ final class ConfigSyntax {
             .orElse(Integer.MAX_VALUE);
     }
 
-    private static boolean ignorable(String line) {
-        return line.isEmpty() || line.startsWith(COMMENT);
+    private static boolean meaningful(String line) {
+        return !line.isEmpty() && !line.startsWith(COMMENT);
+    }
+
+    private static boolean offends(String line, boolean stanzaOpen) {
+        return meaningful(line) && !conforming(line, stanzaOpen);
     }
 
     private static boolean conforming(String line, boolean stanzaOpen) {

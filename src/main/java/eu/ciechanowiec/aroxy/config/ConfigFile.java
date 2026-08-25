@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -53,7 +54,7 @@ public final class ConfigFile {
         return parse(label, text.lines().toList());
     }
 
-    private static ConfigFile parse(String label, List<String> lines) {
+    private static ConfigFile parse(String label, Collection<String> lines) {
         ConfigSyntax.validate(label, lines);
         StanzaSink sink = lex(label, lines);
         Placeholders.validate(label, sink.rules());
