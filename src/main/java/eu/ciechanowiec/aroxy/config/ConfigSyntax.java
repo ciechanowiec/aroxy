@@ -23,22 +23,47 @@ final class ConfigSyntax {
     private static final String RULE = "rule";
 
     static void validate(String label, List<String> lines) {
-        ConfigScan scan = new ConfigScan();
-        IntStream.range(0, lines.size()).forEach(index -> classify(scan, index + 1, lines.get(index).strip()));
-        scan.rejectIfInvalid(label);
+        List<String> stripped = lines.stream().map(String::strip).toList();
+        int opened = firstStanza(stripped);
+        List<Integer> offending = IntStream.range(0, stripped.size())
+            .filter(index -> !ignorable(stripped.get(index)))
+            .filter(index -> !conforming(stripped.get(index), index > opened))
+            .boxed()
+            .toList();
+        if (!offending.isEmpty()) {
+            long meaningful = stripped.stream().filter(line -> !ignorable(line)).count();
+            int first = offending.getFirst();
+            throw new InvalidConfigException(
+                label, summary(offending.size(), meaningful, first + 1, stripped.get(first))
+            );
+        }
     }
 
-    private static void classify(ConfigScan scan, int lineNumber, String line) {
-        boolean ignorable = line.isEmpty() || line.startsWith(COMMENT);
-        boolean conforming = ignorable || header(scan, line) || pair(scan, line);
-        scan.note(lineNumber, line, ignorable, conforming);
+    /**
+     * The index of the first line that opens a stanza, or a value no line index can reach when the
+     * file opens none. Every later line sits inside a stanza, and that is the only thing a pair needs
+     * to know, so the running tally the scan used to carry reduces to this one number.
+     *
+     * @param lines the stripped lines of the file
+     * @return the index of the first stanza header
+     */
+    private static int firstStanza(List<String> lines) {
+        return IntStream.range(0, lines.size())
+            .filter(index -> header(lines.get(index)))
+            .findFirst()
+            .orElse(Integer.MAX_VALUE);
     }
 
-    private static boolean header(ConfigScan scan, String line) {
-        boolean bracketed = line.startsWith("[") && line.endsWith("]");
-        boolean known = bracketed && isKnownName(line);
-        scan.openStanza(known);
-        return known;
+    private static boolean ignorable(String line) {
+        return line.isEmpty() || line.startsWith(COMMENT);
+    }
+
+    private static boolean conforming(String line, boolean stanzaOpen) {
+        return header(line) || pair(line, stanzaOpen);
+    }
+
+    private static boolean header(String line) {
+        return line.startsWith("[") && line.endsWith("]") && isKnownName(line);
     }
 
     private static boolean isKnownName(String line) {
@@ -46,12 +71,17 @@ final class ConfigSyntax {
         return GATEWAY.equals(name) || RULE.equals(name);
     }
 
-    private static boolean pair(ConfigScan scan, String line) {
+    private static boolean pair(String line, boolean stanzaOpen) {
         int assign = line.indexOf(ASSIGN);
-        return assign > 0 && scan.stanzaOpen() && isKey(line.substring(0, assign).strip());
+        return assign > 0 && stanzaOpen && isKey(line.substring(0, assign).strip());
     }
 
     private static boolean isKey(CharSequence candidate) {
         return !candidate.isEmpty() && candidate.chars().noneMatch(Character::isWhitespace);
+    }
+
+    private static String summary(int offending, long meaningful, int line, String text) {
+        return offending + " of " + meaningful
+            + " meaningful line(s) are not valid configuration; first at line " + line + ": " + text;
     }
 }
