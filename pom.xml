@@ -56,7 +56,7 @@
         <aircompressor.version>2.0.3</aircompressor.version>
         <bouncycastle.pkix.version>1.85</bouncycastle.pkix.version>
         <jetty.version>12.1.12</jetty.version>
-        <org-json.version>20260719</org-json.version>
+        <org-json.version>20260814</org-json.version>
         <tinylog.version>2.7.0</tinylog.version>
 
         <main.class>eu.ciechanowiec.aroxy.cli.Aroxy</main.class>
