@@ -10,8 +10,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,8 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 )
 @SuppressWarnings(
     {
-        "PMD.AvoidSynchronizedAtMethodLevel", "PMD.AvoidUsingVolatile",
-        "ClassWithTooManyFields"
+        "PMD.AvoidSynchronizedAtMethodLevel", "ClassWithTooManyFields"
     }
 )
 public final class Daemon {
@@ -42,7 +43,12 @@ public final class Daemon {
     private final LiveAttachments attachments;
     private final SnapshotPublisher publisher;
     private final CountDownLatch stopped;
-    private volatile Optional<Running> running;
+    /**
+     * What is running, held in a reference rather than a reassigned field: the value changes over the
+     * daemon's life and is read by the admin endpoint while the lifecycle writes it, so the reference is
+     * the thing that must be shared and the field itself never needs to move.
+     */
+    private final AtomicReference<Optional<Running>> running;
 
     /**
      * Creates a daemon over the given state directory, using the fixed production upstream.
@@ -68,7 +74,7 @@ public final class Daemon {
         this.attachments = new LiveAttachments();
         this.publisher = new SnapshotPublisher(home.runtimeFile(), System.currentTimeMillis());
         this.stopped = new CountDownLatch(1);
-        this.running = Optional.empty();
+        this.running = new AtomicReference<>(Optional.empty());
     }
 
     /**
@@ -84,7 +90,7 @@ public final class Daemon {
         LiveProxy live = LiveProxy.start(this.home, config);
         ReloadWatcher watcher = new ReloadWatcher(new ControlFiles(this.home), this::reloadFromSignal);
         watcher.start();
-        this.running = Optional.of(new Running(live, watcher));
+        this.running.set(Optional.of(new Running(live, watcher)));
         this.publish(config, live);
         log.atInfo().addArgument(() -> listening(config.settings(), live)).log("aroxy daemon listening on {}");
     }
@@ -112,7 +118,17 @@ public final class Daemon {
      * Rebuilds the effective config and swaps the live rule set. A no-op when not running.
      */
     public synchronized void reload() {
-        this.running.ifPresent(this::applyReload);
+        this.current().ifPresent(this::applyReload);
+    }
+
+    /**
+     * What is running now. The reference never holds nothing, but a nullness checker cannot know that of
+     * a shared holder, so the empty case is answered here once rather than at each reader.
+     *
+     * @return the running state, empty when the daemon is not running
+     */
+    private Optional<Running> current() {
+        return Objects.requireNonNullElse(this.running.get(), Optional.empty());
     }
 
     private void applyReload(Running active) {
@@ -137,8 +153,8 @@ public final class Daemon {
      * Idempotent.
      */
     public synchronized void stop() {
-        this.running.ifPresent(this::stopRunning);
-        this.running = Optional.empty();
+        this.current().ifPresent(this::stopRunning);
+        this.running.set(Optional.empty());
         new ControlFiles(this.home).clearTemporaries();
         this.stopped.countDown();
     }

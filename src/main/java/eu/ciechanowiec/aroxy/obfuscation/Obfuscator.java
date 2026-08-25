@@ -1,10 +1,11 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.airness.Justification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 
 /**
@@ -16,17 +17,17 @@ import java.util.regex.Matcher;
  * syntax. Competing matches use leftmost-longest resolution, with configuration order breaking an
  * exact tie. The active rule set may be swapped at runtime via {@link #swapRules(Collection)} so a
  * long-running daemon can reload its configuration without restarting the proxy socket. The swap is
- * published through a {@code volatile} reference.
+ * published through an atomic reference, so a reader either sees the whole old rule set or the whole
+ * new one.
  */
-@Justification(
-    "lock-free publication of an immutable rule snapshot on reload"
-)
-@SuppressWarnings(
-    "PMD.AvoidUsingVolatile"
-)
 public final class Obfuscator {
 
-    private volatile List<Rule> rules;
+    /**
+     * The rule set in force, held in a reference rather than a reassigned field. A reload swaps it while
+     * requests are being obfuscated, so what the readers need is a shared reference to the current list
+     * rather than a field that moves under them.
+     */
+    private final AtomicReference<List<Rule>> rules;
     private final Vault vault;
 
     /**
@@ -36,7 +37,7 @@ public final class Obfuscator {
      * @param vault the vault mapping tokens back to their original values
      */
     public Obfuscator(Collection<Rule> rules, Vault vault) {
-        this.rules = List.copyOf(rules);
+        this.rules = new AtomicReference<>(List.copyOf(rules));
         this.vault = vault;
     }
 
@@ -46,7 +47,7 @@ public final class Obfuscator {
      * @param replacement the new rule set, defensively copied
      */
     public void swapRules(Collection<Rule> replacement) {
-        this.rules = List.copyOf(replacement);
+        this.rules.set(List.copyOf(replacement));
     }
 
     /**
@@ -57,7 +58,8 @@ public final class Obfuscator {
      */
     public ObfuscationResult obfuscate(String body) {
         List<ObfuscationMatch> matches = new ArrayList<>();
-        RuleApplication application = new RuleApplication(this.rules, this.vault);
+        List<Rule> active = Objects.requireNonNullElse(this.rules.get(), List.of());
+        RuleApplication application = new RuleApplication(active, this.vault);
         String text = body;
         ObfuscationResult pass = application.run(text);
         while (!pass.matches().isEmpty()) {
