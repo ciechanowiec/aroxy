@@ -278,7 +278,7 @@ This section describes the state of the test suite and what it proves.
 === Coverage
 
 . Line coverage and branch coverage are at least 80% in every measured file. A file with no branches satisfies the branch floor.
-. A file is excluded from coverage only by xref:#file-role[file role] - for example, generated code. A xref:#check[check] can determine the file role from the file itself. The xref:#governed-repository[governed repository] never names an individual file in a coverage exclusion.
+. An exclusion names something the coverage report measured. A xref:#check[check] fails on an exclusion that reaches nothing, because a pattern that matches no class excludes nothing and leaves the report reading exactly as it would have read without it.
 
 [[determinism]]
 === Determinism

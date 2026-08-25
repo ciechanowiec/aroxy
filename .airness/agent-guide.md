@@ -50,8 +50,8 @@ while writing the message, so the policy is declared here in full.
 
 | Rule | Value |
 | --- | --- |
-| Header | `type(scope): subject`, with an optional `!` before the colon for a breaking change |
-| Type | one of `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` |
+| Header | `type: subject` or `type(scope): subject`, and nothing after the type but the scope |
+| Type | one of `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `test` |
 | Scope | optional, and when present drawn from `a-z`, `0-9`, `.`, and `-` |
 | Subject | 15 to 72 characters, counted after the `: ` that closes the header prefix |
 | Subject ending | no trailing period |
@@ -61,10 +61,12 @@ while writing the message, so the policy is declared here in full.
 | Typography | plain ASCII only: no em dash, en dash, one-character ellipsis, or curly quotation mark |
 | Attribution | no marker naming an AI agent or an agent session, in any commit |
 
-A revert commit keeps the `Revert "..."` form Git writes for it and is exempt from the header shape alone. A merge
-commit is exempt too, but only because it is prohibited outright and the History Shape rules below report it once
-rather than burying that verdict under header findings. The attribution ban holds for every commit whatever its
-header, and it binds in prose as well as by pattern: a marker that no pattern yet knows is still a violation.
+No commit shape is exempt from the table above, including the headers Git writes by default for a merge
+and for a revert. Every tool that makes one of those offers to edit the message, so a conforming message
+is always reachable: a revert says what it undid and why, like any other change. A breaking change is
+described in the body rather than marked in the header, because a marker a reader has to notice says less
+than a sentence saying what breaks. The attribution ban binds in prose as well as by pattern: a marker
+that no pattern yet knows is still a violation.
 
 Four traps account for most failures:
 
