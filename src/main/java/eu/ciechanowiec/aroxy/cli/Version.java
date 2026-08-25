@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.IVersionProvider;
 
 /**
@@ -18,18 +19,33 @@ final class Version implements IVersionProvider {
 
     @Override
     public String[] getVersion() {
-        return new String[] {"aroxy " + this.read().strip()};
+        return new String[] {"aroxy " + read(Version.class.getResourceAsStream(RESOURCE)).strip()};
     }
 
-    private String read() {
-        try (InputStream stream = Version.class.getResourceAsStream(RESOURCE)) {
-            return new String(required(stream).readAllBytes(), StandardCharsets.UTF_8);
+    /**
+     * Package-private, and taking the stream rather than opening it, so that both ways this can fail are
+     * reachable from a test: a resource that is not there, and one that cannot be read.
+     *
+     * @param stream the resource stream, or nothing when the resource is absent
+     * @return the text of the resource
+     */
+    static String read(@Nullable InputStream stream) {
+        try (InputStream resource = required(stream)) {
+            return new String(resource.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read " + RESOURCE, exception);
         }
     }
 
-    private static InputStream required(InputStream stream) {
+    /**
+     * Package-private so the missing-resource failure can be exercised. That failure is real: the version
+     * is filtered into the artifact at build time, so a packaging change can drop it, and what happens
+     * then is a decision this class makes rather than an accident.
+     *
+     * @param stream the resource stream, or nothing when the resource is absent
+     * @return the stream when it is there
+     */
+    static InputStream required(@Nullable InputStream stream) {
         return Optional.ofNullable(stream)
             .orElseThrow(() -> new IllegalStateException("Missing resource " + RESOURCE));
     }

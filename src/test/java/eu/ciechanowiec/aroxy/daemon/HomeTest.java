@@ -72,4 +72,45 @@ class HomeTest {
         assertEquals(OWNER_ONLY, PosixFilePermissions.toString(Files.getPosixFilePermissions(home.logsDirectory())));
         assertEquals(OWNER_ONLY, PosixFilePermissions.toString(Files.getPosixFilePermissions(wire)));
     }
+
+    @Test
+    void prefersTheEnvironmentOverTheProperty() {
+        assertEquals(
+            Optional.of("/from-env"), Home.override("/from-env", "/from-property"),
+            "the environment is what a launcher sets for the process it starts"
+        );
+    }
+
+    @Test
+    void readsABlankSourceAsNoSourceAtAll() {
+        assertEquals(
+            Optional.of("/from-property"), Home.override("  ", "/from-property"),
+            "an empty variable would otherwise resolve the home to nowhere"
+        );
+        assertEquals(
+            Optional.empty(), Home.override(null, " "),
+            "and a blank property is no more of an override than an absent one"
+        );
+    }
+
+    @Test
+    void namesNoOverrideWhenNeitherSourceCarriesOne() {
+        assertEquals(
+            Optional.empty(), Home.override(null, null),
+            "with neither set the user default decides, which is what locate falls back to"
+        );
+    }
+
+    @Test
+    void namesTheFilesTheLauncherAndTheDaemonWriteBeside() {
+        Home home = new Home(this.base);
+        assertEquals(
+            this.base.resolve("launch.lock"), home.launchLock(),
+            "the launcher takes this lock so two starts cannot race"
+        );
+        assertEquals(
+            this.base.resolve("logs").resolve("daemon-out.log"), home.stdoutLog(),
+            "and the detached daemon's output lands beside its other logs"
+        );
+    }
 }

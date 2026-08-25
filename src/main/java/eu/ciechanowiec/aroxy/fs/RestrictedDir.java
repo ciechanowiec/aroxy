@@ -34,19 +34,33 @@ public final class RestrictedDir {
      * @throws IOException if the directory cannot be created
      */
     public static Path create(Path directory) throws IOException {
-        Files.createDirectories(directory, attributes());
-        harden(directory);
+        return create(directory, POSIX);
+    }
+
+    /**
+     * Whether the filesystem carries POSIX permissions is a property of the machine, so a test running on
+     * one kind of filesystem can never reach the other path. Taking the answer as a parameter makes both
+     * behaviours reachable from a test on either.
+     *
+     * @param directory the directory to create owner-only
+     * @param posix     whether the filesystem carries POSIX permissions
+     * @return the created directory
+     * @throws IOException if the directory cannot be created
+     */
+    static Path create(Path directory, boolean posix) throws IOException {
+        Files.createDirectories(directory, attributes(posix));
+        harden(directory, posix);
         return directory;
     }
 
-    private static FileAttribute<?>[] attributes() {
-        return POSIX
+    private static FileAttribute<?>[] attributes(boolean posix) {
+        return posix
             ? new FileAttribute<?>[] {PosixFilePermissions.asFileAttribute(OWNER_ONLY)}
             : new FileAttribute<?>[0];
     }
 
-    private static void harden(Path directory) {
-        if (POSIX) {
+    private static void harden(Path directory, boolean posix) {
+        if (posix) {
             enforce(directory);
         }
     }

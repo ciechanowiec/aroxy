@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code ~/.aroxy} state directory layout. The base directory defaults to {@code ~/.aroxy} but
@@ -49,14 +50,25 @@ public record Home(Path base) {
     private static Path locate() {
         Optional<String> variable = Optional.ofNullable(System.getenv(HOME_VAR));
         String property = System.getProperty(HOME_PROPERTY);
-        return override().map(Path::of).orElseGet(() -> userDefault(variable, property));
+        return override(System.getenv(ENV_VAR), System.getProperty(PROPERTY))
+            .map(Path::of)
+            .orElseGet(() -> userDefault(variable, property));
     }
 
-    private static Optional<String> override() {
-        Optional<String> environment = Optional.ofNullable(System.getenv(ENV_VAR)).filter(value -> !value.isBlank());
-        return environment.or(
-            () -> Optional.ofNullable(System.getProperty(PROPERTY)).filter(value -> !value.isBlank())
-        );
+    /**
+     * The environment wins over the property, and a value that is present but blank counts as absent so
+     * that an empty variable does not resolve the home to nowhere. Both sources are taken as parameters
+     * because a test cannot set an environment variable in its own process, and the rule about blankness
+     * is the part worth testing rather than the reading.
+     *
+     * @param environment the value of the environment variable, or nothing when it is unset
+     * @param property    the value of the system property, or nothing when it is unset
+     * @return the override to use, or nothing when neither source names one
+     */
+    static Optional<String> override(@Nullable String environment, @Nullable String property) {
+        return Optional.ofNullable(environment)
+            .filter(value -> !value.isBlank())
+            .or(() -> Optional.ofNullable(property).filter(value -> !value.isBlank()));
     }
 
     /**

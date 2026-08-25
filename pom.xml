@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -43,7 +43,7 @@
 
     <properties>
         <!-- Process-boundary classes are exercised outside the JVM observed by JaCoCo. -->
-        <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.Aroxy,eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.cli.DaemonEntry,eu.ciechanowiec.aroxy.cli.Version,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.daemon.LaunchCommand,eu.ciechanowiec.aroxy.daemon.DaemonProcess,eu.ciechanowiec.aroxy.daemon.Daemon,eu.ciechanowiec.aroxy.daemon.Home,eu.ciechanowiec.aroxy.fs.RestrictedDir</airness.coverage.excluded.classes>
+        <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.daemon.*Command,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.cli.DaemonEntry</airness.coverage.excluded.classes>
         <!-- The package Airness analyzes as project-owned code. -->
         <airness.package.root>eu.ciechanowiec.aroxy</airness.package.root>
         <!-- Vendored tools and themes contain the typography they detect or belong to another tool. -->

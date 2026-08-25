@@ -51,7 +51,6 @@ public final class Aroxy implements Runnable {
     }
 
     static void main(String... args) {
-        int exitCode = execute(args);
-        System.exit(exitCode);
+        System.exit(execute(args));
     }
 }
