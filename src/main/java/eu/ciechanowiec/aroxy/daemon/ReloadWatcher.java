@@ -1,10 +1,13 @@
 package eu.ciechanowiec.aroxy.daemon;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Polls the {@link ControlFiles} reload trigger on a fixed, short interval and runs the supplied
@@ -22,35 +25,45 @@ final class ReloadWatcher {
     private final ControlFiles control;
     private final Runnable onReload;
     private final ScheduledExecutorService executor;
-    private long lastStamp;
-    private Optional<ScheduledFuture<?>> task;
+    /**
+     * The stamp the last poll saw. Written by {@link #start()} on the caller's thread and read and
+     * written by {@link #tick()} on the watcher's, so this is genuinely shared state, and the counter is
+     * what makes those two writes safe rather than the race a plain field would carry.
+     */
+    private final AtomicLong lastStamp;
+
+    private final AtomicReference<Optional<ScheduledFuture<?>>> task;
 
     ReloadWatcher(ControlFiles control, Runnable onReload) {
         this.control = control;
         this.onReload = onReload;
         this.executor = Executors.newSingleThreadScheduledExecutor(ReloadWatcher::thread);
-        this.lastStamp = NEVER;
-        this.task = Optional.empty();
+        this.lastStamp = new AtomicLong(NEVER);
+        this.task = new AtomicReference<>(Optional.empty());
     }
 
     void start() {
-        this.lastStamp = this.control.triggerStamp().orElse(NEVER);
-        this.task = Optional.of(
-            this.executor.scheduleAtFixedRate(
-                this::tick, INTERVAL_MILLIS, INTERVAL_MILLIS, TimeUnit.MILLISECONDS
+        this.lastStamp.set(this.control.triggerStamp().orElse(NEVER));
+        this.task.set(
+            Optional.of(
+                this.executor.scheduleAtFixedRate(
+                    this::tick, INTERVAL_MILLIS, INTERVAL_MILLIS, TimeUnit.MILLISECONDS
+                )
             )
         );
     }
 
     void stop() {
-        this.task.ifPresent(scheduled -> scheduled.cancel(true));
+        Objects.requireNonNullElse(this.task.get(), Optional.<ScheduledFuture<?>>empty())
+            .ifPresent(scheduled -> scheduled.cancel(true));
         this.executor.shutdownNow();
     }
 
     private void tick() {
-        long current = this.control.triggerStamp().orElse(this.lastStamp);
-        if (current != this.lastStamp) {
-            this.lastStamp = current;
+        long seen = this.lastStamp.get();
+        long current = this.control.triggerStamp().orElse(seen);
+        if (current != seen) {
+            this.lastStamp.set(current);
             this.onReload.run();
         }
     }
