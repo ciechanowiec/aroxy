@@ -11,8 +11,9 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 
 - The project inherits `airness-parent`. Do not weaken, replace, duplicate, or version the plugins, dependencies,
   analyzers, rules, thresholds, or managed files that the parent owns.
-- Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Keep every production and test package under the
-  `airness.package.root` declared in the root `pom.xml`.
+- Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
+  fails when it cannot, and Extended verification also needs a reachable Docker daemon. Keep every production and test
+  package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
 
@@ -21,9 +22,10 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 Airness governs all of the following domains:
 
 - **Toolchain and Maven model:** runtime versions, project and parent coordinates, package ownership, inherited plugin
-  ownership, raw-model anti-bypass checks, effective dependency convergence, and valid Airness parameters.
-- **Repository files and instructions:** managed, seeded, and forbidden files; agent instruction files; editor and Git
-  configuration; and an unchanged committable tree during verification.
+  ownership, raw-model anti-bypass checks, effective dependency convergence, the ordering of declared properties, and
+  valid Airness parameters.
+- **Repository files and instructions:** managed, seeded, and forbidden files; the root license file; agent
+  instruction files; editor and Git configuration; and an unchanged committable tree during verification.
 - **Source:** formatting, imports, modernization recipes, compilation, nullness, static analysis, documentation
   comments, source comments, typography, banned substitutes, and cycles among the packages of a module.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
@@ -57,7 +59,7 @@ while writing the message, so the policy is declared here in full.
 | Subject ending | no trailing period |
 | Junk words | `wip`, `tmp`, `temp`, `misc`, `stuff`, `asdf`, `fixup`, as whole words anywhere in the header |
 | Body | required when the commit changes more than 2 files or more than 50 added plus deleted lines |
-| Body separator | one blank line after the header, since the body is everything after the first blank line |
+| Body separator | everything after the first line, stripped, and a blank line after it is the Git convention |
 | Typography | plain ASCII only: no em dash, en dash, one-character ellipsis, or curly quotation mark |
 | Attribution | no marker naming an AI agent or an agent session, in any commit |
 
@@ -73,7 +75,8 @@ Four traps account for most failures:
 - The junk-word scan reads the whole header, so `chore(temp): rotate the build cache keys` fails on its scope.
 - The 15-character floor rejects a short subject such as `fix typo`.
 - The body threshold counts added and deleted lines together, so a routine change crosses it quickly.
-- An explanation written without a blank line after the header does not count as a body.
+- The attribution and typography scans read the body as well as the header, so a signature or an em dash in an
+  explanation fails exactly as it would in a subject.
 
 Check a commit as soon as it is recorded, with
 `mvn airness:commit-history airness:commit-typography airness:linear-history`. All three goals read the repository
@@ -106,7 +109,8 @@ it is published, only a fresh history satisfies the rule.
 3. Run `mvn process-resources -Pformat` to apply formatting and rewrite recipes, then review the resulting source.
 4. Run `mvn clean package` for Default verification.
 5. Run `mvn clean package -Pextended` before finishing. Extended verification includes Default verification and adds
-   history, secret, and Qodana checks.
+   the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
+   vulnerability database.
 
 ## Layer 5: Exceptions and Repairs
 
@@ -114,11 +118,31 @@ it is published, only a fresh history satisfies the rule.
   `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
-- Change typography exclusions, coverage exclusions, or the default test timeout only for an explicit project
-  requirement. Never use an exclusion or a larger timeout merely to obtain a pass.
+- Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to
+  obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.
+
+### Project Settings
+
+| Setting | Use |
+| --- | --- |
+| `airness.package.root` | the prefix of every production and test package, and the only required key |
+| `airness.assets.unmanaged` | repository paths the project takes over from the harness |
+| `airness.typography.excludes` | repository path prefixes the typography scan skips |
+| `airness.coverage.excluded.classes` | qualified class patterns the coverage floors skip |
+| `airness.test.timeout` | the ceiling on one test, and `30 s` unless set |
+| `airness.dependency-check.suppression.file` | a local OWASP suppression file, described below |
+
+Those six are the whole of what a project file may declare. Every other name under `airness.`, and `skipTests`,
+`maven.test.skip`, and `jacoco.dataFile`, is refused there, because each of them can decide a verdict. The refusal
+reads the file as written, so a name inside a profile that is never activated is refused too. Both
+`-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
+
+Reach for the suppression file only when no upgrade answers an advisory. Every rule in it names the advisory it
+excuses, says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule
+that suppresses nothing fails the build, like every other exclusion that reaches nothing.
 

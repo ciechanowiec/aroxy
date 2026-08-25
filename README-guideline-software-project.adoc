@@ -86,7 +86,7 @@ This section defines the terms the guideline uses and states the qualities requi
 
 . [[check]]A _check_ is an automated verification with exactly two verdicts: pass and fail. Any outcome other than a pass, including the failure of the check itself to run, is a fail. A warning severity doesn't exist in a xref:#governed-repository[governed repository].
 . [[harness]]A _harness_ is the complete set of xref:#check[checks] of a xref:#governed-repository[governed repository].
-. [[verification-command,the verification command]]A _verification command_ is a command of the xref:#governed-repository[governed repository] that runs every xref:#check[check] in a fixed order and fails when any check fails. The verdict of the verification command is the verdict of the whole xref:#harness[harness].
+. [[verification-command,the verification command]]A _verification command_ is a command of the xref:#governed-repository[governed repository] that covers every xref:#check[check] and runs the checks in a fixed order. It stops at the first check that fails and fails with it, so one run reports one failing check. The verdict of the verification command is the verdict of the whole xref:#harness[harness].
 . [[file-role,a file role]]A _file role_ is a category that a xref:#governed-repository[governed repository] can determine from a file itself and uses to include or exclude the file from xref:#check[checks].
 
 [[check-qualities]]
