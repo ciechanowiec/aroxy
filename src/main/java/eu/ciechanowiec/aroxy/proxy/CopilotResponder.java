@@ -75,9 +75,15 @@ final class CopilotResponder {
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
         ClientSink sink = ClientSink.keepingAlive(Content.Sink.asOutputStream(response), KEEP_ALIVE);
         try (sink; InputStream body = reply.body()) {
-            this.transform(new StreamContext(body, sink, capture, stamp), path);
+            this.transformRecordingFailure(new StreamContext(body, sink, capture, stamp), path, sink);
+        }
+    }
+
+    private void transformRecordingFailure(StreamContext context, String path, ClientSink sink) throws IOException {
+        try {
+            this.transform(context, path);
         } catch (IOException exception) {
-            this.broken(stamp, capture, sink, exception);
+            this.broken(context.stamp(), context.capture(), sink, exception);
             throw exception;
         }
     }
