@@ -17,7 +17,8 @@ final class CursorProxyListener implements ProxyListener {
 
     private final Server server;
     private final ServerConnector connector;
-    private final CursorExchange exchange;
+    private final CursorRouter router;
+    private final VirtualThreadExchange exchange;
 
     CursorProxyListener(
         String host, int port, ProxyParts parts, CursorTransport transport
@@ -32,7 +33,8 @@ final class CursorProxyListener implements ProxyListener {
         this.connector.setHost(host);
         this.connector.setPort(port);
         this.server.addConnector(this.connector);
-        this.exchange = new CursorExchange(parts, transport);
+        this.router = new CursorRouter(parts, transport);
+        this.exchange = new VirtualThreadExchange(this.router::serve);
         this.server.setHandler(this.exchange);
         this.connector.open();
     }
@@ -55,6 +57,6 @@ final class CursorProxyListener implements ProxyListener {
         this.server.setStopTimeout(TimeUnit.SECONDS.toMillis(delaySeconds));
         this.exchange.drain();
         LifeCycle.stop(this.server);
-        this.exchange.close();
+        this.router.close();
     }
 }

@@ -10,15 +10,15 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins the bounded virtual-thread drain used during Copilot listener shutdown.
+ * Pins the bounded virtual-thread drain that every Jetty listener runs before it stops.
  */
-class CopilotExchangeTest {
+class VirtualThreadExchangeTest {
 
     @Test
     @SneakyThrows
     void joinsAWorkerBeforeItsDeadline() {
         Thread worker = Thread.startVirtualThread(Thread::yield);
-        CopilotExchange.join(worker, Instant.now().plus(Duration.ofSeconds(1)));
+        VirtualThreadExchange.join(worker, Instant.now().plus(Duration.ofSeconds(1)));
         assertFalse(worker.isAlive());
     }
 
@@ -28,7 +28,7 @@ class CopilotExchangeTest {
         Thread worker = Thread.startVirtualThread(LockSupport::park);
         Thread.currentThread().interrupt();
         try {
-            CopilotExchange.join(worker, Instant.now().plus(Duration.ofSeconds(1)));
+            VirtualThreadExchange.join(worker, Instant.now().plus(Duration.ofSeconds(1)));
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
             boolean restored = Thread.interrupted();

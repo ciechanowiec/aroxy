@@ -101,7 +101,7 @@ class CursorDrainTest {
     }
 
     private static boolean isExchangeJoin(StackTraceElement frame) {
-        return CursorExchange.class.getName().equals(frame.getClassName())
+        return VirtualThreadExchange.class.getName().equals(frame.getClassName())
             && JOIN.equals(frame.getMethodName());
     }
 

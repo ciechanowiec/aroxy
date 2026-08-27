@@ -5,9 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,14 +13,9 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocketHandshakeException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -100,7 +92,7 @@ class CopilotProxyTest {
         RuntimeException failure = assertThrows(
             RuntimeException.class,
             () -> {
-                try (HttpClient http = client()) {
+                try (HttpClient http = CopilotFixtures.client(this.proxy.base(), this.base)) {
                     http.newWebSocketBuilder().buildAsync(webSocketTarget(), listener).join();
                 }
             }
@@ -146,29 +138,8 @@ class CopilotProxyTest {
 
     @SneakyThrows
     private <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler) {
-        try (HttpClient http = client()) {
+        try (HttpClient http = CopilotFixtures.client(this.proxy.base(), this.base)) {
             return http.send(request, handler);
-        }
-    }
-
-    @SneakyThrows
-    private HttpClient client() {
-        Certificate authority = authority();
-        KeyStore trust = KeyStore.getInstance(KeyStore.getDefaultType());
-        trust.load(null);
-        trust.setCertificateEntry("aroxy", authority);
-        TrustManagerFactory managers = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        managers.init(trust);
-        SSLContext context = SSLContext.getInstance("TLS");
-        context.init(null, managers.getTrustManagers(), null);
-        InetSocketAddress address = new InetSocketAddress(this.proxy.base().getHost(), this.proxy.base().getPort());
-        return HttpClient.newBuilder().sslContext(context).proxy(ProxySelector.of(address)).build();
-    }
-
-    @SneakyThrows
-    private Certificate authority() {
-        try (InputStream input = Files.newInputStream(this.base.resolve("copilot-ca.pem"))) {
-            return CertificateFactory.getInstance("X.509").generateCertificate(input);
         }
     }
 

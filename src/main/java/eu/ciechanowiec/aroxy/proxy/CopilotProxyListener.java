@@ -28,7 +28,7 @@ final class CopilotProxyListener implements ProxyListener {
     private final Server publicServer;
     private final Server privateServer;
     private final ServerConnector publicConnector;
-    private final CopilotExchange exchange;
+    private final VirtualThreadExchange exchange;
 
     @Justification("the private server owns and closes its connector")
     @SuppressWarnings("PMD.CloseResource")
@@ -36,7 +36,7 @@ final class CopilotProxyListener implements ProxyListener {
         String host, int port, ProxyParts parts, CopilotTransport transport
     ) throws IOException {
         this.privateServer = new Server();
-        this.exchange = new CopilotExchange(parts, transport);
+        this.exchange = new VirtualThreadExchange(new CopilotRouter(parts, transport)::serve);
         this.privateServer.setHandler(this.exchange);
         CopilotCertificates certificates = CopilotCertificates.open(parts.stateDirectory());
         SslContextFactory.Server tls = tls(certificates);

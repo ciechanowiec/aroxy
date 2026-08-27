@@ -135,28 +135,15 @@ class AuditTrailTest {
     @Test
     @SneakyThrows
     void theCursorStreamRecordsItsTrail(@TempDir Path logs) {
-        FakeUpstream upstream = new FakeUpstream(
-            CannedReply.connectProtobuf(
-                CursorWire.text(CursorWire.frame(CursorWire.textDelta("hello")))
-            )
-        );
-        ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
+        ProxyHarness harness = cursorStream(logs);
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(harness.base().resolve(RUN))
-                .header("Content-Type", CONNECT_PROTO)
-                .POST(
-                    HttpRequest.BodyPublishers.ofByteArray(
-                        CursorWire.concat(
-                            CursorWire.frame(
-                                CursorWire.protobuf(CursorWire.protobuf(ProxyHarness.SECRET))
-                            ),
-                            CursorWire.framed(ConnectJsonFrame.END_STREAM, new byte[0])
-                        )
-                    )
+            sendStream(
+                harness,
+                CursorWire.concat(
+                    CursorWire.frame(CursorWire.protobuf(CursorWire.protobuf(ProxyHarness.SECRET))),
+                    CursorWire.framed(ConnectJsonFrame.END_STREAM, new byte[0])
                 )
-                .build();
-            send(request);
+            );
         } finally {
             harness.stop();
         }
@@ -169,35 +156,20 @@ class AuditTrailTest {
     @Test
     @SneakyThrows
     void everyEnvelopeOfAStreamIsRecorded(@TempDir Path logs) {
-        FakeUpstream upstream = new FakeUpstream(
-            CannedReply.connectProtobuf(
-                CursorWire.text(CursorWire.frame(CursorWire.textDelta("hello")))
-            )
-        );
-        ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
+        ProxyHarness harness = cursorStream(logs);
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(harness.base().resolve(RUN))
-                .header("Content-Type", CONNECT_PROTO)
-                .POST(
-                    HttpRequest.BodyPublishers.ofByteArray(
-                        CursorWire.concat(
-                            CursorWire.frame(
-                                CursorWire.protobuf(CursorWire.protobuf(ProxyHarness.SECRET))
-                            ),
-                            CursorWire.concat(
-                                CursorWire.frame(
-                                    CursorWire.protobuf(
-                                        CursorWire.protobuf("and " + ProxyHarness.KEYWORD)
-                                    )
-                                ),
-                                CursorWire.framed(ConnectJsonFrame.END_STREAM, new byte[0])
-                            )
-                        )
+            sendStream(
+                harness,
+                CursorWire.concat(
+                    CursorWire.frame(CursorWire.protobuf(CursorWire.protobuf(ProxyHarness.SECRET))),
+                    CursorWire.concat(
+                        CursorWire.frame(
+                            CursorWire.protobuf(CursorWire.protobuf("and " + ProxyHarness.KEYWORD))
+                        ),
+                        CursorWire.framed(ConnectJsonFrame.END_STREAM, new byte[0])
                     )
                 )
-                .build();
-            send(request);
+            );
         } finally {
             harness.stop();
         }
@@ -280,6 +252,29 @@ class AuditTrailTest {
     @SneakyThrows
     private static String audit(Path logs) {
         return Files.readString(logs.resolve("audit.log"));
+    }
+
+    // Both streaming cases stage the same upstream and post the same envelope shape, differing only in
+    // what their frames carry. Staging and posting are written once so that each case reads as the
+    // frames it supplies and the trail it then asserts, rather than as the plumbing around them.
+    @SneakyThrows
+    private static ProxyHarness cursorStream(Path logs) {
+        FakeUpstream upstream = new FakeUpstream(
+            CannedReply.connectProtobuf(
+                CursorWire.text(CursorWire.frame(CursorWire.textDelta("hello")))
+            )
+        );
+        return new ProxyHarness(upstream, logs, CursorCli.profile());
+    }
+
+    private static void sendStream(ProxyHarness harness, byte... body) {
+        send(
+            HttpRequest.newBuilder()
+                .uri(harness.base().resolve(RUN))
+                .header("Content-Type", CONNECT_PROTO)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build()
+        );
     }
 
     @SneakyThrows

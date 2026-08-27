@@ -4,10 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -15,16 +12,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -70,7 +61,7 @@ class CopilotProxyResponseTest {
         restart(CannedReply.sse(chatEvent(TOKEN) + "data: [DONE]\n\n"));
         assertTrue(post("/chat/completions", SECRET_BODY).body().contains(ProxyHarness.SECRET));
         String audit = Files.readString(this.base.resolve("audit.log"));
-        List<Path> dumps = wireFiles();
+        List<Path> dumps = CopilotFixtures.wireFiles(this.base);
         assertEquals(2, audit.split("token \\(stream\\)", -1).length - 1, audit);
         assertEquals(2, dumps.size());
         assertEquals(2, dumps.stream().filter(path -> read(path).contains(TOKEN)).count());
@@ -173,36 +164,8 @@ class CopilotProxyResponseTest {
 
     @SneakyThrows
     private <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler) {
-        try (HttpClient http = client()) {
+        try (HttpClient http = CopilotFixtures.client(this.proxy().base(), this.base)) {
             return http.send(request, handler);
-        }
-    }
-
-    @SneakyThrows
-    private HttpClient client() {
-        KeyStore trust = KeyStore.getInstance(KeyStore.getDefaultType());
-        trust.load(null);
-        trust.setCertificateEntry("aroxy", authority());
-        TrustManagerFactory managers = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        managers.init(trust);
-        SSLContext context = SSLContext.getInstance("TLS");
-        context.init(null, managers.getTrustManagers(), null);
-        URI proxied = this.proxy().base();
-        InetSocketAddress address = new InetSocketAddress(proxied.getHost(), proxied.getPort());
-        return HttpClient.newBuilder().sslContext(context).proxy(ProxySelector.of(address)).build();
-    }
-
-    @SneakyThrows
-    private Certificate authority() {
-        try (InputStream input = Files.newInputStream(this.base.resolve("copilot-ca.pem"))) {
-            return CertificateFactory.getInstance("X.509").generateCertificate(input);
-        }
-    }
-
-    @SneakyThrows
-    private List<Path> wireFiles() {
-        try (Stream<Path> files = Files.list(this.base.resolve("wire"))) {
-            return files.filter(path -> path.getFileName().toString().endsWith("-raw-response.txt")).toList();
         }
     }
 
