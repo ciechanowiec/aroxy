@@ -12,8 +12,8 @@ layers in the order the standard declares. Exact analyzer rules remain in the ex
 - The project inherits `airness-parent`. Do not weaken, replace, duplicate, or version the plugins, dependencies,
   analyzers, rules, thresholds, or managed files that the parent owns.
 - Use exactly Java 25, Maven 3.9.16 or later, and a Git working tree. Default verification reads Maven Central and
-  fails when it cannot, and Extended verification also needs a reachable Docker daemon. Keep every production and test
-  package under the `airness.package.root` declared in the root `pom.xml`.
+  Docker Hub and fails when either cannot be read, and Extended verification also needs a reachable Docker daemon.
+  Keep every production and test package under the `airness.package.root` declared in the root `pom.xml`.
 - Treat every finding and every tool, setup, or compilation failure as a failed verification. Reporting findings with
   `-Dairness.enforce=false` is not a pass. A build using `-DskipTests` produces no Airness verdict.
 
@@ -30,8 +30,8 @@ Airness governs all of the following domains:
   comments, source comments, typography, banned substitutes, and cycles among the packages of a module.
 - **Dependencies:** explicit scopes, exactly named versions, no project-declared repositories or system paths,
   released dependencies for a released project, one version and one owning artifact per class, unused dependencies,
-  declared mocking libraries, licenses, known vulnerabilities, available stable updates, and the maximum permitted
-  freshness gap.
+  declared mocking libraries, licenses, known vulnerabilities, available stable package and container-image updates,
+  container tag-digest drift, and the maximum permitted coordinate freshness gap.
 - **Artifacts:** the finished JAR contains no unsafe or duplicate paths, development or source files, test-only output,
   machine-local repository paths, or recognizable secret material.
 - **Tests and evidence:** test execution, test integrity and determinism, a default timeout on every test, a
@@ -118,6 +118,22 @@ it is published, only a fresh history satisfies the rule.
   `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
+- Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
+  `orElseThrow(...)` to a `URL`, and only then opening the stream in a plain try-with-resources. A stream opened
+  before the missing-resource check, or checked inside the resource specifier, is unclosed on the throwing edge,
+  which is the `OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE` finding. A `URL` carries no close obligation, so
+  resolving it first puts the check where nothing is open yet.
+- Weaken a parameter when `TypeMayBeWeakened` asks, and answer the two findings it raises that no weakening can
+  satisfy by changing the declaration rather than by suppressing the rule. Give a record its defensive copy through
+  a compact constructor, which declares no parameter list at all, rather than through a canonical constructor whose
+  parameters are pinned to the component types. Name the first navigation off a parameter that the body only ever
+  reads as the qualifier of a further call, rather than chaining it. Such a parameter has no declared expected type
+  at its single use, which is the one place this inspection cannot rule a weakening out, so a Jackson `JsonNode`
+  reads as weakenable to `TreeNode` even though `TreeNode` returns `TreeNode` and declares no value reader and the
+  weakening does not compile. Naming the first hop supplies the expected type and the inspection then rules it out
+  itself. A local already carries its initializer's type, so only parameters need this. Neither repair costs any
+  coverage, and neither needs an entry in the profile: prefer both to `stopClasses`, which would exempt a type
+  everywhere and so give up the genuine weakenings the same run still reports.
 - Change an exclusion or the default test timeout only for an explicit project requirement. Never use one merely to
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
@@ -142,7 +158,8 @@ Those six are the whole of what a project file may declare. Every other name und
 reads the file as written, so a name inside a profile that is never activated is refused too. Both
 `-Dairness.enforce=false` and `-DskipTests` are command-line flags and are never written into a project file.
 
-Reach for the suppression file only when no upgrade answers an advisory. Every rule in it names the advisory it
-excuses, says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule
-that suppresses nothing fails the build, like every other exclusion that reaches nothing.
-
+Reach for the suppression file only when no upgrade answers an advisory. Keep it at
+`.airness/dependency-check-suppressions.xml`, which is the path the scan reads: the document's presence there is what
+puts it in front of the scan, so one kept elsewhere is never read. Every rule in it names the advisory it excuses,
+says in its `notes` why this project cannot reach the vulnerability, and carries a `YYYY-MM-DD` date. A rule that
+suppresses nothing fails the build, like every other exclusion that reaches nothing.

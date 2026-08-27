@@ -234,6 +234,7 @@ This section describes the state of the source code: its size, its types, its na
 
 . This section governs the licenses and vulnerabilities of third-party packages used by the xref:#governed-repository[governed repository] and the freshness of dependency, plugin, and parent versions.
 . [[declared-coordinate,a declared coordinate]]A _declared coordinate_ is the identity and version of a dependency, plugin, or parent declared in a manifest of the xref:#governed-repository[governed repository] or an inherited manifest.
+. [[versioned-input,a versioned input]]A _versioned input_ is a xref:#declared-coordinate[declared coordinate] or a container image the xref:#harness[harness] owns and declares with a version tag and immutable digest.
 . [[resolved-set,the resolved set]]The _resolved set_ contains the packages identified by xref:#declared-coordinate[declared coordinates] and all packages they pull in.
 
 [[dependency-licenses]]
@@ -254,11 +255,10 @@ This section describes the state of the source code: its size, its types, its na
 [[dependency-freshness]]
 === Freshness
 
-. The freshness xref:#check[check] measures the major-version gap between a xref:#declared-coordinate[declared coordinate] and its latest stable release. A newer stable release is reported but doesn't fail the build on its own.
-. An [[update-report,an update report]]_update report_ lists every newer stable release available for a xref:#declared-coordinate[declared coordinate]. Every build produces one for declared coordinates in the xref:#governed-repository[governed repository's] own and inherited manifests. For each coordinate, the report names the manifest that declares it.
-. The [[freshness-bound,the freshness bound]]_freshness bound_ is fixed at a gap of two major versions. A xref:#governed-repository[governed repository] doesn't configure it. A xref:#declared-coordinate[declared coordinate] becomes noncompliant when its latest stable release is at least two major versions ahead. For example, version 71 fails when version 73 is available.
-. The freshness xref:#check[check] compares every xref:#declared-coordinate[declared coordinate] in the xref:#update-report[update report] with its latest stable release. The check uses the numeric major version. For a version beginning with a four-digit year from 2000 through 2099, it treats the year as the major version. A stable release two or more years ahead therefore reaches the xref:#freshness-bound[freshness bound] and fails. The check excludes version schemes with neither a numeric major nor a leading year. It doesn't inspect transitive packages in the xref:#resolved-set[resolved set].
-. Because the freshness xref:#check[check] reads the public package registry, the section xref:#check-qualities[] excludes it from determinism. A gap below the xref:#freshness-bound[freshness bound] passes, and a gap that reaches it fails. An unreachable registry also fails the check.
+. The freshness xref:#check[check] compares every xref:#versioned-input[versioned input] with its latest stable version. Its [[update-report,an update report]]_update report_ lists every newer stable version and names the declaring manifest for a xref:#declared-coordinate[declared coordinate] or the declaring property and replacement digest for a container image. Every build produces the report. A newer stable version doesn't fail the build on its own.
+. The [[freshness-bound,the freshness bound]]_freshness bound_ applies only to xref:#declared-coordinate[declared coordinates] and is fixed at a gap of two major versions. A xref:#governed-repository[governed repository] doesn't configure it. A declared coordinate becomes noncompliant when its latest stable version is at least two major versions ahead. For example, version 71 fails when version 73 is available.
+. For a xref:#declared-coordinate[declared coordinate], the freshness xref:#check[check] uses the numeric major version. For a version beginning with a four-digit year from 2000 through 2099, it treats the year as the major version. The check excludes version schemes with neither a numeric major nor a leading year and doesn't inspect transitive packages in the xref:#resolved-set[resolved set].
+. Because the freshness xref:#check[check] reads public package and image registries, the section xref:#check-qualities[] excludes it from determinism. A gap below the xref:#freshness-bound[freshness bound] passes, and a gap that reaches it fails. An unreachable registry also fails the check.
 
 [[testing]]
 == Testing
