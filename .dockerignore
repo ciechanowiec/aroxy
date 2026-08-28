@@ -1,0 +1,25 @@
+# Airness requires this file to exist, but the project owns its patterns. Keep them aligned with the
+# files that Dockerfile COPY and ADD instructions need. Add build-output exclusions such as target/
+# only when the Docker build creates those outputs instead of copying them from the host.
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+
+# IDE and editors
+*.iml
+.idea/
+.vscode/
+.fleet/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log*
+*.logs*
+logs/
+log/

@@ -107,15 +107,17 @@ it is published, only a fresh history satisfies the rule.
 1. Read `airness.package.root` from the root `pom.xml` before adding or moving Java packages.
 2. Run `mvn airness:assets-sync` only to create or restore managed repository files, then review and commit its edits.
 3. Run `mvn process-resources -Pformat` to apply formatting and rewrite recipes, then review the resulting source.
-4. Run `mvn clean package` for Default verification.
-5. Run `mvn clean package -Pextended` before finishing. Extended verification includes Default verification and adds
+4. Run `mvn clean verify` for Default verification. Verify rather than package, because a project that repackages
+   its archive produces the archive that ships during package, and the artifact-content check reads it afterwards.
+5. Run `mvn clean verify -Pextended` before finishing. Extended verification includes Default verification and adds
    the known-vulnerability scan and the history, secret, and Qodana checks. Default verification alone never reads the
    vulnerability database.
 
 ## Layer 5: Exceptions and Repairs
 
-- Fix a managed-file finding with `mvn airness:assets-sync`. A project may take over an eligible path through
-  `airness.assets.unmanaged` only when the assignment explicitly requires it and the project records the reason.
+- Fix a managed-file finding with `mvn airness:assets-sync`. A seed's contents belong to the project after creation,
+  but its path remains mandatory. A project may take over an eligible path through `airness.assets.unmanaged` only
+  when the assignment explicitly requires it and the project records the reason.
 - Fix formatter and rewrite findings with the format command. Fix compilation, analysis, dependency, test, coverage,
   history, security, and tool failures at their source; do not disable the failing check.
 - Read a resource the JAR carries by resolving `Class.getResource` through `Optional.ofNullable(...)` and
@@ -138,9 +140,30 @@ it is published, only a fresh history satisfies the rule.
   obtain a pass.
 - The test order seed and the suppression ceiling are the harness's own and take no project setting. Answer a
   suppression-ceiling finding by removing a suppression, and never by trying to raise the ceiling.
+- There is no setting that turns a check off. If a check is wrong for the project, that is an Airness bug to be
+  fixed in Airness, not a local override.
 - For a source suppression, put `@SuppressWarnings` and a non-empty `@Justification` on the same declaration and use
   the analyzer's exact rule ID. For a tool without source suppressions, use its Airness-owned configuration or
   baseline mechanism and keep the reason beside the entry.
+
+### Change Requests
+
+A project cannot repair the harness from inside itself, and that is the design rather than a gap in it: a rule a
+project can edit is not a rule. What follows from it is that a rule improves only when somebody reports it, which
+makes the report part of the contract rather than a courtesy.
+
+Raise it with the Airness maintainers when:
+
+- a check blocks work that is correct, and the only way past it is a suppression or an exclusion;
+- the same finding is repaired the same way in project after project, which is a rule that belongs in the harness
+  rather than in each project's habits;
+- a project-owned check turns out to be true of every project of this kind, and should move into the harness;
+- a message names a defect without naming the repair, or names the wrong repair.
+
+Bring the failing output, the smallest case that reproduces it, and what the rule should have said. A suppression to
+get past a check is a local answer to a general problem: take it when the work cannot wait, and report it either
+way, because the next project meets the same check with no memory of this one, and a suppression left in place
+spends a ceiling the next repair will need.
 
 ### Project Settings
 
