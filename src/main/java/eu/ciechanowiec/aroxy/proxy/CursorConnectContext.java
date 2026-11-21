@@ -33,7 +33,11 @@ final class CursorConnectContext {
         this.audit.response(stamp, reversed);
     }
 
-    void wire(String stamp, byte[] redacted, byte[] raw) {
-        this.audit.wire(stamp, redacted, raw);
+    void requestContinued(String stamp, Collection<ObfuscationMatch> matches, boolean alreadyRedacted) {
+        this.audit.requestContinued(stamp, matches, alreadyRedacted);
+    }
+
+    void wire(String stamp, BoundedCapture capture) {
+        this.audit.wire(stamp, capture);
     }
 }

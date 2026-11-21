@@ -1,10 +1,7 @@
 package eu.ciechanowiec.aroxy.daemon;
 
-import java.io.IOException;
-import java.nio.file.Files;
+import eu.ciechanowiec.aroxy.proxy.TrafficTotals;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -13,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * The daemon's published runtime state, written to {@link Home}{@code /runtime} on start and on every reload
@@ -34,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
  * @param attachments the contributing files, with kind and load time
  * @param config      the safe summary of the applied configuration
  */
-@Slf4j
 public record RuntimeSnapshot(
     List<GatewayAddress> gateways,
     long startMillis,
@@ -64,7 +59,7 @@ public record RuntimeSnapshot(
      * @return the parsed snapshot, or empty when the file is absent or unreadable
      */
     public static Optional<RuntimeSnapshot> read(Path file) {
-        return Files.exists(file) ? parse(readLines(file)) : Optional.empty();
+        return parse(StateFile.read(file));
     }
 
     private static String fileLine(AttachmentInfo info) {
@@ -73,15 +68,6 @@ public record RuntimeSnapshot(
 
     private static String gatewayLine(GatewayAddress gateway) {
         return String.join(TAB, GATEWAY, gateway.client(), gateway.listen(), gateway.upstream());
-    }
-
-    private static List<String> readLines(Path file) {
-        try {
-            return Files.readAllLines(file);
-        } catch (IOException exception) {
-            log.warn("Could not read runtime snapshot {}: {}", file, exception.getMessage());
-            return List.of();
-        }
     }
 
     private static Optional<RuntimeSnapshot> parse(Iterable<String> lines) {
@@ -98,7 +84,7 @@ public record RuntimeSnapshot(
     ) {
         String[] parts = line.split(TAB, -1);
         if (isRecord(parts, FILE)) {
-            files.add(new AttachmentInfo(parts[3], AttachmentKind.valueOf(parts[1]), parseLong(parts[2])));
+            files.add(new AttachmentInfo(parts[3], AttachmentKind.valueOf(parts[1]), StateFile.number(parts[2])));
         } else if (isRecord(parts, GATEWAY)) {
             gateways.add(new GatewayAddress(parts[1], parts[2], parts[3]));
         } else if (parts.length >= PAIR_FIELDS) {
@@ -118,8 +104,8 @@ public record RuntimeSnapshot(
         }
         return Optional.of(
             new RuntimeSnapshot(
-                gateways, parseLong(head.getOrDefault("start", "0")),
-                parseLong(head.getOrDefault("generation", "0")), files, runtimeConfig(head)
+                gateways, StateFile.number(head.getOrDefault("start", "0")),
+                StateFile.number(head.getOrDefault("generation", "0")), files, runtimeConfig(head)
             )
         );
     }
@@ -130,14 +116,6 @@ public record RuntimeSnapshot(
             .takeWhile(Objects::nonNull)
             .toList();
         return new RuntimeConfig(Boolean.parseBoolean(head.get(MASK_KEY)), ruleIds);
-    }
-
-    private static long parseLong(String value) {
-        try {
-            return Long.parseLong(value.strip());
-        } catch (NumberFormatException _) {
-            return 0L;
-        }
     }
 
     @Override
@@ -151,14 +129,27 @@ public record RuntimeSnapshot(
     }
 
     /**
-     * Renders a {@link StatusReport} for the CLI, deriving uptime from {@code now} and the start.
+     * Renders a {@link StatusReport} for the CLI with no traffic, deriving uptime from {@code now} and the start.
      *
      * @param now the current time in epoch milliseconds, used to derive uptime
      * @return the status report for the CLI
      */
     public StatusReport toStatusReport(long now) {
+        return this.toStatusReport(now, Optional.empty());
+    }
+
+    /**
+     * Renders a {@link StatusReport} for the CLI, deriving uptime and the age of the latest request
+     * from {@code now}.
+     *
+     * @param now     the current time in epoch milliseconds, used to derive uptime and request age
+     * @param traffic the traffic counters the daemon published, or empty when none were read
+     * @return the status report for the CLI
+     */
+    public StatusReport toStatusReport(long now, Optional<TrafficTotals> traffic) {
         return new StatusReport(
-            this.gateways, this.config.ruleIds().size(), Math.max(0, now - this.startMillis), this.attachments
+            this.gateways, this.config.ruleIds().size(), Math.max(0, now - this.startMillis), this.attachments,
+            traffic.map(totals -> TrafficReport.at(totals, now))
         );
     }
 
@@ -178,16 +169,7 @@ public record RuntimeSnapshot(
      * Writes the snapshot to {@code file}, replacing any previous content.
      */
     void writeTo(Path file) {
-        Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
-        try {
-            Files.write(
-                temporary, this.lines(),
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING
-            );
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException exception) {
-            log.warn("Could not publish runtime snapshot {}: {}", file, exception.getMessage());
-        }
+        StateFile.write(file, this.lines());
     }
 
     private List<String> lines() {

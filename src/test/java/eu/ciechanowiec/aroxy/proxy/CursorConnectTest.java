@@ -160,6 +160,38 @@ class CursorConnectTest {
         }
     }
 
+    // A Cursor turn is one exchange however many envelopes it uploads, so a tool result that matches
+    // after a clean first envelope makes the turn redacted, and a second matching envelope does not
+    // make it redacted twice. Every match still counts as a replacement.
+    @Test
+    @SneakyThrows
+    void countsAStreamedTurnAsRedactedOnceHoweverManyEnvelopesMatch(@TempDir Path logs) {
+        FakeUpstream upstream = new FakeUpstream(
+            CannedReply.connect(CursorWire.text(CursorWire.frame("{}".getBytes(StandardCharsets.UTF_8))))
+        );
+        ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
+        try {
+            String clean = """
+                {"runRequest":{"action":{"userMessageAction":{"userMessage":{"text":"hi"}}}}}
+                """.trim();
+            String tool = "{\"toolResult\":{\"content\":\"" + ProxyHarness.SECRET + "\"}}";
+            byte[] body = CursorWire.concat(
+                CursorWire.frame(clean.getBytes(StandardCharsets.UTF_8)),
+                CursorWire.concat(
+                    CursorWire.frame(tool.getBytes(StandardCharsets.UTF_8)),
+                    CursorWire.framed(ConnectJsonFrame.END_STREAM, tool)
+                )
+            );
+            send(harness, body);
+            TrafficTotals traffic = harness.traffic();
+            assertEquals(1L, traffic.requests(), traffic.toString());
+            assertEquals(1L, traffic.redacted(), traffic.toString());
+            assertEquals(2L, traffic.replaced(), traffic.toString());
+        } finally {
+            harness.stop();
+        }
+    }
+
     @Test
     @SneakyThrows
     void passesCursorAuthenticationEndpointsThroughUnchanged(@TempDir Path logs) {

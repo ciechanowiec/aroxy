@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.daemon;
 
 import eu.ciechanowiec.airness.Justification;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
@@ -9,10 +10,10 @@ import lombok.experimental.UtilityClass;
 /**
  * Renders a {@link StatusReport} as a compact, human-readable text block for {@code aroxy status}:
  * whether the daemon runs, one line per bound listener naming the address to point that agent at and
- * the upstream it reaches, the active rule count, the uptime, and the contributing configuration files
- * with their kind and load time. The CLI builds the report from the daemon's published
- * {@link RuntimeSnapshot} and prints this body, mirroring how {@code config} and {@code config list}
- * are rendered.
+ * the upstream it reaches, the active rule count, the uptime, the traffic carried since the start, and
+ * the contributing configuration files with their kind and load time. The CLI builds the report from
+ * the daemon's published {@link RuntimeSnapshot} and its traffic counters, and prints this body,
+ * mirroring how {@code config} and {@code config list} are rendered.
  *
  * <p>The listeners are rendered as an indented list rather than as one line per named client, so this
  * view does not change when a client is registered or dropped.
@@ -33,14 +34,18 @@ public final class StatusView {
     }
 
     private static List<String> lines(StatusReport report) {
-        return List.of(
-            INDENT + "Uptime       " + uptime(report.uptimeMillis()),
-            INDENT + "Rules        " + report.ruleCount(),
-            INDENT + "Listeners",
-            indent(GatewayListing.render(report.gateways())),
-            INDENT + "Configuration files",
-            indent(AttachmentListing.render(report.attachments()))
-        );
+        List<String> lines = new ArrayList<>();
+        lines.add(INDENT + "Uptime       " + uptime(report.uptimeMillis()));
+        lines.add(INDENT + "Rules        " + report.ruleCount());
+        report.traffic().stream()
+            .map(TrafficView::lines)
+            .flatMap(List::stream)
+            .forEach(line -> lines.add(INDENT + line));
+        lines.add(INDENT + "Listeners");
+        lines.add(indent(GatewayListing.render(report.gateways())));
+        lines.add(INDENT + "Configuration files");
+        lines.add(indent(AttachmentListing.render(report.attachments())));
+        return lines;
     }
 
     @Justification(

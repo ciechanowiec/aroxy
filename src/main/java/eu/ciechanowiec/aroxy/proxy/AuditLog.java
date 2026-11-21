@@ -18,6 +18,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * the redacted request and the raw response under {@code logs/wire/}. A sensitive match's original is
  * masked via {@link MaskedSecret}. A non-sensitive match (for example a keyword) is shown in full.
  * No secret and no pre-obfuscation original is ever written.
+ *
+ * <p>Because every agent's exchange passes through here, this is also where the {@link TrafficTotals}
+ * that {@code aroxy status} reports are counted.
  */
 public final class AuditLog {
 
@@ -30,6 +33,7 @@ public final class AuditLog {
     private final WireDumps wire;
     private final AtomicInteger sequence;
     private final AtomicBoolean maskSecrets;
+    private final TrafficStats traffic;
 
     /**
      * Creates an audit log under {@code logsDirectory} with sensitive originals masked.
@@ -54,6 +58,7 @@ public final class AuditLog {
         this.wire = new WireDumps(logsDirectory.resolve("wire"));
         this.sequence = new AtomicInteger();
         this.maskSecrets = new AtomicBoolean(maskSecrets);
+        this.traffic = new TrafficStats();
     }
 
     private static void appendMatches(
@@ -85,9 +90,11 @@ public final class AuditLog {
     }
 
     /**
-     * Returns a per-request stamp that correlates an audit line with its wire dumps.
+     * Returns a per-request stamp that correlates an audit line with its wire dumps. Each stamp opens
+     * one in-scope exchange, so this is also where the exchange is counted.
      */
     String nextStamp() {
+        this.traffic.exchanged();
         int next = this.sequence.incrementAndGet();
         return LocalDateTime.now(ZoneId.systemDefault()).format(STAMP_TS) + "-r" + String.format("%04d", next);
     }
@@ -100,6 +107,28 @@ public final class AuditLog {
      * @param matches  the matches that fired for this request
      */
     public void request(String stamp, String endpoint, Collection<ObfuscationMatch> matches) {
+        this.traffic.matched(matches.size(), !matches.isEmpty());
+        this.appendRequest(stamp, endpoint, matches);
+    }
+
+    /**
+     * Records the matches that fired in a later frame of an exchange already recorded by
+     * {@link #request(String, String, Collection)}, as a streamed Cursor upload has. The audit line is
+     * the same, but the exchange counts as redacted only once, however many of its frames matched.
+     *
+     * @param stamp           the stamp of the exchange the frame belongs to
+     * @param endpoint        the request endpoint
+     * @param matches         the matches that fired in this frame
+     * @param alreadyRedacted whether an earlier frame of the same exchange already matched
+     */
+    void requestContinued(
+        String stamp, String endpoint, Collection<ObfuscationMatch> matches, boolean alreadyRedacted
+    ) {
+        this.traffic.matched(matches.size(), !alreadyRedacted && !matches.isEmpty());
+        this.appendRequest(stamp, endpoint, matches);
+    }
+
+    private void appendRequest(String stamp, String endpoint, Collection<ObfuscationMatch> matches) {
         StringBuilder builder = new StringBuilder();
         builder.append(LINE_TS.format(LocalDateTime.now(ZoneId.systemDefault())))
             .append("  REQUEST  ").append(endpoint).append("  [").append(stamp).append("]\n");
@@ -134,11 +163,38 @@ public final class AuditLog {
         );
     }
 
+    /**
+     * The traffic carried since this audit log was created, summed over every listener sharing it.
+     *
+     * @return a point-in-time copy of the traffic counters
+     */
+    public TrafficTotals traffic() {
+        return this.traffic.totals();
+    }
+
     void wireRedactedRequest(String stamp, byte[] body, WireBody kind) {
+        this.wireRedactedRequest(stamp, body, kind, body.length);
+    }
+
+    /**
+     * Dumps the redacted request and counts {@code wireBytes} as sent. The two differ only for a
+     * stream whose dump was capped, where the bytes actually sent exceed the bytes kept.
+     */
+    void wireRedactedRequest(String stamp, byte[] body, WireBody kind, long wireBytes) {
+        this.traffic.sent(wireBytes);
         this.wire.redactedRequest(stamp, body, kind);
     }
 
     void wireRawResponse(String stamp, byte[] body, WireBody kind) {
+        this.wireRawResponse(stamp, body, kind, body.length);
+    }
+
+    /**
+     * Dumps the raw response and counts {@code wireBytes} as received. The two differ only for a
+     * stream whose dump was capped, where the bytes actually received exceed the bytes kept.
+     */
+    void wireRawResponse(String stamp, byte[] body, WireBody kind, long wireBytes) {
+        this.traffic.received(wireBytes);
         this.wire.rawResponse(stamp, body, kind);
     }
 }

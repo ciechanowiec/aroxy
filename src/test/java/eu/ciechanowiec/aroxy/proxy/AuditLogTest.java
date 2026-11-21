@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.proxy;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,6 +28,8 @@ class AuditLogTest {
     private static final int MAX_LINE = 80;
     private static final int TRUNCATED = 77;
     private static final int OVER_LIMIT = MAX_LINE + 1;
+    private static final long CAPPED_SENT = 10L;
+    private static final long CAPPED_RECEIVED = 20L;
 
     private static List<ObfuscationMatch> matches() {
         return List.of(
@@ -55,6 +58,50 @@ class AuditLogTest {
         assertTrue(log.contains("[masked]"), "the sensitive line is marked masked");
         assertTrue(log.contains("Helios"), "the non-sensitive keyword is shown in full");
         assertWireDumps(logs.resolve("wire"));
+    }
+
+    @Test
+    @SneakyThrows
+    void countsTrafficAsItIsAudited(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String redacted = audit.nextStamp();
+        audit.request(redacted, ENDPOINT, matches());
+        audit.wireRedactedRequest(redacted, new byte[] {1, 2, 3}, WireBody.TEXT);
+        audit.wireRawResponse(redacted, new byte[] {1, 2, 3, 4, 5}, WireBody.TEXT);
+        String clean = audit.nextStamp();
+        audit.request(clean, ENDPOINT, List.of());
+        TrafficTotals traffic = audit.traffic();
+        assertEquals(2L, traffic.requests(), traffic.toString());
+        assertEquals(1L, traffic.redacted(), "a request with no match is not redacted: " + traffic);
+        assertEquals(2L, traffic.replaced(), traffic.toString());
+        assertEquals(3L, traffic.sentBytes(), traffic.toString());
+        assertEquals(5L, traffic.receivedBytes(), traffic.toString());
+    }
+
+    @Test
+    @SneakyThrows
+    void aContinuedExchangeIsRedactedOnlyOnce(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String stamp = audit.nextStamp();
+        audit.request(stamp, ENDPOINT, List.of());
+        audit.requestContinued(stamp, ENDPOINT, matches(), false);
+        audit.requestContinued(stamp, ENDPOINT, matches(), true);
+        TrafficTotals traffic = audit.traffic();
+        assertEquals(1L, traffic.requests(), traffic.toString());
+        assertEquals(1L, traffic.redacted(), traffic.toString());
+        assertEquals(4L, traffic.replaced(), traffic.toString());
+        assertEquals(3, read(logs.resolve(AUDIT)).split("REQUEST", -1).length - 1, "each frame is audited");
+    }
+
+    @Test
+    @SneakyThrows
+    void countsTheTrueSizeOfACappedDump(@TempDir Path logs) {
+        AuditLog audit = new AuditLog(logs);
+        String stamp = audit.nextStamp();
+        audit.wireRedactedRequest(stamp, new byte[1], WireBody.BINARY, CAPPED_SENT);
+        audit.wireRawResponse(stamp, new byte[1], WireBody.BINARY, CAPPED_RECEIVED);
+        assertEquals(CAPPED_SENT, audit.traffic().sentBytes());
+        assertEquals(CAPPED_RECEIVED, audit.traffic().receivedBytes());
     }
 
     @Test

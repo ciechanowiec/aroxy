@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.proxy;
 
 import java.io.ByteArrayOutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -15,6 +16,9 @@ import lombok.extern.slf4j.Slf4j;
  * mid-frame. Truncation is reported once per direction, because a dump that is quietly short reads
  * exactly like a turn that was quietly short, and a diagnostic that can mislead about its own
  * completeness is worse than no diagnostic.
+ *
+ * <p>Each direction also counts every byte offered to it, kept or refused, so the traffic reported by
+ * {@code aroxy status} is the stream's true size rather than the size of its capped dump.
  *
  * <p>The two directions travel together because they are dumped together, under one audit stamp.
  */
@@ -46,6 +50,14 @@ final class BoundedCapture {
         return this.received.bytes();
     }
 
+    long sentTotal() {
+        return this.sent.total();
+    }
+
+    long receivedTotal() {
+        return this.received.total();
+    }
+
     /**
      * One direction's capture: the envelopes kept, and whether the cap has already been announced.
      */
@@ -54,14 +66,17 @@ final class BoundedCapture {
         private final String label;
         private final ByteArrayOutputStream kept;
         private final AtomicBoolean announced;
+        private final LongAdder offered;
 
         Direction(String label) {
             this.label = label;
             this.kept = new ByteArrayOutputStream();
             this.announced = new AtomicBoolean();
+            this.offered = new LongAdder();
         }
 
         void append(byte[] frame) {
+            this.offered.add(frame.length);
             if (this.kept.size() + frame.length <= MAX_BYTES) {
                 this.kept.writeBytes(frame);
             } else {
@@ -73,9 +88,13 @@ final class BoundedCapture {
             return this.kept.toByteArray();
         }
 
-        // A flag rather than a running total of the bytes refused. The total would be write-only: what a
-        // refusal is worth saying is that the dump is short, which is said once and does not need a
-        // number, and a count nothing reads is a count nothing can be wrong about.
+        long total() {
+            return this.offered.sum();
+        }
+
+        // A flag rather than a running total of the bytes refused. What a refusal is worth saying is that
+        // the dump is short, which is said once and does not need a number. The bytes offered are counted
+        // separately, for the traffic totals, and need no help from here.
         //
         // Announced on the first refusal only: a capped turn refuses every envelope that follows, and one
         // line per envelope would bury the diagnostic log under the very stream it is warning about.

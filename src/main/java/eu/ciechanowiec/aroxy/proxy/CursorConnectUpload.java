@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Request;
 
@@ -21,6 +22,11 @@ final class CursorConnectUpload implements CursorTurn {
     private final Thread pump;
     private final String stamp;
     private final BoundedCapture capture;
+    /**
+     * Whether a frame of this exchange has matched yet, so the exchange is counted as redacted once.
+     * The constructor writes it before the pump thread starts, and only the pump touches it after.
+     */
+    private final AtomicBoolean redacted;
 
     CursorConnectUpload(
         Request request, WireFormat format, CursorConnectContext context
@@ -32,6 +38,7 @@ final class CursorConnectUpload implements CursorTurn {
         CursorOutboundFrame first = this.safelyFirst();
         this.stamp = this.context.nextStamp();
         this.context.request(this.stamp, first.matches());
+        this.redacted = new AtomicBoolean(!first.matches().isEmpty());
         this.pump = Thread.startVirtualThread(() -> this.upload(first.frame()));
     }
 
@@ -74,7 +81,7 @@ final class CursorConnectUpload implements CursorTurn {
     }
 
     private void dump() {
-        this.context.wire(this.stamp, this.capture.sentBytes(), this.capture.receivedBytes());
+        this.context.wire(this.stamp, this.capture);
     }
 
     private void await() {
@@ -165,7 +172,7 @@ final class CursorConnectUpload implements CursorTurn {
 
     private void audit(Collection<ObfuscationMatch> matches) {
         if (!matches.isEmpty()) {
-            this.context.request(this.stamp, matches);
+            this.context.requestContinued(this.stamp, matches, this.redacted.getAndSet(true));
         }
     }
 }

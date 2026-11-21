@@ -26,6 +26,10 @@ import java.util.Optional;
  * listener, so a secret carries the same token whichever agent sends it and one audit trail covers the
  * machine. Only the {@link Upstream} and the profile differ per listener.
  *
+ * <p>The shared audit log also counts the traffic every listener carries, and a
+ * {@link TrafficPublisher} publishes those counters for {@code aroxy status} for exactly as long as the
+ * proxy runs.
+ *
  * <p>The sockets are bound once from the initial settings and stay bound across reloads. Rules and
  * audit masking are updated in place, so a reload never drops a connection or rebinds a port, and
  * every listener reloads together.
@@ -35,11 +39,15 @@ final class LiveProxy {
     private final Obfuscator obfuscator;
     private final AuditLog audit;
     private final Map<ClientId, ProxyServer> servers;
+    private final TrafficPublisher traffic;
 
-    private LiveProxy(Obfuscator obfuscator, AuditLog audit, Map<ClientId, ProxyServer> servers) {
+    private LiveProxy(
+        Obfuscator obfuscator, AuditLog audit, Map<ClientId, ProxyServer> servers, TrafficPublisher traffic
+    ) {
         this.obfuscator = obfuscator;
         this.audit = audit;
         this.servers = servers;
+        this.traffic = traffic;
     }
 
     static LiveProxy start(Home home, EffectiveConfig config) throws IOException {
@@ -50,7 +58,9 @@ final class LiveProxy {
         Binding binding = new Binding(home, settings, obfuscator, audit);
         Map<ClientId, ProxyServer> servers = bindAll(binding);
         servers.values().forEach(ProxyServer::start);
-        return new LiveProxy(obfuscator, audit, servers);
+        TrafficPublisher traffic = new TrafficPublisher(TrafficFile.in(home), audit::traffic);
+        traffic.start();
+        return new LiveProxy(obfuscator, audit, servers, traffic);
     }
 
     /**
@@ -114,6 +124,7 @@ final class LiveProxy {
     }
 
     void stop() {
+        this.traffic.stop();
         this.servers.values().forEach(ProxyServer::stop);
     }
 

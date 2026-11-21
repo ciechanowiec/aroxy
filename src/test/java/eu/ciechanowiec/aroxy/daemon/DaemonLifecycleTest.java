@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.ciechanowiec.aroxy.proxy.TrafficTotals;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,6 +23,7 @@ class DaemonLifecycleTest {
 
     private static final int OK = 200;
     private static final int POLLS = 60;
+    private static final int TRAFFIC_POLLS = 100;
     private static final Duration PAUSE = Duration.ofMillis(50);
     private static final String PRODUCTION_PORT = ":8788";
 
@@ -90,6 +92,24 @@ class DaemonLifecycleTest {
     }
 
     @Test
+    void publishesFreshTrafficCountersOnStart() {
+        TrafficTotals traffic = TrafficFile.read(TrafficFile.in(this.home)).orElseThrow();
+        assertEquals(TrafficTotals.NONE, traffic, "a new session starts from zero");
+    }
+
+    @Test
+    void publishesTheTrafficOfAProxiedRequest() {
+        this.proxyPost("{\"text\":\"" + DaemonHarness.SECRET + "\"}");
+        TrafficTotals traffic = this.awaitTraffic();
+        assertEquals(1L, traffic.requests(), traffic.toString());
+        assertEquals(1L, traffic.redacted(), traffic.toString());
+        assertTrue(traffic.replaced() > 0, traffic.toString());
+        assertTrue(traffic.sentBytes() > 0, traffic.toString());
+        assertTrue(traffic.receivedBytes() > 0, traffic.toString());
+        assertTrue(traffic.lastRequestMillis() > 0, traffic.toString());
+    }
+
+    @Test
     void touchingTheReloadTriggerCausesAReload() {
         long before = this.snapshot().generation();
         new ControlFiles(this.home).touch();
@@ -134,6 +154,21 @@ class DaemonLifecycleTest {
             attempt++;
         }
         return this.snapshot().generation() > before;
+    }
+
+    // The publisher runs once a second, and a request is complete for counting only once its response
+    // has been dumped, so the test waits for the published totals to settle on the response bytes.
+    private TrafficTotals awaitTraffic() {
+        int attempt = 0;
+        while (attempt < TRAFFIC_POLLS && this.traffic().receivedBytes() == 0) {
+            LockSupport.parkNanos(PAUSE.toNanos());
+            attempt++;
+        }
+        return this.traffic();
+    }
+
+    private TrafficTotals traffic() {
+        return TrafficFile.read(TrafficFile.in(this.home)).orElse(TrafficTotals.NONE);
     }
 
     private static String listenOf(RuntimeSnapshot snapshot) {

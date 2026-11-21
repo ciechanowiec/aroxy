@@ -21,13 +21,15 @@ final class CursorConnectAudit {
      * Writes the wire dumps of one streamed exchange. A stream has no single body, so each dump is the
      * concatenated envelopes of its direction, headers included, and is named as the binary it is.
      *
-     * @param stamp    the audit stamp shared with the request and response records
-     * @param redacted the bytes actually sent upstream
-     * @param raw      the bytes the upstream sent back
+     * <p>The traffic counted is the capture's full total in each direction, not the length of its
+     * possibly capped dump.
+     *
+     * @param stamp   the audit stamp shared with the request and response records
+     * @param capture both directions of the exchange as sent upstream and received back
      */
-    void wire(String stamp, byte[] redacted, byte[] raw) {
-        this.log.wireRedactedRequest(stamp, redacted, WireBody.BINARY);
-        this.log.wireRawResponse(stamp, raw, WireBody.BINARY);
+    void wire(String stamp, BoundedCapture capture) {
+        this.log.wireRedactedRequest(stamp, capture.sentBytes(), WireBody.BINARY, capture.sentTotal());
+        this.log.wireRawResponse(stamp, capture.receivedBytes(), WireBody.BINARY, capture.receivedTotal());
     }
 
     String nextStamp() {
@@ -36,6 +38,10 @@ final class CursorConnectAudit {
 
     void request(String stamp, Collection<ObfuscationMatch> matches) {
         this.log.request(stamp, this.endpoint, matches);
+    }
+
+    void requestContinued(String stamp, Collection<ObfuscationMatch> matches, boolean alreadyRedacted) {
+        this.log.requestContinued(stamp, this.endpoint, matches, alreadyRedacted);
     }
 
     void response(String stamp, int reversed) {

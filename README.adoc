@@ -233,7 +233,7 @@ The following command table uses `<f>` for the path to a configuration file writ
 | `aroxy start` | Start the background service.
 | `aroxy stop` | Stop the running service.
 | `aroxy restart` | Stop, then start. xref:#temporary-configuration-file[Temporary configuration files] are dropped, while the xref:#default-configuration-file[default configuration file] and xref:#persistent-configuration-file[persistent configuration files] load again.
-| `aroxy status` | Show whether the service runs, one line per agent naming the address to point it at and the API it reaches, the active rule count, and the configuration files in effect, each with the time it was loaded.
+| `aroxy status` | Show whether the service runs, one line per agent naming the address to point it at and the API it reaches, the active rule count, the request, redaction and traffic counts since the service started with the time of the last request, and the configuration files in effect, each with the time it was loaded.
 | `aroxy config` | Show the configuration in force, or the configuration for the next start while the service is stopped.
 | [[reload-command]]`aroxy reload` | Re-read every active configuration file and apply the settings that can change without dropping connections.
 | `aroxy logs [--audit\|--app\|--wire\|--all] [-f]` | Print a log. `--audit` is the default. `-f` follows the selected log, `--audit` or `--app`, like `tail -f`, but `--wire` and `--all` ignore it. The kinds are described in the section xref:#logs[].

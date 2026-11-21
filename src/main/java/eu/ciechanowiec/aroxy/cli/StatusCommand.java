@@ -6,13 +6,15 @@ import eu.ciechanowiec.aroxy.daemon.PidFile;
 import eu.ciechanowiec.aroxy.daemon.RuntimeSnapshot;
 import eu.ciechanowiec.aroxy.daemon.StatusReport;
 import eu.ciechanowiec.aroxy.daemon.StatusView;
+import eu.ciechanowiec.aroxy.daemon.TrafficFile;
+import eu.ciechanowiec.aroxy.proxy.TrafficTotals;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 
 /**
  * {@code aroxy status}: when the daemon is running, reads its published runtime snapshot and prints
- * the state (listen address, upstream, rule count, uptime, attachments). When no daemon is running it
+ * the state (listen address, upstream, rule count, uptime, traffic, attachments). When no daemon is running it
  * reports that and exits non-zero so scripts can branch on it.
  */
 @Command(
@@ -34,8 +36,9 @@ final class StatusCommand implements Callable<Integer> {
     }
 
     private Integer report(Home home) {
+        Optional<TrafficTotals> traffic = TrafficFile.read(TrafficFile.in(home));
         Optional<StatusReport> report = RuntimeSnapshot.read(home.runtimeFile())
-            .map(snapshot -> snapshot.toStatusReport(System.currentTimeMillis()));
+            .map(snapshot -> snapshot.toStatusReport(System.currentTimeMillis(), traffic));
         if (report.isEmpty()) {
             return this.absent();
         }

@@ -1,23 +1,27 @@
 package eu.ciechanowiec.aroxy.daemon;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * An immutable snapshot of the daemon's runtime state, as rendered by the CLI. Gateways are the
  * listeners bound, one per client served, each with the upstream it reaches. Attachments are the files
  * currently contributing to the effective configuration (persistent registry entries plus in-session
- * temporaries), each with its kind and load time.
+ * temporaries), each with its kind and load time. Traffic is what the proxy has carried since the
+ * daemon started, absent when the daemon has not published it.
  *
  * @param gateways     the listeners bound, each with the upstream it forwards to
  * @param ruleCount    the number of enabled rules in effect
  * @param uptimeMillis how long the daemon has been running
  * @param attachments  the contributing attachment files, with kind and load time
+ * @param traffic      the traffic carried since the daemon started, or empty when not published
  */
 public record StatusReport(
     List<GatewayAddress> gateways,
     int ruleCount,
     long uptimeMillis,
-    List<AttachmentInfo> attachments
+    List<AttachmentInfo> attachments,
+    Optional<TrafficReport> traffic
 ) {
 
     public StatusReport {

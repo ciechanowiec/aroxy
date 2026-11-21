@@ -51,6 +51,7 @@ final class ProxyHarness {
 
     private final ProxyServer server;
     private final FakeUpstream upstream;
+    private final AuditLog audit;
 
     ProxyHarness(FakeUpstream upstream, Path logsDirectory) throws IOException {
         this(upstream, logsDirectory, ClaudeCode.profile());
@@ -65,10 +66,10 @@ final class ProxyHarness {
     ) throws IOException {
         this.upstream = upstream;
         Obfuscator obfuscator = obfuscator();
-        AuditLog audit = new AuditLog(logsDirectory);
+        this.audit = new AuditLog(logsDirectory);
         Gateway gateway = new Gateway(listenPort, upstream.uri());
         ProxyParts parts = new ProxyParts(
-            obfuscator, Upstream.forProfile(gateway, profile), audit, profile, logsDirectory
+            obfuscator, Upstream.forProfile(gateway, profile), this.audit, profile, logsDirectory
         );
         this.server = new ProxyServer(LocalHost.HOST, gateway, parts);
         this.server.start();
@@ -85,6 +86,10 @@ final class ProxyHarness {
 
     FakeUpstream upstream() {
         return this.upstream;
+    }
+
+    TrafficTotals traffic() {
+        return this.audit.traffic();
     }
 
     void stop() {

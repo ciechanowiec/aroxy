@@ -18,9 +18,9 @@ aroxy CLI (picocli) ──state files + signal──> aroxy daemon (background J
                                         one Obfuscator + one Vault + one AuditLog, shared by all
 ```
 
-The CLI drives the daemon with no control socket: `status`/`config`/`list` read the daemon's published `runtime` snapshot, `reload`/`attach` touch a `reload` trigger the daemon polls, and `stop` sends a process signal that the daemon's shutdown hook turns into a clean teardown. This removes the network-reachable control plane entirely.
+The CLI drives the daemon with no control socket: `status`/`config`/`list` read the daemon's published `runtime` snapshot (and `status` also reads the `stats` traffic counters), `reload`/`attach` touch a `reload` trigger the daemon polls, and `stop` sends a process signal that the daemon's shutdown hook turns into a clean teardown. This removes the network-reachable control plane entirely.
 
-State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `reload` (the reload trigger), `temporaries` (this session's temporary attachments, cleared on start), `default.conf` (materialized, user-editable), `attachments` (persistent registry), `vault.tsv`, the Copilot CA files, `.daemon.jar` (the snapshot a running daemon executes, staged at launch so replacing the installed jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
+State dir `~/.aroxy/`: `aroxy.pid`, `runtime` (the daemon's published snapshot), `stats` (traffic counters since start, republished at most once a second, apart from `runtime` because its `generation` is the reload handshake and must not move with every request), `reload` (the reload trigger), `temporaries` (this session's temporary attachments, cleared on start), `default.conf` (materialized, user-editable), `attachments` (persistent registry), `vault.tsv`, the Copilot CA files, `.daemon.jar` (the snapshot a running daemon executes, staged at launch so replacing the installed jar cannot disturb a live process), `logs/{aroxy.log,audit.log,wire/}`.
 
 ## Agents on one daemon
 

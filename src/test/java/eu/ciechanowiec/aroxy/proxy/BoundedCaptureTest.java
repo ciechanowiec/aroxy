@@ -28,6 +28,19 @@ class BoundedCaptureTest {
         assertEquals(CHUNK, capture.sentBytes().length, "nothing is kept once the cap is reached");
     }
 
+    // The dump is capped, but the traffic it reports is not: a long turn's true size is what the
+    // status counts, so the totals keep growing after the dump stops.
+    @Test
+    void totalsCountEveryEnvelopeEvenPastTheCap() {
+        BoundedCapture capture = new BoundedCapture();
+        capture.sent(new byte[CHUNK]);
+        capture.sent(new byte[CHUNK]);
+        capture.received(new byte[1]);
+        assertEquals(CHUNK, capture.sentBytes().length, "the second envelope is refused by the dump");
+        assertEquals(2L * CHUNK, capture.sentTotal(), "but still counted as sent");
+        assertEquals(1L, capture.receivedTotal());
+    }
+
     // The cap is a ceiling on the bytes held, not a threshold one envelope may overrun. A 64 MiB
     // envelope is a legal Connect frame, so a check made before the write rather than against the
     // write would let the capture exceed its own limit sixteenfold.
