@@ -168,7 +168,10 @@ final class ProxyResponder {
      */
     private static void afterStreamInterrupted(IOException failure) {
         if (ClientDisconnect.isBenign(failure)) {
-            log.debug("SSE client disconnected mid-stream: {}", failure.getMessage());
+            log.atDebug()
+                .setMessage("SSE client disconnected mid-stream: {}")
+                .addArgument(failure::getMessage)
+                .log();
         } else {
             log.warn("Upstream SSE stream failed after the response began: {}", failure.getMessage());
         }

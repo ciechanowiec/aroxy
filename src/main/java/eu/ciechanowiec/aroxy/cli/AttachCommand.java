@@ -9,8 +9,10 @@ import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -36,9 +38,9 @@ final class AttachCommand implements Callable<Integer> {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
-    private Path file;
+    private @Nullable Path file;
     @Option(
         names = "--temporary", description = "Attach for this session only (requires a running daemon)."
     )
@@ -46,7 +48,7 @@ final class AttachCommand implements Callable<Integer> {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean temporary;
     @Option(
@@ -56,7 +58,7 @@ final class AttachCommand implements Callable<Integer> {
         "a CLI default flag injected by picocli via reflection, with behavior keying off !temporary"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean persistent;
 
@@ -70,10 +72,10 @@ final class AttachCommand implements Callable<Integer> {
     }
 
     private Optional<Integer> rejection() {
-        if (Files.isSymbolicLink(this.file)) {
+        if (Files.isSymbolicLink(this.file())) {
             this.out.error("Cannot attach configuration");
             this.out.detail("Reason", "Symbolic links are not accepted");
-            this.out.detail("File", this.file);
+            this.out.detail("File", this.file());
             return Optional.of(FAILED);
         }
         return this.validate();
@@ -81,7 +83,7 @@ final class AttachCommand implements Callable<Integer> {
 
     private Optional<Integer> validate() {
         try {
-            ConfigFile.read(this.file);
+            ConfigFile.read(this.file());
             return Optional.empty();
         } catch (InvalidConfigException exception) {
             this.out.error("Cannot attach configuration");
@@ -117,15 +119,15 @@ final class AttachCommand implements Callable<Integer> {
 
     private void store(Home home, boolean keep) {
         if (keep) {
-            new AttachmentRegistry(home.attachments()).attach(this.file);
+            new AttachmentRegistry(home.attachments()).attach(this.file());
         } else {
-            new ControlFiles(home).appendTemporary(this.file);
+            new ControlFiles(home).appendTemporary(this.file());
         }
     }
 
     private Integer offline(Home home, boolean keep) {
         if (keep) {
-            new AttachmentRegistry(home.attachments()).attach(this.file);
+            new AttachmentRegistry(home.attachments()).attach(this.file());
             return this.recorded();
         }
         this.out.error("Cannot attach temporary configuration");
@@ -161,7 +163,11 @@ final class AttachCommand implements Callable<Integer> {
     }
 
     private void describe() {
-        this.out.detail("File", this.file.toAbsolutePath());
+        this.out.detail("File", this.file().toAbsolutePath());
         this.out.detail("Scope", this.temporary ? "Temporary" : "Persistent");
+    }
+
+    private Path file() {
+        return Objects.requireNonNull(this.file, "picocli injects the required <f> before call() runs");
     }
 }

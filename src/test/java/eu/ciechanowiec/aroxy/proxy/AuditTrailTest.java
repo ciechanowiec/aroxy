@@ -123,8 +123,7 @@ class AuditTrailTest {
                     HttpRequest.BodyPublishers.ofByteArray(
                         CursorWire.protobuf(CursorWire.protobuf("Ask about " + ProxyHarness.KEYWORD))
                     )
-                )
-                .build();
+                ).build();
             send(request);
         } finally {
             harness.stop();

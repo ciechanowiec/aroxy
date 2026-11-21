@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.config;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
 import eu.ciechanowiec.aroxy.client.Gateway;
@@ -66,12 +65,6 @@ public record Settings(
             .orElseThrow(() -> new IllegalStateException("No gateway is configured for " + id));
     }
 
-    @Justification(
-        "a local copy, made immutable by the constructor before it escapes"
-    )
-    @SuppressWarnings(
-        "PMD.UseConcurrentHashMap"
-    )
     Settings withGateway(ClientId id, Gateway gateway) {
         Map<ClientId, Gateway> merged = new LinkedHashMap<>(this.gateways);
         merged.put(id, gateway);

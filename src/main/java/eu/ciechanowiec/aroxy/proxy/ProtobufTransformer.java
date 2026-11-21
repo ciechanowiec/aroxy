@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationMatch;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -150,12 +149,6 @@ final class ProtobufTransformer {
     // Qodana sees only that this body needs Collection, but the ordering List promises is the whole
     // point: a path is a sequence of field numbers, and an unordered parameter would accept a set and
     // silently build a path whose elements are in the wrong order.
-    @Justification(
-        "the field-number path is ordered by definition, which Collection would not promise"
-    )
-    @SuppressWarnings(
-        "TypeMayBeWeakened"
-    )
     private static List<Integer> child(List<Integer> path, ProtobufWire.Varint key) {
         return Stream.concat(
             path.stream(), Stream.of(Math.toIntExact(ProtobufWire.fieldNumber(key.value())))

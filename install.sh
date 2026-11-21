@@ -32,16 +32,16 @@ set -euo pipefail
 # writes. A JVM on macOS derives user.home from the account database and ignores HOME, so without
 # the export a run under an overridden HOME would install into a sandbox while stopping the real
 # daemon.
-readonly AROXY_HOME="${AROXY_HOME:-$HOME/.aroxy}"
+readonly AROXY_HOME="${AROXY_HOME:-${HOME}/.aroxy}"
 export AROXY_HOME
-readonly BIN_DIR="$HOME/.local/bin"
-readonly LAUNCHER="$BIN_DIR/aroxy"
-readonly INSTALLED_JAR="$AROXY_HOME/aroxy.jar"
-readonly STAGED_JAR="$AROXY_HOME/.aroxy.jar.new"
-readonly COMPLETION="$AROXY_HOME/aroxy_completion"
-readonly PID_FILE="$AROXY_HOME/aroxy.pid"
+readonly BIN_DIR="${HOME}/.local/bin"
+readonly LAUNCHER="${BIN_DIR}/aroxy"
+readonly INSTALLED_JAR="${AROXY_HOME}/aroxy.jar"
+readonly STAGED_JAR="${AROXY_HOME}/.aroxy.jar.new"
+readonly COMPLETION="${AROXY_HOME}/aroxy_completion"
+readonly PID_FILE="${AROXY_HOME}/aroxy.pid"
 readonly RELEASE_BASE_URL="https://repo.maven.apache.org/maven2/eu/ciechanowiec/aroxy"
-readonly RELEASE_METADATA_URL="$RELEASE_BASE_URL/maven-metadata.xml"
+readonly RELEASE_METADATA_URL="${RELEASE_BASE_URL}/maven-metadata.xml"
 readonly BLOCK_START="# >>> aroxy >>>"
 readonly BLOCK_END="# <<< aroxy <<<"
 readonly STOP_WAIT_ATTEMPTS=50
@@ -68,27 +68,32 @@ else
   readonly GREEN='' YELLOW='' CYAN='' RED=''
 fi
 
-state() { printf '%s%s%s %s%s%s\n' "$1" "$2" "$RESET" "$BOLD" "$3" "$RESET" >&2; }
-success() { state "$GREEN" '✓' "$1"; }
-info() { state "$CYAN" '●' "$1"; }
-inactive() { state "$DIM" '○' "$1"; }
-warning() { state "$YELLOW" '!' "$1"; }
-failure() { state "$RED" '✗' "$1"; }
-heading() { printf '%s%s%s%s\n' "$CYAN" "$BOLD" "$1" "$RESET" >&2; }
-detail() { printf '  %s%-12s%s %s\n' "$DIM" "$1" "$RESET" "$2" >&2; }
-note() { printf '  %s%s%s\n' "$DIM" "$1" "$RESET" >&2; }
+state() { printf '%s%s%s %s%s%s\n' "$1" "$2" "${RESET}" "${BOLD}" "$3" "${RESET}" >&2; }
+success() { state "${GREEN}" '✓' "$1"; }
+info() { state "${CYAN}" '●' "$1"; }
+inactive() { state "${DIM}" '○' "$1"; }
+warning() { state "${YELLOW}" '!' "$1"; }
+failure() { state "${RED}" '✗' "$1"; }
+heading() { printf '%s%s%s%s\n' "${CYAN}" "${BOLD}" "$1" "${RESET}" >&2; }
+detail() { printf '  %s%-12s%s %s\n' "${DIM}" "$1" "${RESET}" "$2" >&2; }
+note() { printf '  %s%s%s\n' "${DIM}" "$1" "${RESET}" >&2; }
 
+# Prints the directory holding this script, or nothing when it runs from a pipe and has none, so a
+# caller tests the answer rather than the status.
 script_dir() {
-  local src="${BASH_SOURCE[0]:-}"
-  [[ -n "$src" ]] || return 1
-  cd "$(dirname "$src")" && pwd
+  local src="${BASH_SOURCE[0]:-}" dir
+  [[ -n "${src}" ]] || return 0
+  dir="$(dirname "${src}")"
+  if cd "${dir}" 2>/dev/null; then
+    pwd
+  fi
 }
 
 target_rc() {
   case "${SHELL:-}" in
-    */zsh) printf '%s' "$HOME/.zshrc" ;;
-    */bash) printf '%s' "$HOME/.bashrc" ;;
-    *) printf '%s' "$HOME/.profile" ;;
+    */zsh) printf '%s' "${HOME}/.zshrc" ;;
+    */bash) printf '%s' "${HOME}/.bashrc" ;;
+    *) printf '%s' "${HOME}/.profile" ;;
   esac
 }
 
@@ -121,7 +126,7 @@ java_feature() {
 }
 
 java_advice() {
-  note "Install JDK $REQUIRED_JAVA. The suggested way is SDKMAN: $JAVA_SUGGESTION"
+  note "Install JDK ${REQUIRED_JAVA}. The suggested way is SDKMAN: ${JAVA_SUGGESTION}"
 }
 
 # Fails closed on an unusable JDK, and does it first, before any state is read or written. Every later
@@ -130,29 +135,31 @@ java_advice() {
 # check a missing JDK either aborts the install with a message blaming the download or, from a
 # checkout, completes it and leaves a launcher that dies on first use.
 require_java() {
-  local report feature
+  local report feature java_path diagnosis
   info 'Checking prerequisites'
   if ! command -v java >/dev/null 2>&1; then
-    failure "aroxy needs JDK $REQUIRED_JAVA, and no java is on PATH"
+    failure "aroxy needs JDK ${REQUIRED_JAVA}, and no java is on PATH"
     java_advice
     exit 1
   fi
   report="$(java_report)"
-  if [[ -z "$report" ]]; then
-    failure "aroxy needs JDK $REQUIRED_JAVA, and the java on PATH does not run"
-    detail 'Java' "$(command -v java)"
-    detail 'Reported' "$(java_diagnosis)"
+  if [[ -z "${report}" ]]; then
+    java_path="$(command -v java || true)"
+    diagnosis="$(java_diagnosis)"
+    failure "aroxy needs JDK ${REQUIRED_JAVA}, and the java on PATH does not run"
+    detail 'Java' "${java_path}"
+    detail 'Reported' "${diagnosis}"
     java_advice
     exit 1
   fi
-  feature="$(java_feature "$report")"
-  if [[ "$feature" != "$REQUIRED_JAVA" ]]; then
-    failure "aroxy needs JDK $REQUIRED_JAVA, but PATH offers ${feature:-an unrecognized version}"
-    detail 'Java' "$report"
+  feature="$(java_feature "${report}")"
+  if [[ "${feature}" != "${REQUIRED_JAVA}" ]]; then
+    failure "aroxy needs JDK ${REQUIRED_JAVA}, but PATH offers ${feature:-an unrecognized version}"
+    detail 'Java' "${report}"
     java_advice
     exit 1
   fi
-  detail 'Java' "$report"
+  detail 'Java' "${report}"
 }
 
 # Fails closed on a missing install tool. Without this the absence surfaces much later as a wrong
@@ -160,27 +167,27 @@ require_java() {
 # Maven Central publishing no usable release.
 require_tool() {
   local tool="$1" purpose="$2"
-  command -v "$tool" >/dev/null 2>&1 && return 0
-  failure "aroxy needs $tool to $purpose, and it is not on PATH"
+  command -v "${tool}" >/dev/null 2>&1 && return 0
+  failure "aroxy needs ${tool} to ${purpose}, and it is not on PATH"
   exit 1
 }
 
 # Polls until the given pid is no longer alive, or ~5s elapses, whichever comes first.
 await_exit() {
   local pid="$1" attempt=0
-  while [[ "$attempt" -lt "$STOP_WAIT_ATTEMPTS" ]] && kill -0 "$pid" 2>/dev/null; do
-    sleep "$STOP_WAIT_PAUSE"
+  while [[ "${attempt}" -lt "${STOP_WAIT_ATTEMPTS}" ]] && kill -0 "${pid}" 2>/dev/null; do
+    sleep "${STOP_WAIT_PAUSE}"
     attempt=$((attempt + 1))
   done
 }
 
 recorded_pid() {
   local pid=""
-  if [[ -f "$PID_FILE" ]]; then
-    IFS=$' \t' read -r pid _ < "$PID_FILE" || true
+  if [[ -f "${PID_FILE}" ]]; then
+    IFS=$' \t' read -r pid _ < "${PID_FILE}" || true
   fi
-  if [[ "$pid" =~ ^[0-9]+$ ]]; then
-    printf '%s' "$pid"
+  if [[ "${pid}" =~ ^[0-9]+$ ]]; then
+    printf '%s' "${pid}"
   fi
 }
 
@@ -190,47 +197,47 @@ recorded_pid() {
 stop_service() {
   local pid running="false"
   pid="$(recorded_pid)"
-  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+  if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
     running="true"
     info 'The service is running and will be stopped first'
-    detail 'PID' "$pid"
+    detail 'PID' "${pid}"
   fi
-  if [[ -x "$LAUNCHER" ]]; then
-    "$LAUNCHER" stop >/dev/null 2>&1 || true
-  elif [[ -f "$INSTALLED_JAR" ]]; then
-    java -jar "$INSTALLED_JAR" stop >/dev/null 2>&1 || true
+  if [[ -x "${LAUNCHER}" ]]; then
+    "${LAUNCHER}" stop >/dev/null 2>&1 || true
+  elif [[ -f "${INSTALLED_JAR}" ]]; then
+    java -jar "${INSTALLED_JAR}" stop >/dev/null 2>&1 || true
   fi
-  [[ "$running" == "true" ]] || return 0
-  await_exit "$pid"
-  if kill -0 "$pid" 2>/dev/null; then
-    kill "$pid" 2>/dev/null || true
-    await_exit "$pid"
+  [[ "${running}" == "true" ]] || return 0
+  await_exit "${pid}"
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill "${pid}" 2>/dev/null || true
+    await_exit "${pid}"
   fi
-  if kill -0 "$pid" 2>/dev/null; then
-    kill -9 "$pid" 2>/dev/null || true
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill -9 "${pid}" 2>/dev/null || true
   fi
   success 'Stopped the running service'
 }
 
 acquire_jar() {
   local dest="$1" here version
-  here="$(script_dir 2>/dev/null || true)"
-  if [[ -n "$here" && -f "$here/target/aroxy.jar" ]]; then
+  here="$(script_dir)"
+  if [[ -n "${here}" && -f "${here}/target/aroxy.jar" ]]; then
     info 'Using the locally built jar'
-    detail 'Source' "$here/target/aroxy.jar"
-    cp "$here/target/aroxy.jar" "$dest"
-  elif [[ -n "$here" && -f "$here/pom.xml" ]]; then
+    detail 'Source' "${here}/target/aroxy.jar"
+    cp "${here}/target/aroxy.jar" "${dest}"
+  elif [[ -n "${here}" && -f "${here}/pom.xml" ]]; then
     require_tool mvn 'build from this checkout'
     info 'Building the jar'
     detail 'Command' 'mvn -q clean package'
-    ( cd "$here" && mvn -q clean package )
-    cp "$here/target/aroxy.jar" "$dest"
+    ( cd "${here}" && mvn -q clean package )
+    cp "${here}/target/aroxy.jar" "${dest}"
   else
     require_tool curl 'download a release'
-    version="$(latest_release_version)" || exit 1
-    info "Downloading aroxy $version from Maven Central"
-    curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar" -o "$dest"
-    verify_jar "$dest" "$version"
+    version="$(latest_release_version)"
+    info "Downloading aroxy ${version} from Maven Central"
+    curl -fsSL "${RELEASE_BASE_URL}/${version}/aroxy-${version}.jar" -o "${dest}"
+    verify_jar "${dest}" "${version}"
   fi
 }
 
@@ -241,15 +248,15 @@ acquire_jar() {
 latest_release_version() {
   local metadata version
   info 'Resolving the newest aroxy release published to Maven Central'
-  metadata="$(curl -fsSL "$RELEASE_METADATA_URL" || true)"
-  version="$(printf '%s' "$metadata" | grep -o '<release>[^<]*</release>' | tail -n 1 |
-    sed -e 's|<release>||' -e 's|</release>||' | tr -d '[:space:]')"
-  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ || "$version" == *-SNAPSHOT ]]; then
+  metadata="$(curl -fsSL "${RELEASE_METADATA_URL}" || true)"
+  version="$(printf '%s' "${metadata}" | grep -o '<release>[^<]*</release>' | tail -n 1 |
+    sed -e 's|<release>||' -e 's|</release>||' | tr -d '[:space:]' || true)"
+  if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ || "${version}" == *-SNAPSHOT ]]; then
     failure 'Maven Central published no usable release version'
-    detail 'Metadata' "$RELEASE_METADATA_URL"
+    detail 'Metadata' "${RELEASE_METADATA_URL}"
     exit 1
   fi
-  printf '%s' "$version"
+  printf '%s' "${version}"
 }
 
 # Computes the SHA-256 of a file, using whichever tool the OS provides (sha256sum on Linux,
@@ -268,25 +275,25 @@ sha256_of() {
 verify_jar() {
   local jar="$1" version="$2" expected actual reported
   info 'Verifying the download against its published SHA-256'
-  expected="$(curl -fsSL "$RELEASE_BASE_URL/$version/aroxy-$version.jar.sha256" | tr -d '[:space:]')"
-  if [[ ! "$expected" =~ ^[0-9a-fA-F]{64}$ ]]; then
-    rm -f "$jar"
+  expected="$(curl -fsSL "${RELEASE_BASE_URL}/${version}/aroxy-${version}.jar.sha256" | tr -d '[:space:]')"
+  if [[ ! "${expected}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    rm -f "${jar}"
     failure 'Maven Central returned no valid SHA-256, so the download was discarded'
     exit 1
   fi
-  actual="$(sha256_of "$jar")"
-  if [[ "$actual" != "$expected" ]]; then
-    rm -f "$jar"
+  actual="$(sha256_of "${jar}")"
+  if [[ "${actual}" != "${expected}" ]]; then
+    rm -f "${jar}"
     failure 'Checksum mismatch, so the download was discarded'
-    detail 'Expected' "$expected"
-    detail 'Actual' "$actual"
+    detail 'Expected' "${expected}"
+    detail 'Actual' "${actual}"
     exit 1
   fi
-  reported="$(jar_version "$jar")"
-  if [[ "$reported" != "aroxy $version" ]]; then
-    rm -f "$jar"
+  reported="$(jar_version "${jar}")"
+  if [[ "${reported}" != "aroxy ${version}" ]]; then
+    rm -f "${jar}"
     failure 'The downloaded jar reports the wrong version, so it was discarded'
-    detail 'Expected' "aroxy $version"
+    detail 'Expected' "aroxy ${version}"
     detail 'Reported' "${reported:-nothing}"
     exit 1
   fi
@@ -294,8 +301,8 @@ verify_jar() {
 }
 
 write_launcher() {
-  mkdir -p "$BIN_DIR"
-  cat > "$LAUNCHER" <<EOF
+  mkdir -p "${BIN_DIR}"
+  cat > "${LAUNCHER}" <<EOF
 #!/usr/bin/env bash
 # AROXY_HOME is exported so the JVM resolves the same state directory this launcher reads the jar
 # from. A JVM on macOS derives user.home from the account database and ignores HOME, so without the
@@ -303,37 +310,41 @@ write_launcher() {
 export AROXY_HOME="\${AROXY_HOME:-\$HOME/.aroxy}"
 exec java -jar "\$AROXY_HOME/aroxy.jar" "\$@"
 EOF
-  chmod +x "$LAUNCHER"
+  chmod +x "${LAUNCHER}"
 }
 
 write_completion() {
-  if java -jar "$INSTALLED_JAR" generate-completion > "$COMPLETION" 2>/dev/null; then
+  if java -jar "${INSTALLED_JAR}" generate-completion > "${COMPLETION}" 2>/dev/null; then
     # picocli's generated script only offers flags when the current word starts with '-'. After each
     # else-branch COMPREPLY line (the only ones carrying ${IFS}) append a second compgen for the
     # flags so a bare TAB offers them too. It must run with IFS reset to a space, because the
     # else-branch sets IFS=$'\n' for file positionals while ${flag_opts} is space-separated -- folding
     # them into that newline word list would collapse every flag into one candidate. Appending also
     # fills COMPREPLY on flag-only subcommands like `logs`, suppressing zsh's directory fallback.
-    sed -i.aroxy-bak '/\${IFS}/ s|$|\
-    COMPREPLY+=( $(IFS=" "; compgen -W "${flag_opts} ${arg_opts}" -- "${curr_word}") )|' "$COMPLETION"
-    rm -f "$COMPLETION.aroxy-bak"
+    local flag_line
+    IFS= read -r flag_line <<'COMPLETION_LINE'
+    COMPREPLY+=( $(IFS=" "; compgen -W "${flag_opts} ${arg_opts}" -- "${curr_word}") )
+COMPLETION_LINE
+    sed -i.aroxy-bak "/\\\${IFS}/ s|\$|\\
+${flag_line}|" "${COMPLETION}"
+    rm -f "${COMPLETION}.aroxy-bak"
   else
     # The redirection above truncates the file before java runs, so a failure leaves an empty script
     # behind. Removing it keeps the rc block from sourcing nothing and lets the summary report only
     # what was really written.
-    rm -f "$COMPLETION"
+    rm -f "${COMPLETION}"
     warning 'Could not generate the completion script, so it was skipped'
   fi
 }
 
 setup_shell() {
   local rc="$1"
-  touch "$rc"
-  if grep -qF "$BLOCK_START" "$rc" 2>/dev/null; then
-    sed -i.aroxy-bak "/$BLOCK_START/,/$BLOCK_END/d" "$rc"
-    rm -f "$rc.aroxy-bak"
+  touch "${rc}"
+  if grep -qF "${BLOCK_START}" "${rc}" 2>/dev/null; then
+    sed -i.aroxy-bak "/${BLOCK_START}/,/${BLOCK_END}/d" "${rc}"
+    rm -f "${rc}.aroxy-bak"
   fi
-  cat >> "$rc" <<'BLOCK'
+  cat >> "${rc}" <<'BLOCK'
 # >>> aroxy >>>
 # Added by aroxy install.sh; removed by uninstall.sh.
 export PATH="$HOME/.local/bin:$PATH"
@@ -353,27 +364,27 @@ BLOCK
 # block in place while reporting a clean install.
 installed_version() {
   local reported
-  [[ -f "$INSTALLED_JAR" ]] || return 0
-  reported="$(jar_version "$INSTALLED_JAR")"
+  [[ -f "${INSTALLED_JAR}" ]] || return 0
+  reported="$(jar_version "${INSTALLED_JAR}")"
   printf '%s' "${reported:-an unreadable jar}"
 }
 
 reset_existing() {
   local current="$1"
-  [[ -n "$current" ]] || return 0
-  info "Already installed: $current"
+  [[ -n "${current}" ]] || return 0
+  info "Already installed: ${current}"
   stop_service
-  rm -rf "$AROXY_HOME"
+  rm -rf "${AROXY_HOME}"
   success 'Removed the previous installation for a clean reinstall'
-  detail 'State' "$AROXY_HOME"
+  detail 'State' "${AROXY_HOME}"
 }
 
 announce() {
   local current="$1" new="$2"
-  if [[ -n "$current" ]]; then
-    info "Reinstalling from scratch as $new"
+  if [[ -n "${current}" ]]; then
+    info "Reinstalling from scratch as ${new}"
   else
-    info "Installing $new"
+    info "Installing ${new}"
   fi
 }
 
@@ -382,14 +393,14 @@ announce() {
 summarize() {
   local version="$1" rc="$2"
   success 'Installed'
-  detail 'Version' "$version"
-  detail 'Jar' "$INSTALLED_JAR"
-  detail 'Launcher' "$LAUNCHER"
-  if [[ -s "$COMPLETION" ]]; then
-    detail 'Completion' "$COMPLETION"
+  detail 'Version' "${version}"
+  detail 'Jar' "${INSTALLED_JAR}"
+  detail 'Launcher' "${LAUNCHER}"
+  if [[ -s "${COMPLETION}" ]]; then
+    detail 'Completion' "${COMPLETION}"
   fi
-  detail 'Shell' "$rc"
-  note "Restart your shell (or: source $rc), then run: aroxy --help"
+  detail 'Shell' "${rc}"
+  note "Restart your shell (or: source ${rc}), then run: aroxy --help"
 }
 
 main() {
@@ -398,17 +409,17 @@ main() {
   require_java
   rc="$(target_rc)"
   current="$(installed_version)"
-  reset_existing "$current"
-  mkdir -p "$AROXY_HOME"
-  chmod 700 "$AROXY_HOME"
-  acquire_jar "$STAGED_JAR"
-  version="$(jar_version "$STAGED_JAR")"
-  announce "$current" "$version"
-  mv -f "$STAGED_JAR" "$INSTALLED_JAR"
+  reset_existing "${current}"
+  mkdir -p "${AROXY_HOME}"
+  chmod 700 "${AROXY_HOME}"
+  acquire_jar "${STAGED_JAR}"
+  version="$(jar_version "${STAGED_JAR}")"
+  announce "${current}" "${version}"
+  mv -f "${STAGED_JAR}" "${INSTALLED_JAR}"
   write_launcher
   write_completion
-  setup_shell "$rc"
-  summarize "$version" "$rc"
+  setup_shell "${rc}"
+  summarize "${version}" "${rc}"
 }
 
 main "$@"

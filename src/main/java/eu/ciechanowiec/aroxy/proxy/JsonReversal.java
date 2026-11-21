@@ -5,6 +5,7 @@ import eu.ciechanowiec.aroxy.obfuscation.Reversal;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Restores known aroxy tokens inside JSON string values while retaining valid JSON escaping.
@@ -24,7 +25,7 @@ final class JsonReversal {
         return new Reversal(JSONObject.valueToString(restored), this.count.get());
     }
 
-    private Object transform(Object value) {
+    private Object transform(@Nullable Object value) {
         return switch (value) {
             case null -> JSONObject.NULL;
             case JSONObject object -> this.object(object);

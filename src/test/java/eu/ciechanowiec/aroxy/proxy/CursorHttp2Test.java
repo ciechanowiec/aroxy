@@ -74,8 +74,7 @@ class CursorHttp2Test {
                         headers.put("Content-Type", CONNECT_PROTO);
                         headers.put("connect-accept-encoding", "gzip");
                     }
-                )
-                .body(new BytesRequestContent(body))
+                ).body(new BytesRequestContent(body))
                 .send();
         }
     }

@@ -1,4 +1,4 @@
-# gitleaks configuration for the secret-scan gate (mvn clean package -Pextended).
+# gitleaks configuration for the secret-scan gate (mvn clean verify -Pextended).
 # It extends the bundled default rules without path exclusions, so credentials remain forbidden even
 # in tests, documentation, generated fixtures, and the complete history.
 title = "aroxy gitleaks configuration"
@@ -9,8 +9,7 @@ useDefault = true
 [[allowlists]]
 description = "Known invalid credential values used to verify secret obfuscation"
 targetRules = ["generic-api-key", "private-key"]
-regexTarget = "line"
 regexes = [
-    '''ghp_1234567890abcdefghij''',
-    '''-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqh-----END PRIVATE KEY-----''',
+    '''^ghp_1234567890abcdefghij$''',
+    '''^-----BEGIN PRIVATE KEY-----\[\\\\s\\\\S\]\*\?-----END PRIVATE KEY-----"\n                \),\n                "-----BEGIN PRIVATE KEY-----$''',
 ]

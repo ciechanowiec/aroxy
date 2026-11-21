@@ -1,7 +1,5 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.airness.Justification;
-
 /**
  * A flat, declarative description of one obfuscation rule as read from a configuration file, before
  * it is compiled into a {@link Rule} by {@link RuleCompiler#compile(RuleSpec)}. A record is used so
@@ -16,15 +14,8 @@ import eu.ciechanowiec.airness.Justification;
  * @param flags          any combination of {@code i} (ignore case), {@code s} (dot matches newline),
  *                       {@code m} (multiline)
  * @param sensitive      whether the value is masked in the audit log
- * @param loose          for literal rules, also match respellings with separators between letters
- * @param leet           for literal rules, also match digit look-alikes ({@code o}->{@code 0}, ...)
+ * @param respelling     for literal rules, the respellings matched beyond the verbatim value
  */
-@Justification(
-    "field count is governed by the project's own PMD cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyFields"
-)
 public record RuleSpec(
     String id,
     RuleKind kind,
@@ -32,7 +23,24 @@ public record RuleSpec(
     String patternOrValue,
     String flags,
     boolean sensitive,
-    boolean loose,
-    boolean leet
+    Respelling respelling
 ) {
+
+    /**
+     * Whether a literal rule also matches respellings with separators between letters.
+     *
+     * @return {@code true} when loose matching is on
+     */
+    public boolean loose() {
+        return this.respelling.loose();
+    }
+
+    /**
+     * Whether a literal rule also matches digit look-alikes.
+     *
+     * @return {@code true} when leet matching is on
+     */
+    public boolean leet() {
+        return this.respelling.leet();
+    }
 }

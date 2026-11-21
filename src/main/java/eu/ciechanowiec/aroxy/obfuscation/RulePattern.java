@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.airness.Justification;
 import java.util.regex.Pattern;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -19,12 +18,6 @@ import lombok.experimental.Accessors;
 @ToString
 @EqualsAndHashCode
 @RequiredArgsConstructor
-@Justification(
-    "a Lombok value class, which cannot be a record"
-)
-@SuppressWarnings(
-    "ClassCanBeRecord"
-)
 final class RulePattern {
 
     private final Pattern pattern;

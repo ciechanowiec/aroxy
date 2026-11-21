@@ -13,21 +13,18 @@
 :icons: font
 :linkcss:
 :sourcedir: {docdir}
-:pdf-theme: {sourcedir}/.docs/themes/basic.yml
-:pdf-fontsdir: {sourcedir}/.docs/themes/fonts,GEM_FONTS_DIR
 :stylesdir: https://www.ciechanowiec.eu/linux_mantra/
 :stylesheet: adoc-css-style.css
+:source-highlighter: rouge
+:rouge-css: style
 :!table-caption:
 :!figure-caption:
 :!example-caption:
-ifndef::env-github[:not-env-github:]
 
-ifdef::backend-html5+not-env-github[]
+ifdef::backend-html5[]
+ifndef::env-github[]
 ++++
 <link href="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo.css" rel="stylesheet">
-<!-- Inlined so the IntelliJ AsciiDoc preview honors these rules: its webview blocks external CSS even in
-     UNSAFE mode, so the remote stylesheet above is dropped in the IDE preview. Mirrors rules already in
-     adoc-css-style.css for the published HTML - enforces [cols="..."] column widths and wraps long content. -->
 <style>
     table.tableblock {
         table-layout: fixed;
@@ -40,6 +37,7 @@ ifdef::backend-html5+not-env-github[]
     }
 </style>
 ++++
+endif::[]
 endif::[]
 
 == _aroxy_ in Brief
@@ -72,8 +70,8 @@ Four agents are supported, each on its own local port, and one _aroxy_ serves th
 All listeners share one vault, one rule set, and one xref:#audit-log[audit log], so a value carries the same token whichever agent sends it.
 +
 .Supported agent listeners and upstream APIs
-image::.docs/img/architecture.drawio.png[alt="Claude Code, Codex, Cursor, and GitHub Copilot command-line tool connect to separate listeners inside one aroxy. All listeners share one vault, one rule set, and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
-. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` identifies the value. For example, the first AWS key becomes `+<<PII:AWS_KEY:1>>+`. The API receives the token, while the agent receives the restored value.
+image::.adocent/resources/visuals/architecture.drawio.png[alt="Claude Code, Codex, Cursor, and GitHub Copilot command-line tool connect to separate listeners inside one aroxy. All listeners share one vault, one rule set, and one audit log. aroxy obfuscates each request on the way out and deobfuscates each response on the way back."]
+. A value _aroxy_ removes is replaced by a _token_ of the form `+<<PII:PLACEHOLDER:N>>+`, where the placeholder names the matching rule and `N` identifies the value. For example, the first Amazon Web Services (AWS) key becomes `+<<PII:AWS_KEY:1>>+`. The API receives the token, while the agent receives the restored value.
 . This is data minimization, not concealment. _aroxy_ neither hides that an agent is in use nor changes the API destination. An observer still sees a TLS connection to the vendor's API. Confirm that your agent and its API host are permitted on the network before relying on this setup.
 
 == Default Coverage
@@ -82,7 +80,7 @@ _aroxy_ enables only its bundled secret and credential rules by default. Every o
 
 . *Secrets and credentials*
 +
-Privacy-Enhanced Mail (PEM) private keys, AWS access keys, GitHub tokens, Slack tokens, `sk-` API keys, JSON Web Tokens, connection strings that embed a password, and `password=`/`secret=`/`api_key=`/`token=` assignments are obfuscated by default. They match by structure, so they require no rules of your own. A secret's value is masked in the xref:#audit-log[audit log].
+Privacy-Enhanced Mail (PEM) private keys, Amazon Web Services (AWS) access keys, GitHub tokens, Slack tokens, `sk-` API keys, JSON Web Tokens, connection strings that embed a password, and `password=`/`secret=`/`api_key=`/`token=` assignments are obfuscated by default. They match by structure, so they require no rules of your own. A secret's value is masked in the xref:#audit-log[audit log].
 . *User-defined corporate identifiers*
 +
 _aroxy_ can't know the company names, internal domains, or project codenames in use, so it obfuscates none of these by default. The xref:#default-configuration-file[default configuration file] ships two example rules for each of company names, internal domains, and project codenames, all turned off. To use one, fill in a value and set `enabled = true`. You aren't limited to the examples shown: add as many rules as you need, each with a unique `id`, following the section xref:#the-rule-format[]. Identifier values are shown in full in the xref:#audit-log[audit log].
@@ -100,28 +98,15 @@ _aroxy_ has the following three prerequisites.
 ----
 java --version
 ----
-. One installation tool:
-+
---
-* `curl` for xref:#install-with-curl[installing without building],
-+
-or
-* Maven 3.9.16 or later for xref:#install-from-source[installing from source]. You can verify it with `mvn --version`.
---
-. At least one supported agent, installed and already logged in:
-+
---
-* Claude Code, with either an API key or a Claude.ai subscription,
-+
-or
-* Codex, signed in with ChatGPT.
-+
-or
-* The Cursor command-line tool, logged in with a Cursor account or configured with an API key.
-+
-or
-* The GitHub Copilot command-line tool, logged in with a GitHub account that has an active Copilot subscription.
---
+. One of the following installation tools:
+.. `curl`, for xref:#install-with-curl[installing without building],
+.. Maven 3.10.0 or later, checked with `mvn --version`, for xref:#install-from-source[installing from source].
+. At least one of the following supported agents, installed and already logged in:
+.. Claude Code, with either an API key or a Claude.ai subscription,
+.. Codex, signed in with ChatGPT,
+.. the Cursor command-line tool, logged in with a Cursor account or configured with an API key,
+.. the GitHub Copilot command-line tool, logged in with a GitHub account that has an active Copilot subscription.
+
 +
 _aroxy_ forwards the authentication header unchanged, so every one of those logins works. Nothing about your credentials is read, stored, or rewritten.
 
@@ -144,9 +129,9 @@ mvn -q clean package
 ./install.sh
 ----
 . `install.sh` writes the jar to `~/.aroxy/aroxy.jar`, creates the `~/.local/bin/aroxy` launcher, and configures `PATH` and completion in `~/.zshrc` or `~/.bashrc`.
-. A reinstall stops the service and deletes the entire `~/.aroxy/` state directory before installing a clean copy. Back up any configuration or logs you need. Reattach xref:#persistent-configuration-file[persistent configuration files] before starting _aroxy_ again.
-. Once the installer finishes, restart your shell, or source the startup file, so the new `PATH` and completion take effect. You can then confirm the install with `aroxy --version`.
-. _aroxy_ keeps its configuration registry, token xref:#vault[vault `vault.tsv`], process id, runtime status, and `logs/` under `~/.aroxy/`.
+. Reinstalling stops the service and deletes the entire `~/.aroxy/` state directory before installing a clean copy. Back up any configuration or logs you need. Reattach xref:#persistent-configuration-file[persistent configuration files] before starting _aroxy_ again.
+. Once the installer finishes, restart your shell, or source the startup file, so the new `PATH` and completion take effect. You can then confirm the installation with `aroxy --version`.
+. _aroxy_ keeps its configuration registry, token xref:#vault[vault `vault.tsv`], process ID, runtime status, and `logs/` under `~/.aroxy/`.
 
 == Uninstall
 
@@ -156,7 +141,7 @@ mvn -q clean package
 ----
 ./uninstall.sh
 ----
-. `uninstall.sh` stops the service and removes the launcher, managed shell block, and entire `~/.aroxy/` state directory. This deletes all configuration files, vault data, and logs.
+. `uninstall.sh` stops the service and removes the launcher, the shell configuration block that the installer added, and the entire `~/.aroxy/` state directory. This deletes all configuration files, vault data, and logs.
 
 == Running aroxy
 
@@ -255,7 +240,7 @@ The following command table uses `<f>` for the path to a configuration file writ
 | `aroxy copilot [arguments]` | Run the GitHub Copilot command-line tool through _aroxy_.
 | `aroxy config attach <f> [--persistent\|--temporary]` | Attach a configuration file as persistent or temporary, described in the section xref:#configuration[].
 | `aroxy config detach <f>` | Detach a xref:#persistent-configuration-file[persistent configuration file]. Allowed only while the service is stopped.
-| `aroxy config list` | List the configuration files attached, each labelled persistent or temporary. While the service runs it also shows each configuration file's load time. While stopped it lists the xref:#persistent-configuration-file[persistent configuration files] from the xref:#registry[registry].
+| `aroxy config list` | List the configuration files attached, each labeled persistent or temporary. While the service runs it also shows each configuration file's load time. While stopped it lists the xref:#persistent-configuration-file[persistent configuration files] from the xref:#registry[registry].
 |===
 
 [[configuration]]
@@ -272,8 +257,8 @@ The following command table uses `<f>` for the path to a configuration file writ
 [[gateway-keys]]
 == The Gateway Keys
 
-The `[gateway]` stanza takes five keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
-
+. The `[gateway]` stanza takes five keys, one listen port per supported agent plus the audit-log masking switch. Each key you write states an intent, so an unknown key, or a value that names nothing usable, makes the whole configuration file broken and it isn't loaded. Leave a key out to accept its default.
++
 [cols="1,1,3",options="header"]
 |===
 | Key | Default | Meaning
@@ -283,13 +268,12 @@ The `[gateway]` stanza takes five keys, one listen port per supported agent plus
 | `listen_copilot` | `8791` | The port used by the GitHub Copilot command-line tool.
 | `mask_secrets` | `true` | `true` masks the values of `sensitive` rules in the xref:#audit-log[audit log].
 |===
-
-Each listen key supplies only a port. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone. Giving two agents the same port breaks the configuration file. Port changes require `aroxy restart`, while `mask_secrets` changes take effect on reload.
+. Each listen key supplies only a port. The proxy always binds `127.0.0.1`, and a `host:port` value is read for its port alone. Giving two agents the same port breaks the configuration file. Port changes require `aroxy restart`, while `mask_secrets` changes take effect on reload.
 
 [[the-rule-format]]
 == The Rule Format
 
-. [[stanza-format]]A configuration file uses a stanza format: a line `[gateway]` or `[rule]` opens a stanza, `key = value` lines follow, and a line that begins with `#` is a comment. Patterns are written verbatim, with no backslash escaping. Only `id`, `placeholder`, and the rule's source are required. The source is `pattern` for a `regex` rule, or `value` for a `literal` rule. Every other key is optional and takes the default shown.
+. [[stanza-format]]A configuration file uses a stanza format: a line `[gateway]` or `[rule]` opens a stanza, `key = value` lines follow, and a line that begins with `+#+` is a comment. Patterns are written verbatim, with no backslash escaping. Only `id`, `placeholder`, and the rule's source are required. The source is `pattern` for a `regex` rule, or `value` for a `literal` rule. Every other key is optional and takes the default shown.
 +
 [cols="1,1,3",options="header"]
 |===
@@ -367,12 +351,12 @@ The diagnostic log at `~/.aroxy/logs/aroxy.log` is shown by `aroxy logs --app`. 
 +
 Each request produces two wire dumps under `~/.aroxy/logs/wire/`. The dumps are listed by `aroxy logs --wire`. They contain the actual bytes on the wire and use the same stamp as the xref:#audit-log[audit log].
 +
-* `+<stamp>-redacted-request.json+` is the obfuscated request body _aroxy_ sent upstream. It's the proof that secrets and identifiers left the machine only as tokens.
-* `+<stamp>-raw-response.txt+` is the response received from the API, before _aroxy_ restored the original values.
+.. `+<stamp>-redacted-request.json+` is the obfuscated request body _aroxy_ sent upstream. It's the proof that secrets and identifiers left the machine only as tokens.
+.. `+<stamp>-raw-response.txt+` is the response received from the API, before _aroxy_ restored the original values.
+
 +
 Because these files hold whole request and response bodies, _aroxy_ prunes them automatically, deleting any dump older than seven days and keeping the directory under 500 files. `aroxy logs --wire` prints the paths of the files that remain. Open one with `less`, `cat`, or any text editor to read it.
-
-Without `-f`, `aroxy logs` prints once and returns. With `-f`, it follows the audit log by default or the diagnostic log with `--app` until you press Ctrl-C. The `--all` and `--wire` options ignore `-f`.
+. Without `-f`, `aroxy logs` prints once and returns. With `-f`, it follows the audit log by default or the diagnostic log with `--app` until you press Ctrl-C. The `--all` and `--wire` options ignore `-f`.
 
 
 [[vault-and-sessions]]
@@ -382,61 +366,45 @@ Without `-f`, `aroxy logs` prints once and returns. With `-f`, it follows the au
 . One _aroxy_ serves every agent session on the machine. All agents share the vault and xref:#audit-log[audit log], so the same value receives the same token across agents. The synchronized vault supports concurrent sessions.
 . A response carries only the tokens introduced by its request, and authentication headers pass through unchanged. Content therefore doesn't cross between sessions.
 
+[[about-the-document]]
 == About the Document
 
-The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language. The guideline, export, and linting setup described below live in the repository that holds the source text, and an exported copy of the document carries none of them.
-
-=== Guideline
-
-The source text should follow the link:README-guideline-writing.adoc[Writing Guideline], stored beside it in the repository.
-
-=== Prerequisites
-
-To export and lint the source text, install the following tools:
-
-. https://asciidoctor.org/#installation[Asciidoctor^]
-. https://docs.asciidoctor.org/pdf-converter/latest/install/[Asciidoctor PDF^]
-. https://pandoc.org/installing.html[Pandoc^]
-. https://www.python.org/downloads/[Python 3^]
-. https://vale.sh/docs/install/[Vale^]
-. https://poppler.freedesktop.org[`pdftotext`^]
-. https://github.com/tesseract-ocr/tesseract[`tesseract`^]
-
-=== Export
-
-. To export the source text to HTML:
+. The source text of this document is written in the https://asciidoc.org[AsciiDoc^] markup language.
+. The source text of this document must follow the link:README-guideline-writing.adoc[Writing Guideline for Utilitarian Non-Fiction^]. The guideline is stored beside the source text in the same Git repository.
+. The https://github.com/ciechanowiec/adocent[`adocent`^] application lints, converts, and watches the source text of this document.
+. *Usage of https://github.com/ciechanowiec/adocent[`adocent`^]*
++
+`adocent usage` prints the complete https://github.com/ciechanowiec/adocent[`adocent`^] manual and JSON reference catalogs, producing a large output. Don't run it during routine writing. Use it only when command help and lint diagnostics don't resolve a specific usage problem. Save the output to a temporary file and read only the relevant sections. AI agents must not load the full output into their context.
+. *Linting*
++
+To lint the source text of this document, run this command from the directory containing the source text:
 +
 [source,bash,subs="attributes+"]
 ----
-asciidoctor --attribute allow-uri-read {docname}{docfilesuffix}
+adocent lint "{docname}{docfilesuffix}"
 ----
-
-. To export the source text to PDF:
+. *Converting*
++
+To convert this document to HTML, PDF, and DOCX, run this command from the directory containing the source text:
 +
 [source,bash,subs="attributes+"]
 ----
-asciidoctor-pdf --attribute allow-uri-read --require ./.docs/lib/common-style.rb {docname}{docfilesuffix}
+adocent convert "{docname}{docfilesuffix}" --to html --to pdf --to docx
 ----
-
-. To export the source text to DOCX:
+. *Watching*
++
+To open a live HTML preview of this document, run this command from the directory containing the source text:
 +
 [source,bash,subs="attributes+"]
 ----
-prepared="$(python3 {sourcedir}/.docs/lib/export_prepare.py --docx-compat {docname}{docfilesuffix})" && asciidoctor --backend docbook --attribute allow-uri-read --out-file - "$prepared" | pandoc --from docbook --to docx --reference-doc={sourcedir}/.docs/themes/reference.docx --output {docname}.docx && python3 {sourcedir}/.docs/lib/apply_docx_formatting.py {docname}.docx && rm "$prepared"
+adocent watch "{docname}{docfilesuffix}"
 ----
 
-=== Linting
-
-Lint the source text:
-
-[source,bash,subs="attributes+"]
-----
-python3 .docs/lib/adoc_lint.py {docname}{docfilesuffix}
-----
-
-ifdef::backend-html5+not-env-github[]
+ifdef::backend-html5[]
+ifndef::env-github[]
 ++++
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.min.js"></script>
 <script src="https://www.ciechanowiec.eu/linux_mantra/adoc-docinfo-footer.js"></script>
 ++++
+endif::[]
 endif::[]

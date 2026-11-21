@@ -5,7 +5,9 @@ import eu.ciechanowiec.aroxy.config.AttachmentRegistry;
 import eu.ciechanowiec.aroxy.daemon.Home;
 import eu.ciechanowiec.aroxy.daemon.PidFile;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.concurrent.Callable;
+import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -28,9 +30,9 @@ final class DetachCommand implements Callable<Integer> {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
-    private Path file;
+    private @Nullable Path file;
 
     private final CliOutput out;
 
@@ -47,11 +49,15 @@ final class DetachCommand implements Callable<Integer> {
             this.out.note("Run 'aroxy stop' first.");
             return REFUSED;
         }
-        new AttachmentRegistry(home.attachments()).detach(this.file);
+        new AttachmentRegistry(home.attachments()).detach(this.file());
         this.out.success("Configuration detached");
-        this.out.detail("File", this.file.toAbsolutePath());
+        this.out.detail("File", this.file().toAbsolutePath());
         this.out.detail("Status", "Pending, takes effect when the daemon starts");
         this.out.note("Run 'aroxy start' to run without it.");
         return 0;
+    }
+
+    private Path file() {
+        return Objects.requireNonNull(this.file, "picocli injects the required <f> before call() runs");
     }
 }

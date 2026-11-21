@@ -136,7 +136,10 @@ final class ProxyExchange implements HttpHandler {
 
     private void onIoFailure(HttpExchange exchange, IOException failure) {
         if (ClientDisconnect.isBenign(failure)) {
-            log.debug("Client disconnected before the response completed: {}", failure.getMessage());
+            log.atDebug()
+                .setMessage("Client disconnected before the response completed: {}")
+                .addArgument(failure::getMessage)
+                .log();
             return;
         }
         this.sendError(exchange, failure);

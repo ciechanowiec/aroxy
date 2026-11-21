@@ -24,7 +24,7 @@ final class LogSelection {
         "a CLI default flag injected by picocli via reflection, with behavior falling through to AUDIT"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean audit;
 
@@ -35,7 +35,7 @@ final class LogSelection {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean app;
 
@@ -46,7 +46,7 @@ final class LogSelection {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean wire;
 
@@ -57,7 +57,7 @@ final class LogSelection {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean all;
 

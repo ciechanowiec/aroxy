@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.ciechanowiec.airness.Justification;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -178,11 +177,6 @@ class ClientSinkTest {
             this.written.countDown();
         }
 
-        @Justification(
-            "Qodana reads the inherited array parameter as non-null and wants the override to restate "
-                + "that, while the project declares no nullability annotations to restate it with"
-        )
-        @SuppressWarnings("NullableProblems")
         @Override
         public void write(byte[] chunk, int offset, int length) {
             this.bytes.write(chunk, offset, length);
@@ -221,11 +215,6 @@ class ClientSinkTest {
             throw new IOException("Broken pipe");
         }
 
-        @Justification(
-            "Qodana reads the inherited array parameter as non-null and wants the override to restate "
-                + "that, while the project declares no nullability annotations to restate it with"
-        )
-        @SuppressWarnings("NullableProblems")
         @Override
         @SneakyThrows
         public void write(byte[] chunk, int offset, int length) {

@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     environment: maven-central
     steps:
@@ -84,6 +84,9 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
+      - name: 'Install Maven 3.10.0'
+        uses: ./.github/actions/install-maven
+
       - name: 'Validate declared version and Central availability'
         id: release_state
         env:
@@ -108,24 +111,13 @@ jobs:
           fi
           echo 'central_published=false' >> "$GITHUB_OUTPUT"
 
-      - name: 'Install documentation tools'
+      - name: 'Install the pinned report browser'
         if: steps.release_state.outputs.central_published != 'true'
-        env:
-          VALE_VERSION: '3.15.1'
-          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
-        run: |
-          set -eu
-          sudo apt-get update
-          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
-          archive="$RUNNER_TEMP/vale.tar.gz"
-          curl --fail --location --silent --show-error --output "$archive" \
-            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
-          echo "$VALE_SHA256  $archive" | sha256sum --check
-          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
+        uses: ./.github/actions/install-report-browser
 
       - name: 'Run Extended verification'
         if: steps.release_state.outputs.central_published != 'true'
-        run: mvn --batch-mode --no-transfer-progress clean package -Pextended
+        run: mvn --batch-mode --no-transfer-progress clean verify -Pextended
 
       - name: 'Publish signed artifacts'
         id: publish

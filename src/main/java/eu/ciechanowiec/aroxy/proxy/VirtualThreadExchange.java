@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
@@ -71,12 +70,6 @@ final class VirtualThreadExchange extends Handler.Abstract {
 
     // A deadline already past yields a non-positive duration, which Thread::join returns from at once,
     // so the budget runs out for the drain as a whole rather than being handed out again per thread.
-    @Justification(
-        "a deadline is an instant, and Temporal would accept a date or a time of day as one"
-    )
-    @SuppressWarnings(
-        "TypeMayBeWeakened"
-    )
     static void join(Thread worker, Instant deadline) {
         try {
             worker.join(Duration.between(Instant.now(), deadline));

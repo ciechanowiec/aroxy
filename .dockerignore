@@ -1,6 +1,7 @@
-# Airness requires this file to exist, but the project owns its patterns. Keep them aligned with the
-# files that Dockerfile COPY and ADD instructions need. Add build-output exclusions such as target/
-# only when the Docker build creates those outputs instead of copying them from the host.
+# BEGIN AIRNESS MANAGED: generic
+# The project owns every pattern below the managed blocks. Keep them aligned with the files that
+# Dockerfile COPY and ADD instructions need. Add build-output exclusions such as target/ only when the
+# Docker build creates those outputs instead of copying them from the host.
 
 # Environment and credentials
 .env
@@ -19,7 +20,12 @@
 Thumbs.db
 
 # Logs
-*.log*
+*.log
+*.log.[0-9]*
 *.logs*
 logs/
 log/
+# END AIRNESS MANAGED: generic
+
+# Logs
+*.log*

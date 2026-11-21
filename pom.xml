@@ -6,8 +6,8 @@
 
     <parent>
         <groupId>eu.ciechanowiec</groupId>
-        <artifactId>airness-parent</artifactId>
-        <version>1.0.6</version>
+        <artifactId>airness-parent-java</artifactId>
+        <version>1.0.13</version>
         <relativePath/>
     </parent>
 
@@ -43,11 +43,11 @@
 
     <properties>
         <!-- Process-boundary classes are exercised outside the JVM observed by JaCoCo. -->
-        <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.*Command,eu.ciechanowiec.aroxy.daemon.*Command,eu.ciechanowiec.aroxy.daemon.Launcher*,eu.ciechanowiec.aroxy.cli.DaemonEntry</airness.coverage.excluded.classes>
+        <airness.coverage.excluded.classes>eu.ciechanowiec.aroxy.cli.*Command -- a picocli command runs in the CLI process that the installed launcher starts, outside the JVM the tests observe; eu.ciechanowiec.aroxy.daemon.*Command -- the launch command is executed by a spawned daemon JVM rather than by the test JVM; eu.ciechanowiec.aroxy.daemon.Launcher* -- the launcher spawns and supervises a detached daemon JVM, whose work the test JVM cannot observe; eu.ciechanowiec.aroxy.cli.DaemonEntry -- the hidden daemon entry runs only inside the detached background JVM</airness.coverage.excluded.classes>
         <!-- The package Airness analyzes as project-owned code. -->
         <airness.package.root>eu.ciechanowiec.aroxy</airness.package.root>
-        <!-- Vendored tools and themes contain the typography they detect or belong to another tool. -->
-        <airness.typography.excludes>.vale/,.idea/,.docs/themes/</airness.typography.excludes>
+        <!-- IDE configuration belongs to another tool. -->
+        <airness.typography.excludes>.idea/</airness.typography.excludes>
 
         <!-- Application dependencies. Harness dependency versions come from Airness. -->
         <bouncycastle.provider.version>1.85.2</bouncycastle.provider.version>
@@ -242,8 +242,15 @@
                                 </filter>
                             </filters>
                             <transformers>
+                                <!--
+                                    The shaded manifest replaces each dependency's own, so it restates the
+                                    Multi-Release attribute that Bouncy Castle's versioned classes depend on.
+                                -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${main.class}</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
@@ -256,10 +263,13 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <failOnWarnings>${airness.enforce}</failOnWarnings>
-                    <doclint>all,-missing</doclint>
                 </configuration>
             </plugin>
-            <!-- Mockito and logback are aroxy-specific bans, not family-wide Airness policy. -->
+            <!--
+                Airness bans mocking libraries only as direct dependencies. Aroxy also bans logback, and bans
+                both through transitive paths. This execution inherits the other Airness enforcer rules too,
+                because Airness forbids overriding them, so they run here a second time.
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -276,6 +286,7 @@
                                         <exclude>org.mockito:*</exclude>
                                         <exclude>ch.qos.logback:*</exclude>
                                     </excludes>
+                                    <searchTransitive>true</searchTransitive>
                                     <message>Tests use real objects, and logging is tinylog via SLF4J</message>
                                 </bannedDependencies>
                             </rules>
@@ -285,36 +296,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <!-- Documentation remains project-owned and joins Airness's slow profile. -->
-            <id>extended</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>lint-docs</id>
-                                <phase>prepare-package</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <executable>sh</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
-                                    <arguments>
-                                        <argument>scripts/lint-docs.sh</argument>
-                                        <argument>README.adoc</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

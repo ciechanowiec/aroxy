@@ -72,12 +72,6 @@ final class CopilotCertificateFactory {
         return new CertificateMaterial(sign(builder, issuerKey), keys.getPrivate());
     }
 
-    @Justification(
-        "certificate validity is a duration, while TemporalAmount would also accept a period"
-    )
-    @SuppressWarnings(
-        "TypeMayBeWeakened"
-    )
     private static X509v3CertificateBuilder certificateBuilder(
         X500Name issuer, X500Name subject, KeyPair subjectKeys, Duration validity
     ) {

@@ -1,6 +1,7 @@
 package eu.ciechanowiec.aroxy.daemon;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.fs.RestrictedDir;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -46,6 +47,12 @@ public record Home(Path base) {
         justification = "the portable property this detector recommends is the very value that must not "
             + "win here, because a JVM on macOS reads it from the account database and so ignores an "
             + "overridden HOME"
+    )
+    @Justification(
+        "an overridden HOME must win, and the user.home property on macOS comes from the account database instead"
+    )
+    @SuppressWarnings(
+        "AirnessPropertyOverEnvironment"
     )
     private static Path locate() {
         Optional<String> variable = Optional.ofNullable(System.getenv(HOME_VAR));

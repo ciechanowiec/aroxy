@@ -77,8 +77,7 @@ final class RuleApplication {
                             rule, order, span[0], span[1], span[0] == match.start() && span[1] == match.end()
                         )
                     )
-            )
-            .flatMap(Optional::stream);
+            ).flatMap(Optional::stream);
     }
 
     private String tokenize(Candidate candidate, String text, Collection<ObfuscationMatch> sink) {

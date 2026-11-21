@@ -17,6 +17,7 @@ import java.util.stream.IntStream;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Restores Cursor response frames, retaining partial aroxy tokens across consecutive deltas.
@@ -210,7 +211,7 @@ final class CursorResponseStream {
         return hasKey(object, Set.of(this.shape.turnEndKey()));
     }
 
-    private static boolean hasKey(Object value, Set<String> keys) {
+    private static boolean hasKey(@Nullable Object value, Set<String> keys) {
         return switch (value) {
             case JSONObject object -> object.keySet().stream().anyMatch(keys::contains)
                 || object.keySet().stream().anyMatch(key -> hasKey(object.get(key), keys));

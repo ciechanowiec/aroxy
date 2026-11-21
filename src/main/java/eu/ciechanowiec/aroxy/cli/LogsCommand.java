@@ -25,7 +25,7 @@ final class LogsCommand implements Callable<Integer> {
         "picocli injects this field via reflection"
     )
     @SuppressWarnings(
-        {"UnusedDeclaration", "UnusedVariable", "InstanceVariableMayNotBeInitialized"}
+        "UnusedVariable"
     )
     private boolean follow;
 
@@ -34,7 +34,7 @@ final class LogsCommand implements Callable<Integer> {
         "populated by picocli via reflection"
     )
     @SuppressWarnings(
-        {"PMD.ImmutableField", "CanBeFinal", "FieldMayBeFinal"}
+        "PMD.ImmutableField"
     )
     private LogSelection selection;
 

@@ -3,6 +3,7 @@ package eu.ciechanowiec.aroxy.proxy;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.TransportFixtures;
 import eu.ciechanowiec.aroxy.obfuscation.Obfuscator;
+import eu.ciechanowiec.aroxy.obfuscation.Respelling;
 import eu.ciechanowiec.aroxy.obfuscation.RuleCompiler;
 import eu.ciechanowiec.aroxy.obfuscation.RuleKind;
 import eu.ciechanowiec.aroxy.obfuscation.RuleSpec;
@@ -30,7 +31,9 @@ final class AgentRequest {
      * @return the transformer a test drives
      */
     static RequestObfuscation of(ClientProfile profile) {
-        RuleSpec spec = new RuleSpec("company", RuleKind.LITERAL, "COMPANY", VALUE, "i", false, true, false);
+        RuleSpec spec = new RuleSpec(
+            "company", RuleKind.LITERAL, "COMPANY", VALUE, "i", false, new Respelling(true, false)
+        );
         Obfuscator obfuscator = new Obfuscator(List.of(RuleCompiler.compile(spec)), new Vault(Optional.empty()));
         return new RequestObfuscation(TransportFixtures.buffered(profile).requestBody(), obfuscator);
     }

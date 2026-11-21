@@ -95,7 +95,10 @@ final class CursorConnectUpload implements CursorTurn {
         try {
             this.pipe.close();
         } catch (IOException exception) {
-            log.debug("Cursor request pipe could not be released: {}", exception.getMessage());
+            log.atDebug()
+                .setMessage("Cursor request pipe could not be released: {}")
+                .addArgument(exception::getMessage)
+                .log();
         }
     }
 
@@ -121,7 +124,10 @@ final class CursorConnectUpload implements CursorTurn {
         try {
             this.uploadFrames(first);
         } catch (IOException | ConnectProtocolException exception) {
-            log.debug("Cursor request upload ended: {}", exception.getMessage());
+            log.atDebug()
+                .setMessage("Cursor request upload ended: {}")
+                .addArgument(exception::getMessage)
+                .log();
         } finally {
             this.finish();
         }
@@ -131,7 +137,10 @@ final class CursorConnectUpload implements CursorTurn {
         try {
             this.pipe.finish();
         } catch (IOException exception) {
-            log.debug("Cursor request upload could not be closed: {}", exception.getMessage());
+            log.atDebug()
+                .setMessage("Cursor request upload could not be closed: {}")
+                .addArgument(exception::getMessage)
+                .log();
         }
     }
 

@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.daemon;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
@@ -59,12 +58,6 @@ final class LiveProxy {
      * bind. Without that, a port already taken by another process would leave this daemon holding
      * sockets it will never serve.
      */
-    @Justification(
-        "built once on the start path and only read afterwards"
-    )
-    @SuppressWarnings(
-        "PMD.UseConcurrentHashMap"
-    )
     private static Map<ClientId, ProxyServer> bindAll(Binding binding) throws IOException {
         Map<ClientId, ProxyServer> servers = new LinkedHashMap<>();
         try {

@@ -1,16 +1,8 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
-
 /**
  * Defensively copied inbound protobuf transformation result.
  */
-@Justification(
-    "A record would expose its mutable byte-array component through the generated accessor"
-)
-@SuppressWarnings(
-    "ClassCanBeRecord"
-)
 final class ProtobufInbound {
 
     private final byte[] payload;

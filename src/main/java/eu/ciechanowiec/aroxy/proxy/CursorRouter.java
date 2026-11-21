@@ -51,7 +51,10 @@ final class CursorRouter implements AutoCloseable {
 
     private void onIoFailure(Response response, IOException failure) {
         if (ClientDisconnect.isBenign(failure)) {
-            log.debug("Cursor client disconnected: {}", failure.getMessage());
+            log.atDebug()
+                .setMessage("Cursor client disconnected: {}")
+                .addArgument(failure::getMessage)
+                .log();
         } else {
             log.warn("Cursor proxying failed: {}", failure.toString());
             CursorHttp.reject(response, BAD_GATEWAY, "aroxy could not reach the Cursor upstream");

@@ -1,43 +1,46 @@
-# IDE
+# BEGIN AIRNESS MANAGED: generic
+# IDE & editors
 *.iml
 .idea/*
-# Share only the project-level code style and import layout. Airness owns the build formatter.
-!.idea/codeStyles/
-!.idea/codeStyles/Project.xml
-!.idea/codeStyles/codeStyleConfig.xml
-.vscode/
+# The contents of each .vscode directory rather than the directory, so a negation below can share a file.
+**/.vscode/*
 .fleet/
 
 # OS
 .DS_Store
 Thumbs.db
-~$*.docx
+~$*.doc*
+~$*.dot*
+~$*.xls*
+~$*.xlt*
+~$*.ppt*
+~$*.pps*
+~$*.pot*
+*.~vsd*
+*.laccdb
 *.docx.tmp
 .~lock.*#
 
 # Logs
-*.log*
+*.log
+*.log.[0-9]*
 *.logs*
 logs/
 log/
 
-# Java
-*.class
+# Python
+__pycache__/
+
+# Build output & caches
 target/
-.gradle/
-hs_err_pid*
-
-# Node / TypeScript
-node_modules/
 dist/
+dist-tarballs/
 build/
-coverage/
-*.tsbuildinfo
-
-# Next.js / Payload CMS
-.next/
-.turbo/
 out/
+# JVM class files and Gradle's state, which every project ignores, Java or not, since adocent asks it of each
+# project it manages.
+*.class
+.gradle/
 
 # Supabase
 .supabase/
@@ -50,6 +53,17 @@ supabase/.temp/
 *.tfstate.*
 *.tfplan
 
+# Testing
+coverage/
+
+# Environment & secrets
+.env
+.env*.local
+*.pem
+
+# Database
+/.postgres-backup-*.sql
+
 # Drawio
 *.drawio.png.bkp
 *.drawio.png.dtmp
@@ -59,6 +73,9 @@ README*.pdf
 README*.html
 README*.docx
 
+# Derived documentation exports
+*.docx-compat.adoc
+
 # IDE / tool exports
 repo.xml
 
@@ -67,3 +84,46 @@ claude/settings.local.json
 .claude/settings.local.json
 claude/scheduled_tasks.lock
 .claude/scheduled_tasks.lock
+
+# Agent worktrees, each a full checkout of the repository
+.claude/worktrees/
+
+# Playwright MCP browser-session artifacts
+.playwright-mcp/
+# END AIRNESS MANAGED: generic
+
+# BEGIN AIRNESS MANAGED: java
+# Java
+hs_err_pid*
+# END AIRNESS MANAGED: java
+
+# IDE
+# Share only the project-level code style and import layout. Airness owns the build formatter.
+!.idea/codeStyles/
+!.idea/codeStyles/Project.xml
+!.idea/codeStyles/codeStyleConfig.xml
+.vscode/
+
+# OS
+~$*.docx
+
+# Logs
+*.log*
+
+# Node / TypeScript
+node_modules/
+*.tsbuildinfo
+
+# Next.js / Payload CMS
+.next/
+.turbo/
+
+# Paths every adocent project ignores
+.pnp
+.pnp.js
+.yarn/install-state.gz
+.type-coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

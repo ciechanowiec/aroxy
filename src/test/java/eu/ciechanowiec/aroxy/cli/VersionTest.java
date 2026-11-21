@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import lombok.SneakyThrows;
-import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -63,7 +62,7 @@ class VersionTest {
 
         @Override
         @SneakyThrows
-        public int read(byte @NonNull [] target, int offset, int length) {
+        public int read(byte[] target, int offset, int length) {
             throw new IOException("unreadable");
         }
     }

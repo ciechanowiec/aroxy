@@ -24,10 +24,10 @@ import org.junit.jupiter.api.Test;
  * behind a stream that may stay open for the rest of the turn.
  */
 @Justification(
-    "in-memory fixtures: the sink has nothing to release, the map is read on the calling thread"
+    "in-memory fixtures: the sink has nothing to release"
 )
 @SuppressWarnings(
-    {"PMD.CloseResource", "PMD.UseConcurrentHashMap"}
+    "PMD.CloseResource"
 )
 class ConnectFramingTest {
 

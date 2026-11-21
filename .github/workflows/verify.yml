@@ -13,37 +13,28 @@ permissions:
 jobs:
   verify:
     name: 'Extended verification'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
     steps:
       - name: 'Checkout (full history for the whole-history gates)'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # The commit-message, typography, and gitleaks checks read the entire history.
           fetch-depth: 0
 
       - name: 'Set up JDK from .java-version'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
         with:
           distribution: 'temurin'
           java-version-file: '.java-version'
           cache: 'maven'
 
-      - name: 'Install documentation lint tools'
-        env:
-          VALE_VERSION: '3.15.1'
-          VALE_SHA256: 'c024d9c157874fb043d4f24a055d60050d1bb18755251f590593eed5bace1857'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes asciidoctor poppler-utils tesseract-ocr
-          archive="$RUNNER_TEMP/vale.tar.gz"
-          curl --fail --location --silent --show-error \
-            --output "$archive" \
-            "https://github.com/vale-cli/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
-          echo "$VALE_SHA256  $archive" | sha256sum --check
-          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin vale
+      - name: 'Install Maven 3.10.0'
+        uses: ./.github/actions/install-maven
 
-      - name: 'Extended verification (mvn clean package -Pextended)'
-        # Docker is preinstalled on GitHub-hosted ubuntu runners for Gitleaks and Qodana. The
-        # documentation linter uses the tools installed above so all source formats can be verified.
-        run: mvn clean package -Pextended
+      - name: 'Install the pinned report browser'
+        uses: ./.github/actions/install-report-browser
+
+      - name: 'Extended verification (mvn clean verify -Pextended)'
+        # Docker is preinstalled on GitHub-hosted ubuntu runners for Gitleaks and Qodana.
+        run: mvn --batch-mode --no-transfer-progress clean verify -Pextended

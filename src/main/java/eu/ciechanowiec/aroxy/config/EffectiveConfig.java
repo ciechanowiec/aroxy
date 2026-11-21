@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.config;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.client.ClientId;
 import eu.ciechanowiec.aroxy.client.ClientProfile;
 import eu.ciechanowiec.aroxy.client.ClientRegistry;
@@ -84,12 +83,6 @@ public final class EffectiveConfig {
         );
     }
 
-    @Justification(
-        "insertion order is the merge contract, and access is single-threaded"
-    )
-    @SuppressWarnings(
-        "PMD.UseConcurrentHashMap"
-    )
     private static Map<String, RuleEntry> mergeRules(Iterable<ConfigFile> files) {
         Map<String, RuleEntry> byId = new LinkedHashMap<>();
         files.forEach(file -> file.rules().forEach(entry -> byId.put(entry.id(), entry)));

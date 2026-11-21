@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -285,6 +286,29 @@ class CursorConnectTest {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
             assertEquals(Http.BAD_GATEWAY, sendTextStatus(request));
+        } finally {
+            harness.stop();
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void endsTheUploadCleanlyWhenALaterEnvelopeIsTruncated(@TempDir Path logs) {
+        String reply = "{\"text\":\"" + TOKEN + "\"}";
+        FakeUpstream upstream = new FakeUpstream(
+            CannedReply.connect(CursorWire.text(CursorWire.frame(reply.getBytes(StandardCharsets.UTF_8))))
+        );
+        ProxyHarness harness = new ProxyHarness(upstream, logs, CursorCli.profile());
+        try {
+            byte[] later = CursorWire.framed(ConnectJsonFrame.END_STREAM, "{\"toolResult\":{\"content\":\"cut\"}}");
+            byte[] body = CursorWire.concat(
+                CursorWire.frame(CursorWire.requestJson().getBytes(StandardCharsets.UTF_8)),
+                Arrays.copyOf(later, later.length - 4)
+            );
+            String response = new String(send(harness, body), StandardCharsets.UTF_8);
+            assertEquals(1, CursorWire.count(upstream.lastBody(), TOKEN), upstream.lastBody());
+            assertFalse(upstream.lastBody().contains("toolResult"), upstream.lastBody());
+            assertTrue(response.contains(ProxyHarness.SECRET), response);
         } finally {
             harness.stop();
         }

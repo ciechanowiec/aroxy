@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Applies an agent profile's body policy without touching opaque protocol values.
@@ -46,7 +47,7 @@ final class RequestObfuscation {
         return value;
     }
 
-    private Object transform(Object value, String parent) {
+    private Object transform(@Nullable Object value, String parent) {
         return switch (value) {
             case null -> JSONObject.NULL;
             case JSONObject object -> {

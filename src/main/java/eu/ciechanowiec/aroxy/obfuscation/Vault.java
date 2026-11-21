@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.obfuscation;
 
-import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -40,12 +39,6 @@ import lombok.extern.slf4j.Slf4j;
  * mutating and reading methods are synchronized.
  */
 @Slf4j
-@Justification(
-    "field count is governed by the project's own PMD cap"
-)
-@SuppressWarnings(
-    "ClassWithTooManyFields"
-)
 public final class Vault {
 
     private static final char TAB = '\t';

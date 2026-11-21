@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.Callback;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Captures Jetty content writes while accepting its null final-buffer signal.
@@ -18,7 +19,7 @@ final class CapturingSink implements Content.Sink {
     }
 
     @Override
-    public void write(boolean last, ByteBuffer buffer, Callback callback) {
+    public void write(boolean last, @Nullable ByteBuffer buffer, Callback callback) {
         Optional.ofNullable(buffer).ifPresent(this::append);
         callback.succeeded();
     }

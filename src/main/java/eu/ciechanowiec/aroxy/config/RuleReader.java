@@ -1,5 +1,6 @@
 package eu.ciechanowiec.aroxy.config;
 
+import eu.ciechanowiec.aroxy.obfuscation.Respelling;
 import eu.ciechanowiec.aroxy.obfuscation.RuleKind;
 import eu.ciechanowiec.aroxy.obfuscation.RuleSpec;
 import java.util.Locale;
@@ -75,9 +76,9 @@ final class RuleReader {
     }
 
     private RuleEntry entry(String id, String placeholder, RuleKind kind, String source) {
+        Respelling respelling = new Respelling(this.boolValue(LOOSE, false), this.boolValue(LEET, false));
         RuleSpec spec = new RuleSpec(
-            id, kind, placeholder, source, this.flags(),
-            this.boolValue(SENSITIVE, false), this.boolValue(LOOSE, false), this.boolValue(LEET, false)
+            id, kind, placeholder, source, this.flags(), this.boolValue(SENSITIVE, false), respelling
         );
         return new RuleEntry(spec, this.boolValue(ENABLED, true));
     }

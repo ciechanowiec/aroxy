@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import eu.ciechanowiec.aroxy.obfuscation.ObfuscationMatch;
 import java.util.Collection;
 import java.util.List;
@@ -8,12 +7,6 @@ import java.util.List;
 /**
  * Defensively copied outbound protobuf transformation result.
  */
-@Justification(
-    "A record would expose its mutable byte-array component through the generated accessor"
-)
-@SuppressWarnings(
-    "ClassCanBeRecord"
-)
 final class ProtobufOutbound {
 
     private final byte[] payload;

@@ -2,6 +2,7 @@ package eu.ciechanowiec.aroxy.cli;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.ciechanowiec.aroxy.daemon.Home;
@@ -37,7 +38,7 @@ class DaemonOutputTest {
         assertTrue(text.contains("✓ Daemon started"), text);
         assertTrue(text.contains("● Daemon already running"), text);
         assertTrue(text.contains("PID"), text);
-        assertTrue(text.indexOf("PID") != text.lastIndexOf("PID"), text);
+        assertNotEquals(text.indexOf("PID"), text.lastIndexOf("PID"), text);
         assertTrue(text.contains("http://127.0.0.1:8788"), text);
         assertTrue(text.contains("https://127.0.0.1:8789"), text);
     }

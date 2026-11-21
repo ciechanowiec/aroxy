@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Materializes the bundled {@code default.conf} resource to a target path on first run. An existing
@@ -56,7 +57,7 @@ public final class DefaultConfig {
     @SuppressWarnings(
         "resource"
     )
-    private static byte[] readAll(InputStream resource) throws IOException {
+    private static byte[] readAll(@Nullable InputStream resource) throws IOException {
         return Optional.ofNullable(resource).orElseThrow(DefaultConfig::missing).readAllBytes();
     }
 

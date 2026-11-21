@@ -1,0 +1,26 @@
+name: 'Install the pinned report browser'
+description: 'Installs the Chromium that Airness pins for the compliance PDF, with its system libraries.'
+
+# Extended verification ends by printing the compliance report to PDF with the Chromium revision the
+# harness pins, from a cache of its own that no runner image provides. The harness goal installs that
+# browser alone, so its system libraries are installed by the same Playwright the goal resolved, whose
+# version the goal reports as the last segment of the cache path it prints.
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Install the pinned report browser and its system libraries'
+      shell: bash
+      run: |
+        set -euo pipefail
+        output="$(mvn --batch-mode --no-transfer-progress airness:report-browser-install)"
+        printf '%s\n' "$output"
+        version="$(printf '%s\n' "$output" | sed -n 's|^\[INFO\] Report browser cache: .*/||p')"
+        test -n "$version"
+        repository="$HOME/.m2/repository/com/microsoft/playwright"
+        classpath=''
+        for artifact in playwright driver driver-bundle; do
+          jar="$repository/$artifact/$version/$artifact-$version.jar"
+          test -f "$jar"
+          classpath="${classpath:+$classpath:}$jar"
+        done
+        java -cp "$classpath" com.microsoft.playwright.CLI install-deps chromium

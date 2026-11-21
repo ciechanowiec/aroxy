@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Case-insensitive first-value lookup over a response header map, used to read {@code Content-Type}
@@ -21,7 +22,7 @@ final class HeaderLookup {
             .findFirst();
     }
 
-    private static boolean matches(String key, String wanted) {
+    private static boolean matches(@Nullable String key, String wanted) {
         return Optional.ofNullable(key)
             .map(name -> name.toLowerCase(Locale.ROOT))
             .filter(wanted::equals)

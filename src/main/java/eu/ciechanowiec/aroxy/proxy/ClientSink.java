@@ -1,6 +1,5 @@
 package eu.ciechanowiec.aroxy.proxy;
 
-import eu.ciechanowiec.airness.Justification;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -107,11 +106,6 @@ final class ClientSink extends OutputStream {
         this.guarded(() -> this.delegate.write(value));
     }
 
-    @Justification(
-        "Qodana reads the inherited array parameter as non-null and wants the override to restate "
-            + "that, while the project declares no nullability annotations to restate it with"
-    )
-    @SuppressWarnings("NullableProblems")
     @Override
     public void write(byte[] chunk, int offset, int length) throws IOException {
         this.guarded(() -> this.delegate.write(chunk, offset, length));
