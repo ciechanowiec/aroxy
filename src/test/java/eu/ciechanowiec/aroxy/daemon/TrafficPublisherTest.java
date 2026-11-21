@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,9 +59,13 @@ class TrafficPublisherTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger calls = new AtomicInteger();
-        TrafficPublisher publisher = new TrafficPublisher(
-            file, () -> calls.getAndIncrement() == 0 ? TrafficTotals.NONE : held(entered, release)
-        );
+        Supplier<TrafficTotals> source = () -> {
+            if (calls.getAndIncrement() > 0) {
+                hold(entered, release);
+            }
+            return TrafficTotals.NONE;
+        };
+        TrafficPublisher publisher = new TrafficPublisher(file, source);
         publisher.start();
         assertTrue(entered.await(WAIT.toMillis(), TimeUnit.MILLISECONDS), "a tick began");
         Thread.currentThread().interrupt();
@@ -72,9 +77,8 @@ class TrafficPublisherTest {
     }
 
     @SneakyThrows
-    private static TrafficTotals held(CountDownLatch entered, CountDownLatch release) {
+    private static void hold(CountDownLatch entered, CountDownLatch release) {
         entered.countDown();
         release.await();
-        return TrafficTotals.NONE;
     }
 }
